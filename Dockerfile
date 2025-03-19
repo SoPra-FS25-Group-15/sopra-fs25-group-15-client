@@ -26,9 +26,12 @@ USER 3301
 # Set container working directory to /app
 WORKDIR /app
 # Copy node modules and app
-COPY --chown=node:node --from=build /app/node_modules /app/node_modules
-COPY --chown=node:node --from=build /app/build build
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/.next ./.next
+COPY --chown=node:node --from=build /app/public ./public
+# COPY --chown=node:node --from=build /app/next.config.ts ./next.config.ts
+
 # Expose port for serve
 EXPOSE 3000
 # Start app
-CMD [ "npx", "serve", "-s", "build" ]
+CMD ["node", "node_modules/.bin/next", "start"]
