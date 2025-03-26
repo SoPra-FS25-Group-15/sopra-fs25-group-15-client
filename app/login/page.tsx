@@ -1,47 +1,52 @@
-"use client"; // For components that need React hooks and browser APIs, SSR (server side rendering) has to be disabled. Read more here: https://nextjs.org/docs/pages/building-your-application/rendering/server-side-rendering
+"use client";
 
-import { useRouter } from "next/navigation"; // use NextJS router for navigation
+import "@ant-design/v5-patch-for-react-19";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
-import { Button, Form, Input } from "antd";
-// Optionally, you can import a CSS module or file for additional styling:
-// import styles from "@/styles/page.module.css";
+import { Button, Card, Checkbox, Form, Input } from "antd";
+import { EyeFilled, EyeInvisibleOutlined } from "@ant-design/icons";
+import Notification, {
+  NotificationProps,
+} from "@/components/general/notification";
+import { useState } from "react";
 
-interface FormFieldProps {
+interface LoginProps {
   label: string;
   value: string;
+  remember: boolean;
 }
 
 const Login: React.FC = () => {
   const router = useRouter();
   const apiService = useApi();
   const [form] = Form.useForm();
-  // useLocalStorage hook example use
-  // The hook returns an object with the value and two functions
-  // Simply choose what you need from the hook:
-  const {
-    // value: token, // is commented out because we do not need the token value
-    set: setToken, // we need this method to set the value of the token to the one we receive from the POST request to the backend server API
-    // clear: clearToken, // is commented out because we do not need to clear the token when logging in
-  } = useLocalStorage<string>("token", ""); // note that the key we are selecting is "token" and the default value we are setting is an empty string
-  // if you want to pick a different token, i.e "usertoken", the line above would look as follows: } = useLocalStorage<string>("usertoken", "");
 
-  const handleLogin = async (values: FormFieldProps) => {
+  const { set: setToken } = useLocalStorage<string>("token", "");
+
+  const [notification, setNotification] = useState<NotificationProps | null>(
+    null
+  );
+
+  // TODO: api call to check if token is still valid: true: redirect to main page or profile, if not: stay on login page
+  // if (token) {}
+
+  const handleLogin = async (values: LoginProps) => {
     try {
-      // Call the API service and let it handle JSON serialization and error handling
-      const response = await apiService.post<User>("/users", values);
-
-      // Use the useLocalStorage hook that returned a setter function (setToken in line 41) to store the token if available
+      const response = await apiService.post<User>("/api/auth/login", values);
       if (response.token) {
         setToken(response.token);
       }
-
-      // Navigate to the user overview
-      router.push("/users");
+      router.push("/");
     } catch (error) {
       if (error instanceof Error) {
-        alert(`Something went wrong during the login:\n${error.message}`);
+        setNotification({
+          type: "error",
+          message: `${error.name}: ${error.message}`,
+          onClose: () => setNotification(null),
+        });
       } else {
         console.error("An unknown error occurred during login.");
       }
@@ -49,14 +54,19 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="login-container">
+    <Card title="Login">
+      <p>
+        Don&apos;t have an account yet? <Link href="/signup">Sign up</Link>
+      </p>
+      {notification && <Notification {...notification} />}
       <Form
         form={form}
         name="login"
-        size="large"
-        variant="outlined"
-        onFinish={handleLogin}
         layout="vertical"
+        variant="outlined"
+        initialValues={{ remember: true }}
+        autoComplete="off"
+        onFinish={handleLogin}
       >
         <Form.Item
           name="username"
@@ -66,19 +76,27 @@ const Login: React.FC = () => {
           <Input placeholder="Enter username" />
         </Form.Item>
         <Form.Item
-          name="name"
-          label="Name"
-          rules={[{ required: true, message: "Please input your name!" }]}
+          name="password"
+          label="Password"
+          rules={[{ required: true, message: "Please input your password!" }]}
         >
-          <Input placeholder="Enter name" />
+          <Input.Password
+            placeholder="Enter password"
+            iconRender={(visible) =>
+              visible ? <EyeFilled /> : <EyeInvisibleOutlined />
+            }
+          />
+        </Form.Item>
+        <Form.Item name="remember" valuePropName="checked">
+          <Checkbox>Keep me signed in</Checkbox>
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit" className="login-button">
+          <Button type="primary" htmlType="submit">
             Login
           </Button>
         </Form.Item>
       </Form>
-    </div>
+    </Card>
   );
 };
 
