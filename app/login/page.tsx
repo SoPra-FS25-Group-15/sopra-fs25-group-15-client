@@ -56,7 +56,7 @@ const Login: React.FC = () => {
   return (
     <Card title="Login">
       <p>
-        Don&apos;t have an account yet? <Link href="/signup">Sign up</Link>
+        Don&apos;t have an account yet? <Link href="/register">Register</Link>
       </p>
       {notification && <Notification {...notification} />}
       <Form
