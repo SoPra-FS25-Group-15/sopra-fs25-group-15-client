@@ -17,10 +17,7 @@ interface FriendRequest {
   requestId: string;
   fromUserId: string;
   username: string;
-<<<<<<< HEAD
-=======
   email?: string;
->>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
 }
 
 const FriendManagement: React.FC = () => {
@@ -33,10 +30,7 @@ const FriendManagement: React.FC = () => {
   const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
-<<<<<<< HEAD
-=======
   const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
->>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
 
   useEffect(() => {
     setHydrated(true);
@@ -75,11 +69,6 @@ const FriendManagement: React.FC = () => {
     }
   };
 
-<<<<<<< HEAD
-  useEffect(() => {
-    fetchFriends();
-    fetchFriendRequests();
-=======
   const fetchSentRequests = async () => {
     try {
       const response = await apiService.get<FriendRequest[]>("/api/friends/requests/sent");
@@ -97,7 +86,6 @@ const FriendManagement: React.FC = () => {
     fetchFriends();
     fetchFriendRequests();
     fetchSentRequests();
->>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
   }, []);
 
   // handleSendRequest that expects either email or username (handled in the backend)
@@ -169,8 +157,6 @@ const FriendManagement: React.FC = () => {
     }
   };
 
-<<<<<<< HEAD
-=======
   const handleCancelRequest = async (requestId: string) => {
     try {
       const response = await apiService.delete<{ message: string }>(`/api/friends/requests/${requestId}`);
@@ -189,7 +175,6 @@ const FriendManagement: React.FC = () => {
     }
   };
 
->>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
   const handleRemoveFriend = async (friendId: string) => {
     try {
       const response = await apiService.delete<{ message: string }>(`/api/friends/${friendId}`);
@@ -252,8 +237,6 @@ const FriendManagement: React.FC = () => {
         />
       </Card>
 
-<<<<<<< HEAD
-=======
       <Card title="Sent Friend Requests" style={{ marginTop: 16 }}>
         <List
           dataSource={sentRequests}
@@ -275,7 +258,6 @@ const FriendManagement: React.FC = () => {
       </Card>
 
 
->>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
       <Card title="Friends List" style={{ marginTop: 16 }}>
         <List
           dataSource={friends}
