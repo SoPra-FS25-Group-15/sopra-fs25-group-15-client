@@ -17,6 +17,10 @@ interface FriendRequest {
   requestId: string;
   fromUserId: string;
   username: string;
+<<<<<<< HEAD
+=======
+  email?: string;
+>>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
 }
 
 const FriendManagement: React.FC = () => {
@@ -29,6 +33,10 @@ const FriendManagement: React.FC = () => {
   const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+<<<<<<< HEAD
+=======
+  const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
+>>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
 
   useEffect(() => {
     setHydrated(true);
@@ -67,9 +75,29 @@ const FriendManagement: React.FC = () => {
     }
   };
 
+<<<<<<< HEAD
   useEffect(() => {
     fetchFriends();
     fetchFriendRequests();
+=======
+  const fetchSentRequests = async () => {
+    try {
+      const response = await apiService.get<FriendRequest[]>("/api/friends/requests/sent");
+      setSentRequests(response);
+    } catch (error: any) {
+      setNotification({
+        type: "error",
+        message: error.message || "Failed to load sent friend requests.",
+        onClose: () => setNotification(null),
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchFriends();
+    fetchFriendRequests();
+    fetchSentRequests();
+>>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
   }, []);
 
   // handleSendRequest that expects either email or username (handled in the backend)
@@ -141,6 +169,27 @@ const FriendManagement: React.FC = () => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const handleCancelRequest = async (requestId: string) => {
+    try {
+      const response = await apiService.delete<{ message: string }>(`/api/friends/requests/${requestId}`);
+      setNotification({
+        type: "success",
+        message: response.message,
+        onClose: () => setNotification(null),
+      });
+      fetchSentRequests();
+    } catch (error: any) {
+      setNotification({
+        type: "error",
+        message: error.message || "Failed to cancel friend request.",
+        onClose: () => setNotification(null),
+      });
+    }
+  };
+
+>>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
   const handleRemoveFriend = async (friendId: string) => {
     try {
       const response = await apiService.delete<{ message: string }>(`/api/friends/${friendId}`);
@@ -203,6 +252,30 @@ const FriendManagement: React.FC = () => {
         />
       </Card>
 
+<<<<<<< HEAD
+=======
+      <Card title="Sent Friend Requests" style={{ marginTop: 16 }}>
+        <List
+          dataSource={sentRequests}
+          locale={{ emptyText: "No sent friend requests." }}
+          renderItem={(item) => (
+            <List.Item
+              actions={[
+                <Button type="default" onClick={() => handleCancelRequest(item.requestId)}>
+                  Cancel Request
+                </Button>,
+              ]}
+            >
+              <List.Item.Meta
+                title={item.username}
+              />
+            </List.Item>
+          )}
+        />
+      </Card>
+
+
+>>>>>>> c58a0cf (Implemented a sent requests overview. Fixes #68)
       <Card title="Friends List" style={{ marginTop: 16 }}>
         <List
           dataSource={friends}
