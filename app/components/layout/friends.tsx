@@ -3,7 +3,7 @@
 import "@ant-design/v5-patch-for-react-19";
 import React, { useState, useEffect } from "react";
 import { Button, Card, Form, Input, List } from "antd";
-import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
 
@@ -206,7 +206,7 @@ const FriendManagement: React.FC = () => {
     padding: 16,
   };
 
-  // Collapsed view: show friend profile pictures and a clickable toggle (arrow pointing left)
+  // Collapsed view: show friend profile pictures, a plus button for inviting a friend, and a toggle arrow to expand the panel
   if (collapsed) {
     return (
       <div style={{ ...containerStyle, width: 80, padding: 8, textAlign: "center" }}>
@@ -231,11 +231,19 @@ const FriendManagement: React.FC = () => {
             </div>
           ))}
         </div>
-        {/* For right side collapsed view, use a left-pointing toggle */}
-        <div
-          style={{ cursor: "pointer", fontWeight: "bold" }}
-          onClick={() => setCollapsed(false)}
-        >
+        {/* Plus button to redirect to the invite friend form */}
+        <div style={{ marginBottom: 8 }}>
+          <Button
+            type="text"
+            icon={<PlusOutlined style={{ fontSize: "16px" }} />}
+            onClick={() => {
+              setCollapsed(false);
+              setShowInviteForm(true);
+            }}
+          />
+        </div>
+        {/* For right side collapsed view, use a left-pointing toggle to expand the panel */}
+        <div style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(false)}>
           &laquo;
         </div>
       </div>
@@ -249,10 +257,7 @@ const FriendManagement: React.FC = () => {
         {notification && <Notification {...notification} />}
         {/* Back arrow to return to friend management view */}
         <div style={{ marginBottom: 16 }}>
-          <span
-            style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }}
-            onClick={() => setSelectedProfile(null)}
-          >
+          <span style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }} onClick={() => setSelectedProfile(null)}>
             &#8592;
           </span>
           Public Profile: {selectedProfile.username}
@@ -277,10 +282,7 @@ const FriendManagement: React.FC = () => {
       <div style={containerStyle}>
         {notification && <Notification {...notification} />}
         <div style={{ marginBottom: 16 }}>
-          <span
-            style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }}
-            onClick={() => setShowInviteForm(false)}
-          >
+          <span style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }} onClick={() => setShowInviteForm(false)}>
             &#8592;
           </span>
           Add New Friend
@@ -312,10 +314,7 @@ const FriendManagement: React.FC = () => {
       
       {/* Collapse control using a right-pointing toggle */}
       <div style={{ marginBottom: 16, textAlign: "right" }}>
-        <span
-          style={{ cursor: "pointer", fontWeight: "bold" }}
-          onClick={() => setCollapsed(true)}
-        >
+        <span style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(true)}>
           &raquo;
         </span>
       </div>
@@ -349,16 +348,13 @@ const FriendManagement: React.FC = () => {
             >
               <List.Item.Meta 
                 title={
-                  <div
-                    style={{ cursor: "pointer" }}
-                    onClick={() =>
-                      setSelectedProfile({
-                        userId: item.fromUserId,
-                        username: item.username,
-                        profilePicture: item.profilePicture,
-                      })
-                    }
-                  >
+                  <div style={{ cursor: "pointer" }} onClick={() =>
+                    setSelectedProfile({
+                      userId: item.fromUserId,
+                      username: item.username,
+                      profilePicture: item.profilePicture,
+                    })
+                  }>
                     {item.username}
                   </div>
                 }
@@ -385,16 +381,13 @@ const FriendManagement: React.FC = () => {
             >
               <List.Item.Meta 
                 title={
-                  <div
-                    style={{ cursor: "pointer" }}
-                    onClick={() =>
-                      setSelectedProfile({
-                        userId: item.fromUserId, // Use fromUserId instead of undefined
-                        username: item.username,
-                        profilePicture: item.profilePicture,
-                      })
-                    }
-                  >
+                  <div style={{ cursor: "pointer" }} onClick={() =>
+                    setSelectedProfile({
+                      userId: item.fromUserId,
+                      username: item.username,
+                      profilePicture: item.profilePicture,
+                    })
+                  }>
                     {item.username}
                   </div>
                 }
@@ -419,16 +412,13 @@ const FriendManagement: React.FC = () => {
             >
               <List.Item.Meta 
                 title={
-                  <div
-                    style={{ cursor: "pointer" }}
-                    onClick={() =>
-                      setSelectedProfile({
-                        userId: item.userId,
-                        username: item.username,
-                        profilePicture: item.profilePicture,
-                      })
-                    }
-                  >
+                  <div style={{ cursor: "pointer" }} onClick={() =>
+                    setSelectedProfile({
+                      userId: item.userId,
+                      username: item.username,
+                      profilePicture: item.profilePicture,
+                    })
+                  }>
                     {item.username}
                   </div>
                 }
