@@ -3,41 +3,67 @@ import { Avatar, Card, Flex, Tag } from "antd";
 import { UserOutlined } from "@ant-design/icons";
 
 /**
- * Represents the properties for the UserCard component.
+ * Properties for the UserCard component.
  *
- * @property username - The username to be displayed by the UserCard.
- * @property rank - The rank associated with the user.
- * @property subview - `Optional` A React node for rendering any additional subview content, ex. a button that shows more options.
+ * @property username - `Optional` The user's display name.
+ * @property rank - `Optional` The rank of the user.
+ * @property showPointer - `Optional` Determines if the cursor should change to a pointer on hover.
+ * @property onClick - `Optional` Callback fired when the card is clicked.
+ * @property subview - `Optional` React node rendered alongside the main user details.
  */
 interface UserCardProps {
-  username: string;
-  rank: string;
+  username?: string;
+  rank?: string;
+  showPointer?: boolean;
+  onClick?: () => void;
   subview?: React.ReactNode;
 }
 
 /**
- * A reusable card component that displays a user's information.
+ * UserCard component.
  *
- * This component renders a card with a default avatar (for now), username, and rank.
- * It also supports an optional subview element that can be rendered alongside the main user information.
+ * This component renders a compact card displaying a user's avatar, username, and rank.
+ * It supports additional clickable functionality and an optional subview, rendered to the right of the user details.
+ * The card can be styled to change the cursor to a pointer when hovered over.
+ * Leave the username and rank fields unset to render only the avatar.
  *
- * @property username - The username to be displayed by the UserCard.
- * @property rank - The rank associated with the user.
- * @property subview - `Optional` A React node for rendering any additional subview content, ex. a button that shows more options.
+ * @property username - `Optional` The user's display name.
+ * @property rank - `Optional` The rank of the user.
+ * @property showPointer - `Optional` Determines if the cursor should change to a pointer on hover.
+ * @property onClick - `Optional` Callback fired when the card is clicked.
+ * @property subview - `Optional` React node rendered alongside the main user details.
  *
  * @returns A React element representing the user card.
  */
 const UserCard: React.FC<
   UserCardProps & React.HTMLAttributes<HTMLSpanElement> // Extend the props for the component to work with antd <Popover>
-> = ({ username, rank, subview, ...props }): React.ReactElement => {
+> = ({
+  username,
+  rank,
+  showPointer,
+  onClick,
+  subview,
+  ...props
+}): React.ReactElement => {
   return (
-    <Card {...props} size="small" hoverable>
-      <Flex gap={32} align="center">
+    <Card
+      {...props}
+      onClick={onClick ? onClick : undefined}
+      size="small"
+      styles={{
+        body: {
+          height: 72,
+          minWidth: 72,
+          cursor: showPointer ? "pointer" : "default",
+        },
+      }}
+    >
+      <Flex gap={32} align="center" justify="center" style={{ height: "100%" }}>
         <Flex gap={16}>
           <Avatar size={42} icon={<UserOutlined />} />
           <Flex vertical align="start">
-            <p>{username}</p>
-            <Tag color="purple">{rank}</Tag>
+            {username && <p>{username}</p>}
+            {rank && <Tag color="purple">{rank}</Tag>}
           </Flex>
         </Flex>
         {subview ? subview : ""}

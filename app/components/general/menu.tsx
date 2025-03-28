@@ -1,4 +1,3 @@
-import Link from "next/link";
 import React from "react";
 import { Button } from "antd";
 
@@ -13,15 +12,13 @@ import { Button } from "antd";
  * @property link - `Optional` An URL that the menu item navigates to when clicked.
  * @property onClick - `Optional` A callback function that handles click events on the menu item.
  * @property subview - `Optional` A React node that represents an additional view or nested menu.
- *
- * A menu item must have either a link or an onClick handler defined.
  */
-export type MenuItem = {
+export interface MenuItem {
   label: string;
   link?: string;
   onClick?: () => void;
   subview?: React.ReactNode;
-};
+}
 
 const MenuItem: React.FC<MenuItem> = ({
   label,
@@ -29,29 +26,26 @@ const MenuItem: React.FC<MenuItem> = ({
   onClick,
   subview,
 }: MenuItem): React.ReactElement => {
+  // If a link is provided, set href to the link
+  // If an onClick handler is provided, set onClick to the handler
   return (
-    <li>
-      {link ? (
-        <Button type="link">
-          <Link
-            href={link}
-            style={{ display: "flex", gap: 8, alignItems: "center" }}
-          >
-            {label}
-            {subview ? subview : ""}
-          </Link>
-        </Button>
-      ) : onClick ? (
-        <Button type="link" onClick={onClick}>
-          {label}
-        </Button>
-      ) : (
-        (() => {
-          throw new Error(
-            "MenuItem must have either its link or onClick attribute set."
-          );
-        })()
-      )}
+    <li style={{ listStyle: "none" }}>
+      <Button
+        type="link"
+        href={link ? link : undefined}
+        onClick={onClick ? onClick : undefined}
+        style={{
+          margin: 0,
+          padding: 8,
+          height: "fit-content",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+        }}
+      >
+        {label}
+        {subview ? subview : ""}
+      </Button>
     </li>
   );
 };
@@ -73,6 +67,8 @@ const Menu: React.FC<Menu> = ({ items, horizontal }) => {
       style={{
         display: "flex",
         flexDirection: horizontal ? "row" : "column",
+        gap: horizontal ? 16 : 2,
+        alignItems: "flex-start",
         listStyle: "none",
       }}
     >

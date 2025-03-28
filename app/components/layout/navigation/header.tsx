@@ -1,9 +1,10 @@
 "use client";
 
-import { Card, Flex, Popover, Tag } from "antd";
+import { Button, Card, Flex, Popover, Tag } from "antd";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
 import Menu, { MenuItem } from "@/components/general/menu";
 import UserCard from "@/components/general/usercard";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 const appLinks: MenuItem[] = [
   {
@@ -54,15 +55,57 @@ const userLinks: MenuItem[] = [
     label: "Settings",
     link: "/settings",
   },
-  {
-    label: "Sign out",
-    onClick: handleLogout,
-  },
 ];
 
-function handleLogout() {
-  console.log("Sign out");
-}
+const Profile: React.FC = () => {
+  const { value: token, clear: clearToken } = useLocalStorage<string>(
+    "token",
+    ""
+  );
+
+  function handleLogout() {
+    clearToken();
+  }
+
+  // User is logged in
+  if (token) {
+    return (
+      <Popover
+        content={
+          <Menu
+            items={[...userLinks, { label: "Sign out", onClick: handleLogout }]}
+          ></Menu>
+        }
+        trigger="hover"
+        mouseLeaveDelay={0.3}
+      >
+        <UserCard
+          username={"Username"}
+          rank={"Rank"}
+          showPointer
+          subview={<DownOutlined />}
+        ></UserCard>
+      </Popover>
+    );
+  } else {
+    // User is not logged in
+    return (
+      <Flex
+        align="center"
+        justify="center"
+        gap={8}
+        style={{ height: 72, paddingRight: 16 }}
+      >
+        <Button type="primary" href="/register">
+          Register
+        </Button>
+        <Button type="default" href="/login">
+          Login
+        </Button>
+      </Flex>
+    );
+  }
+};
 
 const Header: React.FC = () => {
   return (
@@ -73,17 +116,7 @@ const Header: React.FC = () => {
       >
         <Flex justify="space-between" align="center">
           <Menu items={appLinks} horizontal></Menu>
-          <Popover
-            content={<Menu items={userLinks}></Menu>}
-            trigger="hover"
-            mouseLeaveDelay={0.3}
-          >
-            <UserCard
-              username={"Username"}
-              rank={"Rank"}
-              subview={<DownOutlined />}
-            ></UserCard>
-          </Popover>
+          <Profile></Profile>
         </Flex>
       </Card>
     </nav>
