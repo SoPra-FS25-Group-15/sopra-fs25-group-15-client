@@ -6,6 +6,8 @@ import { Button, Card, Form, Input, List } from "antd";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
+import UserCard from "@/components/general/usercard";
+import PublicUserProfile from "@/components/general/publicProfile";
 
 interface Friend {
   userId: string;
@@ -29,7 +31,7 @@ interface PublicProfile {
 
 const FriendManagement: React.FC = () => {
   const apiService = useApi();
-  // States for view mode
+  // View mode states
   const [collapsed, setCollapsed] = useState<boolean>(true);
   const [showInviteForm, setShowInviteForm] = useState<boolean>(false);
   const [selectedProfile, setSelectedProfile] = useState<PublicProfile | null>(null);
@@ -37,9 +39,22 @@ const FriendManagement: React.FC = () => {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
-  
+
   const [form] = Form.useForm();
   const [notification, setNotification] = useState<NotificationProps | null>(null);
+
+  // Container style for expanded view (same as friendManagement)
+  const containerStyle: React.CSSProperties = {
+    position: "fixed",
+    right: 0,
+    top: "20%",
+    maxWidth: 500,
+    width: "100%",
+    zIndex: 1000,
+    background: "#fff",
+    border: "1px solid #ddd",
+    padding: 16,
+  };
 
   // Fetch functions
   const fetchFriends = async () => {
@@ -49,7 +64,10 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: (error instanceof Error ? error.message : "Failed to load friends list."),
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to load friends list.",
         onClose: () => setNotification(null),
       });
     }
@@ -62,7 +80,10 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: (error instanceof Error ? error.message : "Failed to load friend requests."),
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to load friend requests.",
         onClose: () => setNotification(null),
       });
     }
@@ -75,7 +96,10 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: (error instanceof Error ? error.message : "Failed to load sent friend requests."),
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to load sent friend requests.",
         onClose: () => setNotification(null),
       });
     }
@@ -99,14 +123,16 @@ const FriendManagement: React.FC = () => {
         onClose: () => setNotification(null),
       });
       form.resetFields();
-      // Return to main expanded view after sending invitation
       setShowInviteForm(false);
       fetchFriendRequests();
       fetchSentRequests();
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: (error instanceof Error ? error.message : "Failed to send friend request."),
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to send friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -128,7 +154,10 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: (error instanceof Error ? error.message : "Failed to accept friend request."),
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to accept friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -149,7 +178,10 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: (error instanceof Error ? error.message : "Failed to decline friend request."),
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to decline friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -169,7 +201,10 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to cancel friend request.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to cancel friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -187,26 +222,16 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to remove friend.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove friend.",
         onClose: () => setNotification(null),
       });
     }
   };
 
-  // Container style for right-oriented panel
-  const containerStyle: React.CSSProperties = {
-    position: "fixed",
-    right: 0,
-    top: "20%",
-    maxWidth: 500,
-    width: "100%",
-    zIndex: 1000,
-    background: "#fff",
-    border: "1px solid #ddd",
-    padding: 16,
-  };
-
-  // Collapsed view: show friend profile pictures, a plus button for inviting a friend, and a toggle arrow to expand the panel
+  // --- Collapsed View ---
   if (collapsed) {
     return (
       <div style={{ ...containerStyle, width: 80, padding: 8, textAlign: "center" }}>
@@ -223,15 +248,10 @@ const FriendManagement: React.FC = () => {
                 })
               }
             >
-              <img
-                src={friend.profilePicture}
-                alt={friend.username}
-                style={{ width: 40, height: 40, borderRadius: "50%" }}
-              />
+              <UserCard username={friend.username} showPointer />
             </div>
           ))}
         </div>
-        {/* Plus button to redirect to the invite friend form */}
         <div style={{ marginBottom: 8 }}>
           <Button
             type="text"
@@ -242,7 +262,6 @@ const FriendManagement: React.FC = () => {
             }}
           />
         </div>
-        {/* For right side collapsed view, use a left-pointing toggle to expand the panel */}
         <div style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(false)}>
           &laquo;
         </div>
@@ -250,39 +269,29 @@ const FriendManagement: React.FC = () => {
     );
   }
 
-  // If a public profile is selected, display it exclusively
+  // --- Public Profile View ---
   if (selectedProfile) {
     return (
       <div style={containerStyle}>
         {notification && <Notification {...notification} />}
-        {/* Back arrow to return to friend management view */}
-        <div style={{ marginBottom: 16 }}>
-          <span style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }} onClick={() => setSelectedProfile(null)}>
-            &#8592;
-          </span>
-          Public Profile: {selectedProfile.username}
-        </div>
-        <Card>
-          <div style={{ textAlign: "center" }}>
-            <img
-              src={selectedProfile.profilePicture}
-              alt={selectedProfile.username}
-              style={{ width: 80, height: 80, borderRadius: "50%", marginBottom: 8 }}
-            />
-            <h3>{selectedProfile.username}</h3>
-          </div>
-        </Card>
+        <PublicUserProfile
+          userId={selectedProfile.userId}
+          onBack={() => setSelectedProfile(null)}
+        />
       </div>
     );
   }
 
-  // If the invite form is active, show it exclusively with a back ("←") option
+  // --- Invite Friend Form View ---
   if (showInviteForm) {
     return (
       <div style={containerStyle}>
         {notification && <Notification {...notification} />}
         <div style={{ marginBottom: 16 }}>
-          <span style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }} onClick={() => setShowInviteForm(false)}>
+          <span
+            style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }}
+            onClick={() => setShowInviteForm(false)}
+          >
             &#8592;
           </span>
           Add New Friend
@@ -307,26 +316,23 @@ const FriendManagement: React.FC = () => {
     );
   }
 
-  // Expanded main view – friend management interface
+  // --- Expanded Main View ---
   return (
     <div style={containerStyle}>
       {notification && <Notification {...notification} />}
-      
-      {/* Collapse control using a right-pointing toggle */}
       <div style={{ marginBottom: 16, textAlign: "right" }}>
-        <span style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(true)}>
+        <span
+          style={{ cursor: "pointer", fontWeight: "bold" }}
+          onClick={() => setCollapsed(true)}
+        >
           &raquo;
         </span>
       </div>
-
-      {/* Button to show the Invite Friend form */}
       <div style={{ marginBottom: 16, textAlign: "right" }}>
         <Button type="default" onClick={() => setShowInviteForm(true)}>
           Add Friend
         </Button>
       </div>
-
-      {/* Friend Requests with clickable names and green check / red X icons */}
       <Card title="Friend Requests">
         <List
           dataSource={friendRequests}
@@ -334,37 +340,35 @@ const FriendManagement: React.FC = () => {
           renderItem={(item) => (
             <List.Item
               actions={[
-                <Button 
-                  type="text" 
+                <Button
+                  key="accept"
+                  type="text"
                   onClick={() => handleAcceptRequest(item.requestId)}
                   icon={<CheckOutlined style={{ color: "green", fontSize: "16px" }} />}
                 />,
-                <Button 
-                  type="text" 
+                <Button
+                  key="decline"
+                  type="text"
                   onClick={() => handleDeclineRequest(item.requestId)}
                   icon={<CloseOutlined style={{ color: "red", fontSize: "16px" }} />}
                 />,
               ]}
             >
-              <List.Item.Meta 
-                title={
-                  <div style={{ cursor: "pointer" }} onClick={() =>
-                    setSelectedProfile({
-                      userId: item.fromUserId,
-                      username: item.username,
-                      profilePicture: item.profilePicture,
-                    })
-                  }>
-                    {item.username}
-                  </div>
+              <UserCard
+                username={item.username}
+                showPointer
+                onClick={() =>
+                  setSelectedProfile({
+                    userId: item.fromUserId,
+                    username: item.username,
+                    profilePicture: item.profilePicture,
+                  })
                 }
               />
             </List.Item>
           )}
         />
       </Card>
-
-      {/* Sent Friend Requests */}
       <Card title="Sent Friend Requests" style={{ marginTop: 16 }}>
         <List
           dataSource={sentRequests}
@@ -373,31 +377,28 @@ const FriendManagement: React.FC = () => {
             <List.Item
               actions={[
                 <Button
+                  key="cancel"
                   type="text"
                   onClick={() => handleCancelRequest(item.requestId)}
                   icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
                 />,
               ]}
             >
-              <List.Item.Meta 
-                title={
-                  <div style={{ cursor: "pointer" }} onClick={() =>
-                    setSelectedProfile({
-                      userId: item.fromUserId,
-                      username: item.username,
-                      profilePicture: item.profilePicture,
-                    })
-                  }>
-                    {item.username}
-                  </div>
+              <UserCard
+                username={item.username}
+                showPointer
+                onClick={() =>
+                  setSelectedProfile({
+                    userId: item.fromUserId,
+                    username: item.username,
+                    profilePicture: item.profilePicture,
+                  })
                 }
               />
             </List.Item>
           )}
         />
       </Card>
-
-      {/* Friends List */}
       <Card title="Friends List" style={{ marginTop: 16 }}>
         <List
           dataSource={friends}
@@ -405,22 +406,23 @@ const FriendManagement: React.FC = () => {
           renderItem={(item) => (
             <List.Item
               actions={[
-                <Button danger onClick={() => handleRemoveFriend(item.userId)}>
-                  Remove
-                </Button>,
+                <Button
+                  key="remove"
+                  type="text"
+                  onClick={() => handleRemoveFriend(item.userId)}
+                  icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
+                />,
               ]}
             >
-              <List.Item.Meta 
-                title={
-                  <div style={{ cursor: "pointer" }} onClick={() =>
-                    setSelectedProfile({
-                      userId: item.userId,
-                      username: item.username,
-                      profilePicture: item.profilePicture,
-                    })
-                  }>
-                    {item.username}
-                  </div>
+              <UserCard
+                username={item.username}
+                showPointer
+                onClick={() =>
+                  setSelectedProfile({
+                    userId: item.userId,
+                    username: item.username,
+                    profilePicture: item.profilePicture,
+                  })
                 }
               />
             </List.Item>
