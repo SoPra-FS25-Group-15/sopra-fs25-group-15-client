@@ -46,10 +46,10 @@ const FriendManagement: React.FC = () => {
     try {
       const response = await apiService.get<Friend[]>("/api/friends");
       setFriends(response);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to load friends list.",
+        message: (error instanceof Error ? error.message : "Failed to load friends list."),
         onClose: () => setNotification(null),
       });
     }
@@ -59,10 +59,10 @@ const FriendManagement: React.FC = () => {
     try {
       const response = await apiService.get<FriendRequest[]>("/api/friends/requests");
       setFriendRequests(response);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to load friend requests.",
+        message: (error instanceof Error ? error.message : "Failed to load friend requests."),
         onClose: () => setNotification(null),
       });
     }
@@ -72,10 +72,10 @@ const FriendManagement: React.FC = () => {
     try {
       const response = await apiService.get<FriendRequest[]>("/api/friends/requests/sent");
       setSentRequests(response);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to load sent friend requests.",
+        message: (error instanceof Error ? error.message : "Failed to load sent friend requests."),
         onClose: () => setNotification(null),
       });
     }
@@ -103,10 +103,10 @@ const FriendManagement: React.FC = () => {
       setShowInviteForm(false);
       fetchFriendRequests();
       fetchSentRequests();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to send friend request.",
+        message: (error instanceof Error ? error.message : "Failed to send friend request."),
         onClose: () => setNotification(null),
       });
     }
@@ -125,10 +125,10 @@ const FriendManagement: React.FC = () => {
       });
       fetchFriends();
       fetchFriendRequests();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to accept friend request.",
+        message: (error instanceof Error ? error.message : "Failed to accept friend request."),
         onClose: () => setNotification(null),
       });
     }
@@ -146,10 +146,10 @@ const FriendManagement: React.FC = () => {
         onClose: () => setNotification(null),
       });
       fetchFriendRequests();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to decline friend request.",
+        message: (error instanceof Error ? error.message : "Failed to decline friend request."),
         onClose: () => setNotification(null),
       });
     }
@@ -166,10 +166,10 @@ const FriendManagement: React.FC = () => {
         onClose: () => setNotification(null),
       });
       fetchSentRequests();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to cancel friend request.",
+        message: error instanceof Error ? error.message : "Failed to cancel friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -184,10 +184,10 @@ const FriendManagement: React.FC = () => {
         onClose: () => setNotification(null),
       });
       fetchFriends();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error.message || "Failed to remove friend.",
+        message: error instanceof Error ? error.message : "Failed to remove friend.",
         onClose: () => setNotification(null),
       });
     }
