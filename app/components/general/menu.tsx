@@ -1,5 +1,7 @@
-import React from "react";
 import { Button } from "antd";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import React from "react";
 
 /**
  * Represents a single item within a menu.
@@ -20,32 +22,52 @@ export interface MenuItem {
   subview?: React.ReactNode;
 }
 
-const MenuItem: React.FC<MenuItem> = ({
-  label,
-  link,
-  onClick,
-  subview,
-}: MenuItem): React.ReactElement => {
-  // If a link is provided, set href to the link
+//CSS styles for the menu item
+const menuItemStyle: React.CSSProperties = {
+  margin: 0,
+  padding: 8,
+  height: "fit-content",
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+};
+
+const MenuItem: React.FC<MenuItem> = ({ label, link, onClick, subview }: MenuItem): React.ReactElement => {
+  const pathname = usePathname();
+  const current = pathname === link;
+  // If a link is provided, wrap element is a Link component
+  if (link) {
+    return (
+      <li style={{ listStyle: "none" }}>
+        <Link href={link}>
+          <Button type={current ? "text" : "link"} style={menuItemStyle}>
+            {label}
+            {subview ? subview : ""}
+          </Button>
+        </Link>
+      </li>
+    );
+  }
+
   // If an onClick handler is provided, set onClick to the handler
+  if (onClick) {
+    return (
+      <li style={{ listStyle: "none" }}>
+        <Button type="link" onClick={onClick} style={menuItemStyle}>
+          {label}
+          {subview ? subview : ""}
+        </Button>
+      </li>
+    );
+  }
+
+  // If neither link nor onClick is provided, render a simple text item
   return (
     <li style={{ listStyle: "none" }}>
-      <Button
-        type="link"
-        href={link ? link : undefined}
-        onClick={onClick ? onClick : undefined}
-        style={{
-          margin: 0,
-          padding: 8,
-          height: "fit-content",
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-        }}
-      >
+      <span style={menuItemStyle}>
         {label}
         {subview ? subview : ""}
-      </Button>
+      </span>
     </li>
   );
 };
@@ -68,18 +90,12 @@ const Menu: React.FC<Menu> = ({ items, horizontal }) => {
         display: "flex",
         flexDirection: horizontal ? "row" : "column",
         gap: horizontal ? 16 : 2,
-        alignItems: "flex-start",
+        alignItems: horizontal ? "center" : "flex-start",
         listStyle: "none",
       }}
     >
       {items.map((item, index) => (
-        <MenuItem
-          key={index}
-          link={item.link}
-          label={item.label}
-          onClick={item.onClick}
-          subview={item.subview}
-        />
+        <MenuItem key={index} link={item.link} label={item.label} onClick={item.onClick} subview={item.subview} />
       ))}
     </ul>
   );
