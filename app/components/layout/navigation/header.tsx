@@ -1,10 +1,11 @@
 "use client";
 
-import { Button, Card, Flex, Popover, Tag } from "antd";
-import { DollarOutlined, DownOutlined } from "@ant-design/icons";
 import Menu, { MenuItem } from "@/components/general/menu";
 import UserCard from "@/components/general/usercard";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { DollarOutlined, DownOutlined } from "@ant-design/icons";
+import { Button, Card, Flex, Popover, Tag } from "antd";
+import Link from "next/link";
 
 const appLinks: MenuItem[] = [
   {
@@ -58,10 +59,7 @@ const userLinks: MenuItem[] = [
 ];
 
 const Profile: React.FC = () => {
-  const { value: token, clear: clearToken } = useLocalStorage<string>(
-    "token",
-    ""
-  );
+  const { value: token, clear: clearToken } = useLocalStorage<string>("token", "");
 
   function handleLogout() {
     clearToken();
@@ -71,37 +69,23 @@ const Profile: React.FC = () => {
   if (token) {
     return (
       <Popover
-        content={
-          <Menu
-            items={[...userLinks, { label: "Sign out", onClick: handleLogout }]}
-          ></Menu>
-        }
+        content={<Menu items={[...userLinks, { label: "Sign out", onClick: handleLogout }]}></Menu>}
         trigger="hover"
         mouseLeaveDelay={0.3}
       >
-        <UserCard
-          username={"Username"}
-          rank={"Rank"}
-          showPointer
-          subview={<DownOutlined />}
-        ></UserCard>
+        <UserCard username={"Username"} rank={"Rank"} showPointer subview={<DownOutlined />}></UserCard>
       </Popover>
     );
   } else {
     // User is not logged in
     return (
-      <Flex
-        align="center"
-        justify="center"
-        gap={8}
-        style={{ height: 72, paddingRight: 16 }}
-      >
-        <Button type="primary" href="/register">
-          Register
-        </Button>
-        <Button type="default" href="/login">
-          Login
-        </Button>
+      <Flex align="center" justify="center" gap={8} style={{ height: 72, paddingRight: 16 }}>
+        <Link href="/register">
+          <Button type="primary">Register</Button>
+        </Link>
+        <Link href="/login">
+          <Button type="default">Login</Button>
+        </Link>
       </Flex>
     );
   }
@@ -110,10 +94,7 @@ const Profile: React.FC = () => {
 const Header: React.FC = () => {
   return (
     <nav style={{ padding: 16 }}>
-      <Card
-        styles={{ body: { padding: 4, background: "#f9f9f9" } }}
-        size="small"
-      >
+      <Card styles={{ body: { padding: 4, background: "#f9f9f9" } }} size="small">
         <Flex justify="space-between" align="center">
           <Menu items={appLinks} horizontal></Menu>
           <Profile></Profile>
