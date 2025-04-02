@@ -1,8 +1,9 @@
 export interface User {
-  id: string | null;
-  //name: string | null;
-  username: string | null;
-  token: string | null;
-  //status: string | null;
+  createdAt: Date | null;
   email: string | null;
+  token: string | null;
+  userid: number | null;
+  username: string | null;
+  points: number | null;
+  mmr: number | null;
 }

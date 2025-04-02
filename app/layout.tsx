@@ -4,6 +4,8 @@ import { ConfigProvider } from "antd";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "@/styles/globals.css";
 import Header from "@/components/layout/navigation/header";
+import { GlobalUserProvider } from "@/contexts/globalUser";
+import FriendManagement from "./components/layout/friends";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,10 +30,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <ConfigProvider theme={{}}>
-          <Header></Header>
-          <AntdRegistry>{children}</AntdRegistry>
-        </ConfigProvider>
+        <GlobalUserProvider>
+          <ConfigProvider theme={{}}>
+            <Header></Header>
+            <FriendManagement></FriendManagement>
+            <AntdRegistry>{children}</AntdRegistry>
+          </ConfigProvider>
+        </GlobalUserProvider>
       </body>
     </html>
   );
