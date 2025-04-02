@@ -30,12 +30,13 @@ reason).
 
 ---
 
-## Contributions Week 1 - [Begin Date] to [End Date]
+## Contributions Week 1 - [27.3.2025] to [3.4.2025]
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
-| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@froeoe]** | [26.3.2025]   | [#109](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/109) | [This pull request contains all the commits related to the creation of the Register page.] | [This enables the user to register, which is a crucial functionality.] |
+|                    | [26.3.2025]   | [#112](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/112) | [This pull request contains all the commits related to the creation of the Game Rule page.] | [The user is now able to view the game rules.] |
+|                    | [29.3.2025]   | [#117](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/117) | [This pull request contains all the commits related to creation of the friend component.] | [This enables the user to add, view, accept and manage their friends.] |
 | **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
