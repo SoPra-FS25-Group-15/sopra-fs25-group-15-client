@@ -2,10 +2,13 @@
 
 import Menu, { MenuItem } from "@/components/general/menu";
 import UserCard from "@/components/general/usercard";
+import { useGlobalUser } from "@/contexts/globalUser";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { User } from "@/types/user";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
 import { Button, Card, Flex, Popover, Tag } from "antd";
 import Link from "next/link";
+import { useEffect } from "react";
 
 const appLinks: MenuItem[] = [
   {
@@ -27,15 +30,6 @@ const appLinks: MenuItem[] = [
   {
     label: "Game Rules",
     link: "/rules",
-  },
-  {
-    label: "Store",
-    link: "/store",
-    subview: (
-      <Tag icon={<DollarOutlined />} color="gold">
-        1000
-      </Tag>
-    ),
   },
 ];
 
@@ -59,21 +53,29 @@ const userLinks: MenuItem[] = [
 ];
 
 const Profile: React.FC = () => {
-  const { value: token, clear: clearToken } = useLocalStorage<string>("token", "");
+  const { clear: clearToken } = useLocalStorage<User | null>("user", null);
+  const { user } = useGlobalUser();
 
   function handleLogout() {
     clearToken();
   }
 
+  useEffect(() => {}, [user]); // rerenders the component when user in localStorage changes
+
   // User is logged in
-  if (token) {
+  if (user) {
     return (
       <Popover
         content={<Menu items={[...userLinks, { label: "Sign out", onClick: handleLogout }]}></Menu>}
         trigger="hover"
         mouseLeaveDelay={0.3}
       >
-        <UserCard username={"Username"} rank={"Rank"} showPointer subview={<DownOutlined />}></UserCard>
+        <UserCard
+          username={user.username ?? "username"}
+          rank={user.mmr ? `${user.mmr} MMR` : "0 MMR"}
+          showPointer
+          subview={<DownOutlined />}
+        ></UserCard>
       </Popover>
     );
   } else {
@@ -92,11 +94,28 @@ const Profile: React.FC = () => {
 };
 
 const Header: React.FC = () => {
+  const { user } = useGlobalUser();
+  useEffect(() => {}, [user]); // rerenders the component when user in localStorage changes
+
   return (
     <nav style={{ padding: 16 }}>
       <Card styles={{ body: { padding: 4, background: "#f9f9f9" } }} size="small">
         <Flex justify="space-between" align="center">
-          <Menu items={appLinks} horizontal></Menu>
+          <Menu
+            items={[
+              ...appLinks,
+              {
+                label: "Store",
+                link: "/store",
+                subview: user ? (
+                  <Tag icon={<DollarOutlined />} color="gold">
+                    {user.points ?? "0"}
+                  </Tag>
+                ) : undefined,
+              },
+            ]}
+            horizontal
+          ></Menu>
           <Profile></Profile>
         </Flex>
       </Card>

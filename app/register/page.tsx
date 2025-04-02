@@ -1,14 +1,14 @@
 "use client";
 
-import "@ant-design/v5-patch-for-react-19";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import Notification, { NotificationProps } from "@/components/general/notification";
 import { useApi } from "@/hooks/useApi";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
-import { Button, Card, Form, Input } from "antd";
 import { EyeFilled, EyeInvisibleOutlined } from "@ant-design/icons";
-import Notification, { NotificationProps } from "@/components/general/notification";
+import "@ant-design/v5-patch-for-react-19";
+import { Button, Card, Form, Input } from "antd";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface RegisterProps {
@@ -24,8 +24,8 @@ const Register: React.FC = () => {
   const [form] = Form.useForm();
   const [notification, setNotification] = useState<NotificationProps | null>(null);
 
-  // Using localStorage for token management (same as Login)
-  const { set: setToken } = useLocalStorage<string>("token", "");
+  // Saving the user in local storage
+  const { set: setUser } = useLocalStorage<User | null>("user", null);
 
   const handleRegister = async (values: RegisterProps) => {
     // Check if passwords match
@@ -42,7 +42,7 @@ const Register: React.FC = () => {
       // Call the API to register and expect a token in the response
       const response = await apiService.post<User>("/api/auth/register", values);
       if (response.token) {
-        setToken(response.token);
+        setUser(response);
       }
       // Redirect to the home page directly after registration
       router.push("/");
@@ -97,9 +97,7 @@ const Register: React.FC = () => {
         >
           <Input.Password
             placeholder="Enter password"
-            iconRender={(visible) =>
-              visible ? <EyeFilled /> : <EyeInvisibleOutlined />
-            }
+            iconRender={(visible) => (visible ? <EyeFilled /> : <EyeInvisibleOutlined />)}
           />
         </Form.Item>
         <Form.Item
@@ -120,9 +118,7 @@ const Register: React.FC = () => {
         >
           <Input.Password
             placeholder="Confirm password"
-            iconRender={(visible) =>
-              visible ? <EyeFilled /> : <EyeInvisibleOutlined />
-            }
+            iconRender={(visible) => (visible ? <EyeFilled /> : <EyeInvisibleOutlined />)}
           />
         </Form.Item>
         <Form.Item>
