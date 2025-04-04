@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, Row, Col, Modal, Typography } from "antd";
+import { Row, Col, Modal, Typography } from "antd";
 import { useRouter } from "next/navigation";
-import { InfoCircleOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, TrophyOutlined } from "@ant-design/icons";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
-import LargeCardButton from "@/components/layout/LargeCardButton";
+import LargeCardButton from "@/components/general/LargeCardButton";
 
-const { Paragraph } = Typography;
+const { Title, Paragraph } = Typography;
 
 const PlayCompetitive: React.FC = () => {
   const router = useRouter();
@@ -80,27 +80,36 @@ const PlayCompetitive: React.FC = () => {
       {notification && <Notification {...notification} />}
 
       <Row justify="center">
-        <Col xs={24} md={12}>
-          <Card bordered={false}>
-            <Paragraph>
-              In competitive mode, you will be matched with players of a similar rank.
-              Your rank is determined by your performance in previous games. Wins, losses, and game statistics
-              all contribute to your overall ranking. The higher your rank, the tougher the competition.
-            </Paragraph>
-            <Paragraph>
-              Click the info icon for more details on how ranking works.
-              <InfoCircleOutlined
-                onClick={openInfoModal}
-                style={{ fontSize: "1.5rem", marginLeft: "0.5rem", cursor: "pointer" }}
-              />
-            </Paragraph>
-          </Card>
+        <Col xs={24} md={12} style={{ textAlign: "center", marginBottom: "1rem" }}>
+          <Title level={2}>Play Competitive</Title>
+        </Col>
+      </Row>
+
+      <Row justify="center">
+        <Col xs={24} md={12} style={{ textAlign: "center" }}>
+          <Paragraph>
+            In competitive mode, you will be matched with players of a similar rank.
+            Your rank is determined by your performance in previous games. Wins, losses, and game statistics
+            all contribute to your overall ranking. The higher your rank, the tougher the competition.
+          </Paragraph>
+          <Paragraph>
+            Click the info icon for more details on how ranking works.
+            <InfoCircleOutlined
+              onClick={openInfoModal}
+              style={{ fontSize: "1.5rem", marginLeft: "0.5rem", cursor: "pointer" }}
+            />
+          </Paragraph>
         </Col>
       </Row>
 
       <Row justify="center" style={{ marginTop: "1rem" }}>
-        <Col xs={24} md={12}>
-          <LargeCardButton label="Join Queue" onClick={onJoinQueue} disabled={isInQueue} />
+        <Col xs={24} md={12} style={{ textAlign: "center" }}>
+          <LargeCardButton
+            label="Join Queue"
+            onClick={onJoinQueue}
+            disabled={isInQueue}
+            icon={<TrophyOutlined style={{ fontSize: "2rem" }} />}
+          />
           {isInQueue && (
             <div style={{ marginTop: "0.5rem", textAlign: "center" }}>
               <span>Waiting in queue: {queueTime} seconds</span>
@@ -111,7 +120,7 @@ const PlayCompetitive: React.FC = () => {
 
       <Modal
         title="Competitive Mode Explained"
-        visible={modalVisible}
+        open={modalVisible}
         onCancel={closeInfoModal}
         footer={null}
       >

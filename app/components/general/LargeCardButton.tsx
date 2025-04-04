@@ -7,9 +7,15 @@ export interface LargeCardButtonProps {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  icon?: React.ReactNode;
 }
 
-const LargeCardButton: React.FC<LargeCardButtonProps> = ({ label, onClick, disabled }) => {
+const LargeCardButton: React.FC<LargeCardButtonProps> = ({
+  label,
+  onClick,
+  disabled,
+  icon
+}) => {
   return (
     <Card
       hoverable={!disabled}
@@ -18,9 +24,10 @@ const LargeCardButton: React.FC<LargeCardButtonProps> = ({ label, onClick, disab
         textAlign: "center",
         cursor: disabled ? "not-allowed" : "pointer",
         padding: "2rem",
-        borderRadius: 8,
+        borderRadius: 8
       }}
     >
+      {icon && <div style={{ marginBottom: "0.5rem" }}>{icon}</div>}
       <Title level={2} style={{ marginBottom: 0 }}>
         {label}
       </Title>
