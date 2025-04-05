@@ -14,50 +14,51 @@ const PlayCasual: React.FC = () => {
   const router = useRouter();
   const apiService = useApi();
 
+  // State for Lobby ID and Invite Code for joining a lobby.
+  const [lobbyId, setLobbyId] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-  const [showCreateLobbyModal, setShowCreateLobbyModal] = useState(false);
   const [showJoinGameModal, setShowJoinGameModal] = useState(false);
 
-  // Function to handle create lobby (redirects to the create lobby page)
+  // Redirect immediately to the lobby creation page.
   const handleCreateLobby = () => {
-    try {
-      // Perform any necessary user state checks here (e.g. user is logged in, not in a game, etc.)
-      router.push("/lobbies/create");
-    } catch (error) {
-      console.error("Error redirecting to create lobby:", error);
-      setNotification({
-        type: "error",
-        message: "Error redirecting to create lobby",
-        description: error instanceof Error ? error.message : "An unexpected error occurred.",
-        onClose: () => setNotification(null)
-      });
-    } finally {
-      setShowCreateLobbyModal(false);
-    }
+    router.push("/lobbies/create");
   };
 
   // API call to join a lobby.
   const handleJoinGame = async () => {
-    if (!inviteCode.trim()) {
+    if (!lobbyId.trim() || !inviteCode.trim()) {
       setNotification({
         type: "error",
-        message: "Invite code is required",
+        message: "Both Lobby ID and Invite Code are required",
         onClose: () => setNotification(null)
       });
       return;
     }
-    const endpoint = `/api/lobbies/${inviteCode}/join`;
-    const payload = { lobbyCode: inviteCode }; // Other parameters handled internally.
+
+    // In the backend, the join endpoint is:
+    // POST /lobbies/{lobbyId}/join?userId=XYZ with a JSON body containing lobbyCode, mode, and friendInvited.
+    // Replace the following with your actual auth hook to retrieve the user ID.
+    const userId = localStorage.getItem("userId") || "123"; // Placeholder; adjust as needed.
+
+    const endpoint = `/api/lobbies/${lobbyId}/join?userId=${userId}`;
+    const payload = { 
+      lobbyCode: inviteCode,
+      mode: "solo",
+      friendInvited: false
+    };
+
     try {
       interface JoinGameResponse {
         lobby: {
+          lobbyId: string;
           lobbyCode: string;
+          // other lobby fields...
         };
       }
       const response = await apiService.post<JoinGameResponse>(endpoint, payload);
-      if (response && response.lobby && response.lobby.lobbyCode) {
-        router.push(`/lobbies/${response.lobby.lobbyCode}`);
+      if (response && response.lobby && response.lobby.lobbyId) {
+        router.push(`/lobbies/${response.lobby.lobbyId}`);
       }
     } catch (error) {
       console.error("Error joining lobby:", error);
@@ -96,7 +97,7 @@ const PlayCasual: React.FC = () => {
         <Col xs={24} md={6}>
           <LargeCardButton
             label="Create Lobby"
-            onClick={() => setShowCreateLobbyModal(true)}
+            onClick={handleCreateLobby}
             icon={<UserAddOutlined style={{ fontSize: "2rem" }} />}
           />
         </Col>
@@ -109,25 +110,6 @@ const PlayCasual: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Create Lobby Modal */}
-      <Modal
-        title="Create Lobby"
-        open={showCreateLobbyModal}
-        onCancel={() => setShowCreateLobbyModal(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setShowCreateLobbyModal(false)}>
-            Cancel
-          </Button>,
-          <Button key="create" type="primary" onClick={handleCreateLobby}>
-            Create Lobby
-          </Button>
-        ]}
-      >
-        <Paragraph>
-          You will be redirected to the lobby creation page. Please ensure you are not currently in a game and are logged in.
-        </Paragraph>
-      </Modal>
-
       {/* Join Lobby Modal */}
       <Modal
         title="Join Lobby"
@@ -136,6 +118,17 @@ const PlayCasual: React.FC = () => {
         footer={null}
       >
         <Form layout="vertical" onFinish={handleJoinGame}>
+          <Form.Item
+            name="lobbyId"
+            label="Lobby ID"
+            rules={[{ required: true, message: "Lobby ID is required" }]}
+          >
+            <Input
+              placeholder="Enter lobby ID"
+              value={lobbyId}
+              onChange={(e) => setLobbyId(e.target.value)}
+            />
+          </Form.Item>
           <Form.Item
             name="inviteCode"
             label="Invite Code"
