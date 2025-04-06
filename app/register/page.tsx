@@ -40,7 +40,7 @@ const Register: React.FC = () => {
 
     try {
       // Call the API to register and expect a token in the response
-      const response = await apiService.post<User>("/api/auth/register", values);
+      const response = await apiService.post<User>("/auth/register", values);
       if (response.token) {
         setUser(response);
       }
