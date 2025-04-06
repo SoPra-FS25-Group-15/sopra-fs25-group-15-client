@@ -33,7 +33,6 @@ interface PublicProfile {
 const FriendManagement: React.FC = () => {
   const apiService = useApi();
 
-  // Always call hooks in the same order.
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState<boolean>(true);
 
@@ -60,21 +59,19 @@ const FriendManagement: React.FC = () => {
     padding: 16,
   };
 
-  // On mount, load token from localStorage.
+  // On mount, retrieve the user from localStorage and extract the token.
   useEffect(() => {
-    let token = localStorage.getItem("token");
-    if (!token) {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          token = parsedUser.token;
-        } catch (err) {
-          console.error("Failed to parse user from localStorage:", err);
-        }
+    const userString = localStorage.getItem("user") || "";
+    let token = null;
+    if (userString) {
+      try {
+        const parsedUser = JSON.parse(userString);
+        token = parsedUser.token;
+      } catch (err) {
+        console.error("Failed to parse user from localStorage:", err);
       }
     }
-    console.log("Token retrieved:", token);
+    console.log("Token retrieved from user object:", token);
     setAuthToken(token);
     setLoadingToken(false);
   }, []);
@@ -87,7 +84,7 @@ const FriendManagement: React.FC = () => {
     fetchSentRequests();
   }, [authToken]);
 
-  // Build headers including Content-Type for JSON.
+  // Build headers using the token.
   const getAuthHeaders = () => {
     console.log("Using token for API calls:", authToken);
     return {
@@ -124,7 +121,7 @@ const FriendManagement: React.FC = () => {
     }
   };
 
-  // Call /friends/all-requests and filter for outgoing (sent) friend requests.
+  // Use the /friends/all-requests endpoint and filter for outgoing requests.
   const fetchSentRequests = async () => {
     try {
       const headers = getAuthHeaders();
@@ -220,11 +217,9 @@ const FriendManagement: React.FC = () => {
     }
   };
 
-  // Updated handleCancelRequest: use a default message if response is null.
   const handleCancelRequest = async (requestId: string) => {
     try {
       const headers = getAuthHeaders();
-      // The DELETE endpoint returns 204 No Content, so response might be null.
       const response = await apiService.delete<{ message: string }>(`/friends/requests/${requestId}`, { headers });
       setNotification({
         type: "success",
