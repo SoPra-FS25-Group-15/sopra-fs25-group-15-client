@@ -12,8 +12,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface LoginProps {
-  label: string;
-  value: string;
+  email: string;
+  password: string;
   remember: boolean;
 }
 
@@ -22,19 +22,18 @@ const Login: React.FC = () => {
   const apiService = useApi();
   const [form] = Form.useForm();
 
-  // Saving the user in local storage
+  // Saving the user in local storage under key "user"
   const { set: setUser } = useLocalStorage<User | null>("user", null);
 
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-
-  // TODO: api call to check if token is still valid: true: redirect to main page or profile, if not: stay on login page
-  // if (token) {}
 
   const handleLogin = async (values: LoginProps) => {
     try {
       const response = await apiService.post<User>("/auth/login", values);
       if (response.token) {
         setUser(response);
+        // Also store the token under "token" for other components to use.
+        localStorage.setItem("token", response.token);
       }
       router.push("/");
     } catch (error) {
@@ -66,11 +65,14 @@ const Login: React.FC = () => {
         onFinish={handleLogin}
       >
         <Form.Item
-          name="username"
-          label="Username"
-          rules={[{ required: true, message: "Please input your username!" }]}
+          name="email"
+          label="Email"
+          rules={[
+            { required: true, message: "Please input your email!" },
+            { type: "email", message: "Please input a valid email!" }
+          ]}
         >
-          <Input placeholder="Enter username" />
+          <Input placeholder="Enter email" />
         </Form.Item>
         <Form.Item
           name="password"
@@ -79,7 +81,9 @@ const Login: React.FC = () => {
         >
           <Input.Password
             placeholder="Enter password"
-            iconRender={(visible) => (visible ? <EyeFilled /> : <EyeInvisibleOutlined />)}
+            iconRender={(visible) =>
+              visible ? <EyeFilled /> : <EyeInvisibleOutlined />
+            }
           />
         </Form.Item>
         <Form.Item name="remember" valuePropName="checked">
