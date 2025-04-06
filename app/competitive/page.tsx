@@ -1,5 +1,7 @@
 "use client";
 
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React, { useState, useEffect } from "react";
 import { Row, Col, Modal, Typography } from "antd";
 import { useRouter } from "next/navigation";
@@ -21,20 +23,21 @@ const PlayCompetitive: React.FC = () => {
   const [joinQueueModalVisible, setJoinQueueModalVisible] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isInQueue, setIsInQueue] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [queueTime, setQueueTime] = useState(0);
 
   // Timer for queue waiting state.
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isInQueue) {
-      timer = setInterval(() => {
-        setQueueTime((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setQueueTime(0);
-    }
-    return () => clearInterval(timer);
-  }, [isInQueue]);
+//   useEffect(() => {
+//     let timer: NodeJS.Timeout;
+//     if (isInQueue) {
+//       timer = setInterval(() => {
+//         setQueueTime((prev) => prev + 1);
+//       }, 1000);
+//     } else {
+//       setQueueTime(0);
+//     }
+//     return () => clearInterval(timer);
+//   }, [isInQueue]);
 
   // API call to join the competitive queue.
   // Now replaced with a modal pop up indicating that the function is coming soon.
