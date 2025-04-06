@@ -36,17 +36,19 @@ const PlayCasual: React.FC = () => {
       return;
     }
 
-    // In the backend, the join endpoint is:
-    // POST /lobbies/{lobbyId}/join?userId=XYZ with a JSON body containing lobbyCode, mode, and friendInvited.
-    // Replace the following with your actual auth hook to retrieve the user ID.
-    const userId = localStorage.getItem("userId") || "123"; // Placeholder; adjust as needed.
-
+    // Retrieve userId and token from localStorage.
+    const userId = localStorage.getItem("userId");
+    const token = localStorage.getItem("token") || "";
+    // Endpoint and payload for joining the lobby.
     const endpoint = `/api/lobbies/${lobbyId}/join?userId=${userId}`;
     const payload = { 
       lobbyCode: inviteCode,
       mode: "solo",
       friendInvited: false
     };
+
+    // Pass the token in the headers with the "Bearer" prefix.
+    const headers = { Authorization: `Bearer ${token}` };
 
     try {
       interface JoinGameResponse {
@@ -56,7 +58,7 @@ const PlayCasual: React.FC = () => {
           // other lobby fields...
         };
       }
-      const response = await apiService.post<JoinGameResponse>(endpoint, payload);
+      const response = await apiService.post<JoinGameResponse>(endpoint, payload, { headers });
       if (response && response.lobby && response.lobby.lobbyId) {
         router.push(`/lobbies/${response.lobby.lobbyId}`);
       }
