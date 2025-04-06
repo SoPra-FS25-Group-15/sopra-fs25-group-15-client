@@ -11,10 +11,15 @@ import LargeCardButton from "@/components/general/LargeCardButton";
 const { Title, Paragraph } = Typography;
 
 const PlayCompetitive: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const apiService = useApi();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [joinQueueModalVisible, setJoinQueueModalVisible] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isInQueue, setIsInQueue] = useState(false);
   const [queueTime, setQueueTime] = useState(0);
 
@@ -32,38 +37,9 @@ const PlayCompetitive: React.FC = () => {
   }, [isInQueue]);
 
   // API call to join the competitive queue.
+  // Now replaced with a modal pop up indicating that the function is coming soon.
   const onJoinQueue = async () => {
-    try {
-      if (isInQueue) return;
-
-      const payload = {
-        lobbyId: "auto-match", // Internally handled default value
-        settings: {
-          map: "random",
-          rounds: 5,
-        },
-      };
-
-      interface StartGameResponse {
-        gameId: string;
-      }
-
-      const response = await apiService.post<StartGameResponse>("/api/games", payload);
-      if (response && response.gameId) {
-        router.push(`/games/${response.gameId}`);
-      }
-      // Set waiting state if game is not started immediately.
-      setIsInQueue(true);
-    } catch (error) {
-      console.error("Error joining queue:", error);
-      setNotification({
-        type: "error",
-        message: "Error joining queue",
-        description:
-          error instanceof Error ? error.message : "An unexpected error occurred.",
-        onClose: () => setNotification(null),
-      });
-    }
+    setJoinQueueModalVisible(true);
   };
 
   // Open modal with explanations for competitive mode.
@@ -73,6 +49,10 @@ const PlayCompetitive: React.FC = () => {
 
   const closeInfoModal = () => {
     setModalVisible(false);
+  };
+
+  const closeJoinQueueModal = () => {
+    setJoinQueueModalVisible(false);
   };
 
   return (
@@ -129,6 +109,15 @@ const PlayCompetitive: React.FC = () => {
           Wins earn you points, while losses may lower your rank. Your rank helps match you
           with opponents of similar skill. Detailed game statistics and previous results all play a role.
         </Paragraph>
+      </Modal>
+
+      <Modal
+        title="Coming Soon"
+        open={joinQueueModalVisible}
+        onCancel={closeJoinQueueModal}
+        footer={null}
+      >
+        <Paragraph>This functionality is coming soon. Until then you can use the casual game mode.</Paragraph>
       </Modal>
     </div>
   );
