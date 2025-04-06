@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Row, Col, Modal, Form, Input, Button, Typography } from "antd";
+import { Row, Col, Modal, Typography } from "antd";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
@@ -12,67 +12,25 @@ const { Title, Paragraph } = Typography;
 
 const PlayCasual: React.FC = () => {
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const apiService = useApi();
 
-  // State for Lobby ID and Invite Code for joining a lobby.
-  const [lobbyId, setLobbyId] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [showJoinGameModal, setShowJoinGameModal] = useState(false);
 
-  // Redirect immediately to the lobby creation page.
+  // Redirect to lobby creation page.
   const handleCreateLobby = () => {
     router.push("/lobbies/create");
   };
 
-  // API call to join a lobby.
-  const handleJoinGame = async () => {
-    if (!lobbyId.trim() || !inviteCode.trim()) {
-      setNotification({
-        type: "error",
-        message: "Both Lobby ID and Invite Code are required",
-        onClose: () => setNotification(null)
-      });
-      return;
-    }
+  // Instead of joining a lobby, display a pop-up message.
+  const handleJoinGame = () => {
+    setShowJoinGameModal(true);
+  };
 
-    // Retrieve userId and token from localStorage.
-    const userId = localStorage.getItem("userId");
-    const token = localStorage.getItem("token") || "";
-    // Endpoint and payload for joining the lobby.
-    const endpoint = `/api/lobbies/${lobbyId}/join?userId=${userId}`;
-    const payload = { 
-      lobbyCode: inviteCode,
-      mode: "solo",
-      friendInvited: false
-    };
-
-    // Pass the token in the headers with the "Bearer" prefix.
-    const headers = { Authorization: `Bearer ${token}` };
-
-    try {
-      interface JoinGameResponse {
-        lobby: {
-          lobbyId: string;
-          lobbyCode: string;
-          // other lobby fields...
-        };
-      }
-      const response = await apiService.post<JoinGameResponse>(endpoint, payload, { headers });
-      if (response && response.lobby && response.lobby.lobbyId) {
-        router.push(`/lobbies/${response.lobby.lobbyId}`);
-      }
-    } catch (error) {
-      console.error("Error joining lobby:", error);
-      setNotification({
-        type: "error",
-        message: "Error joining lobby",
-        description: error instanceof Error ? error.message : "An unexpected error occurred.",
-        onClose: () => setNotification(null)
-      });
-    } finally {
-      setShowJoinGameModal(false);
-    }
+  const closeJoinGameModal = () => {
+    setShowJoinGameModal(false);
   };
 
   return (
@@ -106,48 +64,22 @@ const PlayCasual: React.FC = () => {
         <Col xs={24} md={6}>
           <LargeCardButton
             label="Join Lobby"
-            onClick={() => setShowJoinGameModal(true)}
+            onClick={handleJoinGame}
             icon={<LoginOutlined style={{ fontSize: "2rem" }} />}
           />
         </Col>
       </Row>
 
-      {/* Join Lobby Modal */}
+      {/* Join Lobby Modal Pop-up */}
       <Modal
         title="Join Lobby"
         open={showJoinGameModal}
-        onCancel={() => setShowJoinGameModal(false)}
+        onCancel={closeJoinGameModal}
         footer={null}
       >
-        <Form layout="vertical" onFinish={handleJoinGame}>
-          <Form.Item
-            name="lobbyId"
-            label="Lobby ID"
-            rules={[{ required: true, message: "Lobby ID is required" }]}
-          >
-            <Input
-              placeholder="Enter lobby ID"
-              value={lobbyId}
-              onChange={(e) => setLobbyId(e.target.value)}
-            />
-          </Form.Item>
-          <Form.Item
-            name="inviteCode"
-            label="Invite Code"
-            rules={[{ required: true, message: "Invite code is required" }]}
-          >
-            <Input
-              placeholder="Enter invite code"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block>
-              Join Lobby
-            </Button>
-          </Form.Item>
-        </Form>
+        <Paragraph>
+          Join Lobby functionality is coming soon. Please come back later.
+        </Paragraph>
       </Modal>
     </div>
   );
