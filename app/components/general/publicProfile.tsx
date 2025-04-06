@@ -26,7 +26,7 @@ const PublicUserProfile: React.FC<PublicUserProfileProps> = ({ userId, onBack })
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = await apiService.get<UserProfile>(`/api/users/${userId}`);
+        const data = await apiService.get<UserProfile>(`/users/${userId}`);
         setProfile(data);
       } catch (error) {
         console.error("Failed to fetch public profile", error);

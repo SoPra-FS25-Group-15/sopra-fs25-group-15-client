@@ -59,7 +59,7 @@ const FriendManagement: React.FC = () => {
   // Fetch functions
   const fetchFriends = async () => {
     try {
-      const response = await apiService.get<Friend[]>("/api/friends");
+      const response = await apiService.get<Friend[]>("/friends");
       setFriends(response);
     } catch (error: unknown) {
       setNotification({
@@ -75,7 +75,7 @@ const FriendManagement: React.FC = () => {
 
   const fetchFriendRequests = async () => {
     try {
-      const response = await apiService.get<FriendRequest[]>("/api/friends/requests");
+      const response = await apiService.get<FriendRequest[]>("/friends/requests");
       setFriendRequests(response);
     } catch (error: unknown) {
       setNotification({
@@ -91,7 +91,7 @@ const FriendManagement: React.FC = () => {
 
   const fetchSentRequests = async () => {
     try {
-      const response = await apiService.get<FriendRequest[]>("/api/friends/requests/sent");
+      const response = await apiService.get<FriendRequest[]>("/friends/requests/sent");
       setSentRequests(response);
     } catch (error: unknown) {
       setNotification({
@@ -114,7 +114,7 @@ const FriendManagement: React.FC = () => {
   const handleSendRequest = async (values: { target: string }) => {
     try {
       const response = await apiService.post<{ message: string; requestId: string }>(
-        "/api/friends/request",
+        "/friends/request",
         { target: values.target }
       );
       setNotification({
@@ -141,7 +141,7 @@ const FriendManagement: React.FC = () => {
   const handleAcceptRequest = async (requestId: string) => {
     try {
       const response = await apiService.put<{ message: string; friend: Friend }>(
-        `/api/friends/requests/${requestId}`,
+        `/friends/requests/${requestId}`,
         { action: "accept" }
       );
       setNotification({
@@ -166,7 +166,7 @@ const FriendManagement: React.FC = () => {
   const handleDeclineRequest = async (requestId: string) => {
     try {
       const response = await apiService.post<{ message: string }>(
-        `/api/friends/requests/${requestId}`,
+        `/friends/requests/${requestId}`,
         {}
       );
       setNotification({
@@ -190,7 +190,7 @@ const FriendManagement: React.FC = () => {
   const handleCancelRequest = async (requestId: string) => {
     try {
       const response = await apiService.delete<{ message: string }>(
-        `/api/friends/requests/${requestId}`
+        `/friends/requests/${requestId}`
       );
       setNotification({
         type: "success",
@@ -212,7 +212,7 @@ const FriendManagement: React.FC = () => {
 
   const handleRemoveFriend = async (friendId: string) => {
     try {
-      const response = await apiService.delete<{ message: string }>(`/api/friends/${friendId}`);
+      const response = await apiService.delete<{ message: string }>(`/friends/${friendId}`);
       setNotification({
         type: "success",
         message: response.message,

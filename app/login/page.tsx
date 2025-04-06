@@ -32,7 +32,7 @@ const Login: React.FC = () => {
 
   const handleLogin = async (values: LoginProps) => {
     try {
-      const response = await apiService.post<User>("/api/auth/login", values);
+      const response = await apiService.post<User>("/auth/login", values);
       if (response.token) {
         setUser(response);
       }
