@@ -98,8 +98,8 @@ const Header: React.FC = () => {
   useEffect(() => {}, [user]); // rerenders the component when user in localStorage changes
 
   return (
-    <nav style={{ padding: 16 }}>
-      <Card styles={{ body: { padding: 4, background: "#f9f9f9" } }} size="small">
+    <nav style={{ width: "100%", flex: 1, marginBottom: 8 }}>
+      <Card styles={{ body: { padding: 4 } }} size="small">
         <Flex justify="space-between" align="center">
           <Menu
             items={[

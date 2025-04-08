@@ -50,13 +50,14 @@ const FriendManagement: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     position: "fixed",
-    right: 0,
-    top: "20%",
+    right: 8,
+    top: 98,
     maxWidth: 500,
     width: "100%",
     zIndex: 1000,
-    background: "#fff",
-    border: "1px solid #ddd",
+    background: "#222",
+    border: "1px solid #444",
+    borderRadius: 8,
     padding: 16,
   };
 
