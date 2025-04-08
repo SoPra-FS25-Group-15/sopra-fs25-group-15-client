@@ -1,21 +1,9 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { ConfigProvider } from "antd";
-import { AntdRegistry } from "@ant-design/nextjs-registry";
-import "@/styles/globals.css";
-import Header from "@/components/layout/navigation/header";
 import { GlobalUserProvider } from "@/contexts/globalUser";
-import FriendManagement from "./components/layout/friends";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import "@/styles/globals.css";
+import { purple, red } from "@ant-design/colors";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { ConfigProvider } from "antd";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Student XX-XXX-XXX",
@@ -29,11 +17,45 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body
+        style={{
+          fontFamily:
+            "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+          WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+          height: "100vh",
+          width: "100%",
+          color: "#fff",
+          backgroundColor: "#111",
+        }}
+      >
         <GlobalUserProvider>
-          <ConfigProvider theme={{}}>
-            <Header></Header>
-            <FriendManagement></FriendManagement>
+          <ConfigProvider
+            theme={{
+              token: {
+                //Seed token
+                colorPrimary: purple[5],
+                colorBgBase: "#222",
+                fontSize: 16,
+                colorLink: purple[3],
+
+                //Map token
+                colorTextBase: "#fff",
+                colorPrimaryBg: "#222",
+                colorBgElevated: "#333",
+                colorBgSolid: purple[5],
+                colorBorder: "#555",
+                colorBorderSecondary: "#444",
+
+                colorErrorBg: red[9],
+                colorErrorBorder: red[8],
+                colorErrorText: "#fff",
+
+                //Alias token
+                colorTextPlaceholder: "#aaa",
+              },
+            }}
+          >
             <AntdRegistry>{children}</AntdRegistry>
           </ConfigProvider>
         </GlobalUserProvider>

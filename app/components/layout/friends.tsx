@@ -46,13 +46,14 @@ const FriendManagement: React.FC = () => {
   // Container style for expanded view (same as friendManagement)
   const containerStyle: React.CSSProperties = {
     position: "fixed",
-    right: 0,
-    top: "20%",
+    right: 8,
+    top: 98,
     maxWidth: 500,
     width: "100%",
     zIndex: 1000,
-    background: "#fff",
-    border: "1px solid #ddd",
+    background: "#222",
+    border: "1px solid #444",
+    borderRadius: 8,
     padding: 16,
   };
 
@@ -64,10 +65,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to load friends list.",
+        message: error instanceof Error ? error.message : "Failed to load friends list.",
         onClose: () => setNotification(null),
       });
     }
@@ -80,10 +78,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to load friend requests.",
+        message: error instanceof Error ? error.message : "Failed to load friend requests.",
         onClose: () => setNotification(null),
       });
     }
@@ -96,10 +91,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to load sent friend requests.",
+        message: error instanceof Error ? error.message : "Failed to load sent friend requests.",
         onClose: () => setNotification(null),
       });
     }
@@ -113,10 +105,9 @@ const FriendManagement: React.FC = () => {
 
   const handleSendRequest = async (values: { target: string }) => {
     try {
-      const response = await apiService.post<{ message: string; requestId: string }>(
-        "/api/friends/request",
-        { target: values.target }
-      );
+      const response = await apiService.post<{ message: string; requestId: string }>("/api/friends/request", {
+        target: values.target,
+      });
       setNotification({
         type: "success",
         message: response.message,
@@ -129,10 +120,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to send friend request.",
+        message: error instanceof Error ? error.message : "Failed to send friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -140,10 +128,9 @@ const FriendManagement: React.FC = () => {
 
   const handleAcceptRequest = async (requestId: string) => {
     try {
-      const response = await apiService.put<{ message: string; friend: Friend }>(
-        `/api/friends/requests/${requestId}`,
-        { action: "accept" }
-      );
+      const response = await apiService.put<{ message: string; friend: Friend }>(`/api/friends/requests/${requestId}`, {
+        action: "accept",
+      });
       setNotification({
         type: "success",
         message: response.message,
@@ -154,10 +141,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to accept friend request.",
+        message: error instanceof Error ? error.message : "Failed to accept friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -165,10 +149,7 @@ const FriendManagement: React.FC = () => {
 
   const handleDeclineRequest = async (requestId: string) => {
     try {
-      const response = await apiService.post<{ message: string }>(
-        `/api/friends/requests/${requestId}`,
-        {}
-      );
+      const response = await apiService.post<{ message: string }>(`/api/friends/requests/${requestId}`, {});
       setNotification({
         type: "success",
         message: response.message,
@@ -178,10 +159,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to decline friend request.",
+        message: error instanceof Error ? error.message : "Failed to decline friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -189,9 +167,7 @@ const FriendManagement: React.FC = () => {
 
   const handleCancelRequest = async (requestId: string) => {
     try {
-      const response = await apiService.delete<{ message: string }>(
-        `/api/friends/requests/${requestId}`
-      );
+      const response = await apiService.delete<{ message: string }>(`/api/friends/requests/${requestId}`);
       setNotification({
         type: "success",
         message: response.message,
@@ -201,10 +177,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to cancel friend request.",
+        message: error instanceof Error ? error.message : "Failed to cancel friend request.",
         onClose: () => setNotification(null),
       });
     }
@@ -222,10 +195,7 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to remove friend.",
+        message: error instanceof Error ? error.message : "Failed to remove friend.",
         onClose: () => setNotification(null),
       });
     }
@@ -274,10 +244,7 @@ const FriendManagement: React.FC = () => {
     return (
       <div style={containerStyle}>
         {notification && <Notification {...notification} />}
-        <PublicUserProfile
-          userId={selectedProfile.userId}
-          onBack={() => setSelectedProfile(null)}
-        />
+        <PublicUserProfile userId={selectedProfile.userId} onBack={() => setSelectedProfile(null)} />
       </div>
     );
   }
@@ -321,10 +288,7 @@ const FriendManagement: React.FC = () => {
     <div style={containerStyle}>
       {notification && <Notification {...notification} />}
       <div style={{ marginBottom: 16, textAlign: "right" }}>
-        <span
-          style={{ cursor: "pointer", fontWeight: "bold" }}
-          onClick={() => setCollapsed(true)}
-        >
+        <span style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(true)}>
           &raquo;
         </span>
       </div>
