@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Row, Col, Modal, Typography } from "antd";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
@@ -15,15 +15,46 @@ const PlayCasual: React.FC = () => {
   const apiService = useApi();
   const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [showJoinGameModal, setShowJoinGameModal] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [loadingToken, setLoadingToken] = useState<boolean>(true);
 
-  // Handler: call backend API to create a lobby and reroute to /lobbies/[lobbyId]
+  // Retrieve token from localStorage on mount.
+  useEffect(() => {
+    let token = localStorage.getItem("token");
+    if (!token) {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          token = parsedUser.token;
+        } catch (err) {
+          console.error("Failed to parse user from localStorage:", err);
+        }
+      }
+    }
+    console.log("Token retrieved:", token);
+    setAuthToken(token);
+    setLoadingToken(false);
+  }, []);
+
+  // Build headers including the auth token and Content-Type.
+  const getAuthHeaders = () => ({
+    Authorization: authToken || "",
+    "Content-Type": "application/json",
+  });
+
+  // Handler: create a new lobby with the token sent in headers.
   const handleCreateLobby = async () => {
+    if (loadingToken) {
+      setNotification({ type: "error", message: "Loading token, please try again." });
+      return;
+    }
     try {
       // Payload to create a casual lobby (unranked solo mode)
       const payload = {
         isPrivate: true,
         mode: "solo",
-        maxPlayers: 8 
+        maxPlayers: 8,
       };
 
       // Define the expected response type
@@ -31,15 +62,15 @@ const PlayCasual: React.FC = () => {
         lobbyId: string;
       }
 
-      // Make POST request to create a new lobby
-      const response = (await apiService.post("/lobbies", payload)) as LobbyResponse;
-      // Expecting response to contain a lobbyId field
+      const headers = getAuthHeaders();
+
+      // Make POST request with auth headers.
+      const response = (await apiService.post("/lobbies", payload, { headers })) as LobbyResponse;
       const lobbyId = response.lobbyId;
       if (!lobbyId) {
         setNotification({ type: "error", message: "Lobby creation failed: no lobby id returned." });
         return;
       }
-      // Redirect to the new lobby's page
       router.push(`/lobbies/${lobbyId}`);
     } catch (error: unknown) {
       console.error("Error creating lobby:", error);
