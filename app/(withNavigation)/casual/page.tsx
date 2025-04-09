@@ -37,13 +37,12 @@ const PlayCasual: React.FC = () => {
     setLoadingToken(false);
   }, []);
 
-  // Build headers including the auth token and Content-Type.
   const getAuthHeaders = () => ({
     Authorization: authToken || "",
     "Content-Type": "application/json",
   });
 
-  // Handler: create a new lobby with the token sent in headers.
+  // Handler: call backend API to create a lobby and reroute to /lobbies/{lobbyCode}
   const handleCreateLobby = async () => {
     if (loadingToken) {
       setNotification({ type: "error", message: "Loading token, please try again." });
@@ -57,21 +56,22 @@ const PlayCasual: React.FC = () => {
         maxPlayers: 8,
       };
 
-      // Define the expected response type
+      // Define the expected response type (note: using lobbyCode, not lobbyId)
       interface LobbyResponse {
-        lobbyId: string;
+        lobbyCode: string;
       }
 
       const headers = getAuthHeaders();
 
       // Make POST request with auth headers.
       const response = (await apiService.post("/lobbies", payload, { headers })) as LobbyResponse;
-      const lobbyId = response.lobbyId;
-      if (!lobbyId) {
-        setNotification({ type: "error", message: "Lobby creation failed: no lobby id returned." });
+      const lobbyCode = response.lobbyCode;
+      if (!lobbyCode) {
+        setNotification({ type: "error", message: "Lobby creation failed: no lobby code returned." });
         return;
       }
-      router.push(`/lobbies/${lobbyId}`);
+      // Redirect to the lobby page using the lobby code
+      router.push(`/lobbies/${lobbyCode}`);
     } catch (error: unknown) {
       console.error("Error creating lobby:", error);
       if (error instanceof Error) {
