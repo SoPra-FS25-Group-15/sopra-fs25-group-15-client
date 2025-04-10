@@ -76,9 +76,7 @@ reason).
 |                    | 10.04.2025 | [PR #133](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/133) / [C1](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/133/commits/a62b35872ae63d8747867306bbb3817ebcce4c3b) | Implemented the home page of the application | The user can learn more about the game and gets motivated to sing up and try it out |
 | **[@githubUser6]** | 10.04.2024   | [[Link to Commit 1]](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/279#issue-2985262462) | Added the websocket config files, and logic for sending friend requests
 
- | We need the player to be able to see the friend requests they receive in real time and react in real time, therefore it needs to be over websockets. Previously no websocket configuration had been set up either, so this was the first.  |
- 
-|                    |  10.04.2024    | [[Link to Commit 2]](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/280#issue-2985273083) | We have to fetch the audio files from the radio API somehow, however there is no official api from garden.radio so this is a makeshift way of getting the audio files | This is necessary for the audio hint in our variant
+ | We need the player to be able to see the friend requests they receive in real time and react in real time, therefore it needs to be over websockets. Previously no websocket configuration had been set up either, so this was the first.  ||                    |  10.04.2024    | [[Link to Commit 2]](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/280#issue-2985273083) | We have to fetch the audio files from the radio API somehow, however there is no official api from garden.radio so this is a makeshift way of getting the audio files | This is necessary for the audio hint in our variant
 
 ---
 
