@@ -69,6 +69,22 @@ reason).
 | **@zhenmei** | 06.04.2025  | [146e070](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/146e070bc74970ec0000fdb01a6734757ef73da2) | Develop endpoints that handle account deletion, including password re-entry for confirmation | Complete the user story 04: Account deletion requires confirmation (e.g., re-enter password and confirm deletion) and warns about data loss. |
 | | 09.04.2025  | [af5334e](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/af5334e944b80dfafc9109d11e82ccbc3f2521ab) | Validated functionality for editing and deleting profiles, including persistence and password confirmation | Complete the user story 04 for the integration tests part. |
 | | 10.04.2025  | [0047271](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/0047271495a0be08d0ea0e2b089b3d1517d28544) | Added WebSocketConfig and dependence for actioncards | Initial preparations for websocket so that the game will be able to handle action card selections in real time. |
+| **@froeoe** | 9.4.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/131) | This implementation adds a lobby page. This page is there to invite players and adjust the game settings. | This is a crucial step for the game logic as it checks if all necessary conditions are met in order to start the game. |
+|                    | 6.4.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/127) | This implements the play casual and play competitive overview page with links to the respective lobbies. | This step matters because now the user can see the distinction between the two game modes and can decide what to play. Then the user is redirected to the respective lobby in order to start a game. |
+| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+
+---
+
+## Contributions Week 3 - [Begin Date] to [End Date]
+
+| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
@@ -81,24 +97,51 @@ reason).
 
 ---
 
-## Contributions Week 3 - [Begin Date] to [End Date]
-
-_Continue with the same table format as above._
-
----
-
 ## Contributions Week 4 - [Begin Date] to [End Date]
 
-_Continue with the same table format as above._
+| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 
 ---
 
 ## Contributions Week 5 - [Begin Date] to [End Date]
 
-_Continue with the same table format as above._
+| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 
 ---
 
 ## Contributions Week 6 - [Begin Date] to [End Date]
 
-_Continue with the same table format as above._
+| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
