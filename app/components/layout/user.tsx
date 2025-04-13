@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from "react";
-import { Card, Button, Form, Input, message, Descriptions } from "antd";
+import {
+  Card,
+  Button,
+  Form,
+  Input,
+  message,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  Descriptions,
+  Avatar,
+  Spin,
+  Typography,
+  Divider,
+  Tag
+} from "antd";
+import {
+  EditOutlined,
+  SaveOutlined,
+  RollbackOutlined,
+  UserOutlined
+} from "@ant-design/icons";
 import { useApi } from "@/hooks/useApi";
+
+const { Title, Text } = Typography;
 
 interface UserProfileDTO {
   userid: number;
@@ -11,6 +32,8 @@ interface UserProfileDTO {
   mmr?: number;
   points?: number;
   achievements?: string[];
+  avatar?: string; // Avatar URL from the backend (if available)
+  rank?: string;
 }
 
 const UserProfile: React.FC = () => {
@@ -20,7 +43,7 @@ const UserProfile: React.FC = () => {
   const [editMode, setEditMode] = useState<boolean>(false);
   const [form] = Form.useForm();
 
-  // Retrieve the token from localStorage
+  // Retrieve token from localStorage (or your global context)
   const storedUserStr = localStorage.getItem("user");
   let token: string | null = null;
   if (storedUserStr) {
@@ -38,17 +61,18 @@ const UserProfile: React.FC = () => {
     setLoading(true);
     const headers = {
       Authorization: token,
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     };
     apiService
       .get<UserProfileDTO>("/auth/me", { headers })
       .then((data) => {
-        // Force statsPublic to be true by default
+        // Force statsPublic to true by default
         data.statsPublic = true;
         setProfile(data);
+        // Prepopulate form fields (avatar remains display-only)
         form.setFieldsValue({
           username: data.username,
-          email: data.email,
+          email: data.email
         });
       })
       .catch((err) => {
@@ -69,12 +93,12 @@ const UserProfile: React.FC = () => {
     if (profile) {
       form.setFieldsValue({
         username: profile.username,
-        email: profile.email,
+        email: profile.email
       });
     }
   };
 
-  // Save updates using PUT /users/me; statsPublic is always sent as true.
+  // Save updates using PUT /users/me (updating only username and email)
   const handleSave = () => {
     form
       .validateFields()
@@ -86,7 +110,7 @@ const UserProfile: React.FC = () => {
         setLoading(true);
         const headers = {
           Authorization: token,
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         };
         const updatedValues = { ...values, statsPublic: true };
         apiService
@@ -109,67 +133,129 @@ const UserProfile: React.FC = () => {
           .finally(() => setLoading(false));
       })
       .catch((info) => {
-        console.log("Validate Failed:", info);
+        console.log("Validation Failed:", info);
       });
   };
 
-  return (
-    <Card title="My Profile" loading={loading} style={{ maxWidth: 600, margin: "auto" }}>
-      {!editMode && profile && (
-        <>
-          <Descriptions title="Profile Information" bordered column={1}>
-            <Descriptions.Item label="Username">{profile.username}</Descriptions.Item>
-            <Descriptions.Item label="Email">{profile.email}</Descriptions.Item>
-            <Descriptions.Item label="MMR">
-              {profile.mmr !== undefined ? profile.mmr : "N/A"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Points">
-              {profile.points !== undefined ? profile.points : "N/A"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Achievements">
-              {profile.achievements && profile.achievements.length > 0
-                ? profile.achievements.join(", ")
-                : "None"}
-            </Descriptions.Item>
-          </Descriptions>
-          <div style={{ marginTop: 16, textAlign: "right" }}>
-            <Button type="primary" onClick={handleEdit}>
-              Edit Profile
-            </Button>
-          </div>
-        </>
-      )}
+  if (!token) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", color: "#fff" }}>
+        User authentication required. Please log in.
+      </div>
+    );
+  }
 
-      {editMode && (
-        <>
-          <Form form={form} layout="vertical">
+  if (loading || !profile) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        <Spin style={{ color: "#fff" }} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        maxWidth: 600,
+        margin: "40px auto",
+        padding: 24,
+        background: "#1f1f1f", // dark background
+        borderRadius: 12,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+        color: "#fff"
+      }}
+    >
+      <Card style={{ background: "transparent", border: "none", color: "#fff" }} bodyStyle={{ padding: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
+          <Avatar
+            size={72}
+            src={profile.avatar || undefined}
+            icon={!profile.avatar ? <UserOutlined /> : undefined}
+            style={{ marginRight: 24 }}
+          >
+            {profile.username.charAt(0).toUpperCase()}
+          </Avatar>
+          <div>
+            <Title level={4} style={{ margin: 0, color: "#fff" }}>
+              {profile.username}
+            </Title>
+            {profile.rank && <Tag color="purple">{profile.rank}</Tag>}
+          </div>
+        </div>
+        {editMode ? (
+          <Form form={form} layout="vertical" onFinish={handleSave}>
             <Form.Item
-              label="Username"
+              label={<Text style={{ color: "#fff" }}>Username</Text>}
               name="username"
               rules={[{ required: true, message: "Please input your username!" }]}
             >
-              <Input />
+              <Input style={{ backgroundColor: "#333", color: "#fff", borderColor: "#444" }} />
             </Form.Item>
             <Form.Item
-              label="Email"
+              label={<Text style={{ color: "#fff" }}>Email</Text>}
               name="email"
               rules={[
                 { required: true, message: "Please input your email!" },
-                { type: "email", message: "Please enter a valid email!" },
+                { type: "email", message: "Please enter a valid email!" }
               ]}
             >
-              <Input />
+              <Input style={{ backgroundColor: "#333", color: "#fff", borderColor: "#444" }} />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
+                Save
+              </Button>
+              <Button style={{ marginLeft: 12 }} onClick={handleCancelEdit} icon={<RollbackOutlined />}>
+                Cancel
+              </Button>
             </Form.Item>
           </Form>
-          <div style={{ marginTop: 16, textAlign: "right" }}>
-            <Button type="primary" onClick={handleSave} style={{ marginRight: 8 }}>
-              Save
+        ) : (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ color: "#fff" }}>Email:</Text>
+              <br />
+              <Text style={{ color: "#fff" }}>
+                {profile.email || "Not available"}
+              </Text>
+            </div>
+            <Divider style={{ borderColor: "#444" }} />
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ color: "#fff" }}>MMR:</Text>
+              <br />
+              <Text style={{ color: "#fff" }}>
+                {profile.mmr !== undefined ? profile.mmr : "N/A"}
+              </Text>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ color: "#fff" }}>Points:</Text>
+              <br />
+              <Text style={{ color: "#fff" }}>
+                {profile.points !== undefined ? profile.points : "N/A"}
+              </Text>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ color: "#fff" }}>Achievements:</Text>
+              <br />
+              <Text style={{ color: "#fff" }}>
+                {profile.achievements && profile.achievements.length > 0
+                  ? profile.achievements.join(", ")
+                  : "None"}
+              </Text>
+            </div>
+            <Divider style={{ borderColor: "#444" }} />
+            <div style={{ marginBottom: 24 }}>
+              <Text strong style={{ color: "#fff" }}>Stats Public:</Text>
+              <br />
+              <Text style={{ color: "#fff" }}>Yes</Text>
+            </div>
+            <Button type="primary" onClick={handleEdit} icon={<EditOutlined />}>
+              Edit Profile
             </Button>
-            <Button onClick={handleCancelEdit}>Cancel</Button>
-          </div>
-        </>
-      )}
-    </Card>
+          </>
+        )}
+      </Card>
+    </div>
   );
 };
 
