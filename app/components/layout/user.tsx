@@ -1,174 +1,175 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
-import { Card, Button, Avatar, Spin, Tag, Input, Form, message } from "antd";
-import { UserOutlined, EditOutlined, SaveOutlined, RollbackOutlined } from "@ant-design/icons";
+import { Card, Button, Form, Input, message, Descriptions } from "antd";
 import { useApi } from "@/hooks/useApi";
 
-interface UserProfileData {
-  userId: string;
+interface UserProfileDTO {
+  userid: number;
   username: string;
-  profilePicture: string;
-  rank?: string;
-  bio?: string;
+  email: string;
+  token?: string;
+  statsPublic?: boolean;
+  mmr?: number;
+  points?: number;
+  achievements?: string[];
 }
 
 const UserProfile: React.FC = () => {
   const apiService = useApi();
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [editing, setEditing] = useState<boolean>(false);
+  const [profile, setProfile] = useState<UserProfileDTO | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [editMode, setEditMode] = useState<boolean>(false);
   const [form] = Form.useForm();
 
-  // Retrieve the current user's ID and authentication token from localStorage.
-  const userId = localStorage.getItem("userId") || "";
-  const token = localStorage.getItem("token") || "";
-
-  // Fetch the user's profile data.
-  const fetchProfile = async () => {
-    setLoading(true);
+  // Retrieve the token from localStorage
+  const storedUserStr = localStorage.getItem("user");
+  let token: string | null = null;
+  if (storedUserStr) {
     try {
-      const data = await apiService.get<UserProfileData>(`/users/${userId}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      setProfile(data);
-      form.setFieldsValue({
-        username: data.username,
-        bio: data.bio,
-      });
-    } catch (error) {
-      console.error("Failed to fetch profile", error);
-      message.error("Failed to fetch profile");
-    } finally {
-      setLoading(false);
+      const storedUser = JSON.parse(storedUserStr);
+      token = storedUser.token;
+    } catch (e) {
+      console.error("Error parsing user from localStorage", e);
     }
-  };
+  }
 
+  // Load profile data using the authenticated endpoint /auth/me
   useEffect(() => {
-    fetchProfile();
-  }, [userId]);
+    if (!token) return;
+    setLoading(true);
+    const headers = {
+      Authorization: token,
+      "Content-Type": "application/json",
+    };
+    apiService
+      .get<UserProfileDTO>("/auth/me", { headers })
+      .then((data) => {
+        // Force statsPublic to be true by default
+        data.statsPublic = true;
+        setProfile(data);
+        form.setFieldsValue({
+          username: data.username,
+          email: data.email,
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to load profile:", err);
+        message.error("Failed to load profile.");
+      })
+      .finally(() => setLoading(false));
+  }, [token, apiService, form]);
 
-  // Switch to edit mode.
-  const onEdit = () => {
-    setEditing(true);
+  // Enter edit mode
+  const handleEdit = () => {
+    setEditMode(true);
   };
 
-  // Cancel editing and revert to the loaded profile values.
-  const onCancel = () => {
-    setEditing(false);
+  // Cancel edit mode and reset form values
+  const handleCancelEdit = () => {
+    setEditMode(false);
     if (profile) {
       form.setFieldsValue({
         username: profile.username,
-        bio: profile.bio,
+        email: profile.email,
       });
     }
   };
 
-  // Submit the updated profile values.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onFinish = async (values: any) => {
-    setLoading(true);
-    try {
-      const updatedProfile = await apiService.put<UserProfileData>(
-        `/users/${userId}`,
-        { ...values },
-        {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
+  // Save updates using PUT /users/me; statsPublic is always sent as true.
+  const handleSave = () => {
+    form
+      .validateFields()
+      .then((values) => {
+        if (!token) {
+          message.error("User is not authenticated.");
+          return;
         }
-      );
-      setProfile(updatedProfile);
-      setEditing(false);
-      message.success("Profile updated successfully");
-    } catch (error) {
-      console.error("Failed to update profile", error);
-      message.error("Failed to update profile");
-    } finally {
-      setLoading(false);
-    }
+        setLoading(true);
+        const headers = {
+          Authorization: token,
+          "Content-Type": "application/json",
+        };
+        const updatedValues = { ...values, statsPublic: true };
+        apiService
+          .put<UserProfileDTO>("/users/me", updatedValues, { headers })
+          .then((data) => {
+            message.success("Profile updated successfully.");
+            data.statsPublic = true;
+            setProfile(data);
+            setEditMode(false);
+            // Update the user record in localStorage
+            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+            currentUser.username = data.username;
+            currentUser.email = data.email;
+            localStorage.setItem("user", JSON.stringify(currentUser));
+          })
+          .catch((err) => {
+            console.error("Update failed:", err);
+            message.error(err.message || "Failed to update profile.");
+          })
+          .finally(() => setLoading(false));
+      })
+      .catch((info) => {
+        console.log("Validate Failed:", info);
+      });
   };
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: 20 }}>
-        <Spin />
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div style={{ textAlign: "center", padding: 20 }}>
-        <p>Profile not found.</p>
-      </div>
-    );
-  }
-
   return (
-    <div
-      style={{
-        maxWidth: 500,
-        width: "100%",
-        padding: 16,
-        background: "#fff",
-        border: "1px solid #ddd",
-        position: "absolute",
-        right: 0,
-      }}
-    >
-      <Card size="small" style={{ width: "100%" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-          <Avatar
-            size={64}
-            src={profile.profilePicture}
-            icon={!profile.profilePicture ? <UserOutlined /> : undefined}
-          />
-          <div style={{ flex: 1 }}>
-            {editing ? (
-              <Form form={form} layout="vertical" onFinish={onFinish}>
-                <Form.Item
-                  label="Username"
-                  name="username"
-                  rules={[{ required: true, message: "Username required" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Form>
-            ) : (
-              <>
-                <p style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>{profile.username}</p>
-                {profile.rank && <Tag color="purple">{profile.rank}</Tag>}
-              </>
-            )}
-          </div>
-        </div>
-        {editing ? (
-          <Form form={form} layout="vertical" onFinish={onFinish}>
-            <Form.Item label="Bio" name="bio">
-              <Input.TextArea rows={3} placeholder="Enter your bio" />
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
-                Save
-              </Button>
-              <Button style={{ marginLeft: 8 }} onClick={onCancel} icon={<RollbackOutlined />}>
-                Cancel
-              </Button>
-            </Form.Item>
-          </Form>
-        ) : (
-          <>
-            {profile.bio && <p>{profile.bio}</p>}
-            <Button type="primary" onClick={onEdit} icon={<EditOutlined />}>
+    <Card title="My Profile" loading={loading} style={{ maxWidth: 600, margin: "auto" }}>
+      {!editMode && profile && (
+        <>
+          <Descriptions title="Profile Information" bordered column={1}>
+            <Descriptions.Item label="Username">{profile.username}</Descriptions.Item>
+            <Descriptions.Item label="Email">{profile.email}</Descriptions.Item>
+            <Descriptions.Item label="MMR">
+              {profile.mmr !== undefined ? profile.mmr : "N/A"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Points">
+              {profile.points !== undefined ? profile.points : "N/A"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Achievements">
+              {profile.achievements && profile.achievements.length > 0
+                ? profile.achievements.join(", ")
+                : "None"}
+            </Descriptions.Item>
+          </Descriptions>
+          <div style={{ marginTop: 16, textAlign: "right" }}>
+            <Button type="primary" onClick={handleEdit}>
               Edit Profile
             </Button>
-          </>
-        )}
-      </Card>
-    </div>
+          </div>
+        </>
+      )}
+
+      {editMode && (
+        <>
+          <Form form={form} layout="vertical">
+            <Form.Item
+              label="Username"
+              name="username"
+              rules={[{ required: true, message: "Please input your username!" }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="Email"
+              name="email"
+              rules={[
+                { required: true, message: "Please input your email!" },
+                { type: "email", message: "Please enter a valid email!" },
+              ]}
+            >
+              <Input />
+            </Form.Item>
+          </Form>
+          <div style={{ marginTop: 16, textAlign: "right" }}>
+            <Button type="primary" onClick={handleSave} style={{ marginRight: 8 }}>
+              Save
+            </Button>
+            <Button onClick={handleCancelEdit}>Cancel</Button>
+          </div>
+        </>
+      )}
+    </Card>
   );
 };
 
