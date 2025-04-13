@@ -1,7 +1,7 @@
 "use client";
 
 import "@ant-design/v5-patch-for-react-19";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Card, Form, Input, List } from "antd";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import { useApi } from "@/hooks/useApi";
@@ -30,39 +30,21 @@ interface PublicProfile {
   profilePicture: string;
 }
 
-// Helper function to load the token from localStorage when available.
-const loadToken = (): string | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  let token = localStorage.getItem("token");
-  if (!token) {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        token = parsedUser.token;
-      } catch (err) {
-        console.error("Failed to parse user from localStorage:", err);
-      }
-    }
-  }
-  return token;
-};
-
 const FriendManagement: React.FC = () => {
   const apiService = useApi();
 
-  // Track the authentication token.
-  const [authToken, setAuthToken] = useState<string | null>(loadToken());
+  // Store the auth token.
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState<boolean>(true);
 
-  // Now: collapsed === false means minimized view is shown;
-  // collapsed === true means extended view is shown.
+  // Collapsed view: minimized (only avatar) vs full (extended details).
+  // collapsed === true means minimized view is shown;
+  // collapsed === false means extended view is shown.
   const [collapsed, setCollapsed] = useState<boolean>(true);
   const [showInviteForm, setShowInviteForm] = useState<boolean>(false);
   const [selectedProfile, setSelectedProfile] = useState<PublicProfile | null>(null);
 
+  // Friend data.
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
@@ -70,6 +52,7 @@ const FriendManagement: React.FC = () => {
   const [form] = Form.useForm();
   const [notification, setNotification] = useState<NotificationProps | null>(null);
 
+  // Base container style.
   const containerStyle: React.CSSProperties = {
     position: "fixed",
     right: 8,
@@ -83,73 +66,53 @@ const FriendManagement: React.FC = () => {
     padding: 16,
   };
 
-  // Effect to load token on mount and listen for storage changes.
+  // In extended view, allow scrolling if content overflows.
+  const extendedContainerStyle: React.CSSProperties = {
+    ...containerStyle,
+    maxHeight: "80vh",
+    overflowY: "auto",
+  };
+
+  // Load token from localStorage on mount.
   useEffect(() => {
-    const updateToken = () => {
-      const token = loadToken();
-      setAuthToken(token);
-    };
-
-    updateToken();
-    setLoadingToken(false);
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("storage", updateToken);
-      return () => window.removeEventListener("storage", updateToken);
+    let token = localStorage.getItem("token");
+    if (!token) {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          token = parsedUser.token;
+        } catch (err) {
+          console.error("Failed to parse user from localStorage:", err);
+        }
+      }
     }
+    setAuthToken(token);
+    setLoadingToken(false);
   }, []);
 
-  // Also poll localStorage every 5 seconds to catch changes in the same tab.
+  // Once we have the token, fetch friend data.
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      const token = loadToken();
-      if (token !== authToken) {
-        setAuthToken(token);
-      }
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [authToken]);
-
-  // When token changes, clear any previously stored friend data so that the wrong user's data is not displayed.
-  useEffect(() => {
-    if (!authToken) {
-      setFriends([]);
-      setFriendRequests([]);
-      setSentRequests([]);
-      return;
-    }
-    // Clear old data
-    setFriends([]);
-    setFriendRequests([]);
-    setSentRequests([]);
-    // Fetch new data for the current token
+    if (!authToken) return;
     fetchFriends();
     fetchFriendRequests();
     fetchSentRequests();
   }, [authToken]);
 
-  // Force extended view (collapsed = true) whenever there is an incoming or sent friend request.
-  useEffect(() => {
-    if (friendRequests.length > 0 || sentRequests.length > 0) {
-      setCollapsed(true);
-    }
-  }, [friendRequests, sentRequests]);
-
-  // Build headers for API calls.
-  const getAuthHeaders = useCallback(() => {
+  // Build headers with the token.
+  const getAuthHeaders = () => {
     return {
       Authorization: authToken || "",
       "Content-Type": "application/json",
     };
-  }, [authToken]);
+  };
 
   const fetchFriends = async () => {
     try {
       const headers = getAuthHeaders();
       const response = await apiService.get<Friend[]>("/friends", { headers });
       setFriends(response);
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to load friends list.",
@@ -163,7 +126,7 @@ const FriendManagement: React.FC = () => {
       const headers = getAuthHeaders();
       const response = await apiService.get<FriendRequest[]>("/friends/requests", { headers });
       setFriendRequests(response);
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to load friend requests.",
@@ -176,9 +139,9 @@ const FriendManagement: React.FC = () => {
     try {
       const headers = getAuthHeaders();
       const allRequests = await apiService.get<FriendRequest[]>("/friends/all-requests", { headers });
-      const sent = allRequests.filter(request => !request.isIncoming);
+      const sent = allRequests.filter((req) => !req.isIncoming);
       setSentRequests(sent);
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to load sent friend requests.",
@@ -190,20 +153,19 @@ const FriendManagement: React.FC = () => {
   const handleSendRequest = async (values: { target: string }) => {
     try {
       const headers = getAuthHeaders();
-      // Step 1: Search for the user by email (or username).
-      const searchResponse = await apiService.post<{
-        userid: number;
-        username: string;
-        email: string;
-      }>("/users/search", { email: values.target }, { headers });
-
+      // 1) Search for the user by email.
+      const searchResponse = await apiService.post<{ userid: number; username: string; email: string }>(
+        "/users/search",
+        { email: values.target },
+        { headers }
+      );
       const userId = searchResponse.userid;
-      // Step 2: Send the friend request using the user ID.
-      const response = await apiService.post<{
-        message: string;
-        requestId: string;
-      }>("/friends/request", { recipient: userId }, { headers });
-
+      // 2) Request friend using the user ID.
+      const response = await apiService.post<{ message: string; requestId: string }>(
+        "/friends/request",
+        { recipient: userId },
+        { headers }
+      );
       setNotification({
         type: "success",
         message: response.message,
@@ -213,7 +175,7 @@ const FriendManagement: React.FC = () => {
       setShowInviteForm(false);
       fetchFriendRequests();
       fetchSentRequests();
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to send friend request.",
@@ -237,7 +199,7 @@ const FriendManagement: React.FC = () => {
       });
       fetchFriends();
       fetchFriendRequests();
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to accept friend request.",
@@ -260,7 +222,7 @@ const FriendManagement: React.FC = () => {
         onClose: () => setNotification(null),
       });
       fetchFriendRequests();
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to decline friend request.",
@@ -272,17 +234,14 @@ const FriendManagement: React.FC = () => {
   const handleCancelRequest = async (requestId: string) => {
     try {
       const headers = getAuthHeaders();
-      const response = await apiService.delete<{ message: string }>(
-        `/friends/requests/${requestId}`,
-        { headers }
-      );
+      const response = await apiService.delete<{ message: string }>(`/friends/requests/${requestId}`, { headers });
       setNotification({
         type: "success",
-        message: response?.message || "Friend request canceled successfully.",
+        message: (response && response.message) || "Friend request canceled successfully.",
         onClose: () => setNotification(null),
       });
       fetchSentRequests();
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to cancel friend request.",
@@ -297,11 +256,11 @@ const FriendManagement: React.FC = () => {
       const response = await apiService.delete<{ message: string }>(`/friends/${friendId}`, { headers });
       setNotification({
         type: "success",
-        message: response?.message || "Friend removed successfully.",
+        message: (response && response.message) || "Friend removed successfully.",
         onClose: () => setNotification(null),
       });
       fetchFriends();
-    } catch (error: unknown) {
+    } catch (error) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to remove friend.",
@@ -311,26 +270,23 @@ const FriendManagement: React.FC = () => {
   };
 
   // ======================
-  //   Render Logic
+  //   Render
   // ======================
-
-  // If we're still loading the token from storage, return nothing (or a spinner).
   if (loadingToken) {
-    return null;
+    return <div>Loading...</div>;
   }
 
-  // If no token is present, hide this component entirely (return nothing).
   if (!authToken) {
     return null;
   }
 
-  // Main return once we do have a token:
   return (
     <>
+      {/* Notification always at top */}
       {notification && <Notification {...notification} />}
 
-      {/* Collapsed == false => minimized view */}
-      {!collapsed ? (
+      {collapsed ? (
+        // Collapsed view (minimized): only display the UserCards with minimal info (avatar only).
         <div style={{ ...containerStyle, width: 80, padding: 8, textAlign: "center" }}>
           <div style={{ marginBottom: 8 }}>
             {friends.map((friend) => (
@@ -345,7 +301,8 @@ const FriendManagement: React.FC = () => {
                   })
                 }
               >
-                <UserCard username={friend.username} showPointer />
+                {/* Pass minimal prop to render only the avatar */}
+                <UserCard username={friend.username} showPointer minimal={true} />
               </div>
             ))}
           </div>
@@ -354,28 +311,25 @@ const FriendManagement: React.FC = () => {
               type="text"
               icon={<PlusOutlined style={{ fontSize: "16px" }} />}
               onClick={() => {
-                setCollapsed(true);
+                setCollapsed(false);
                 setShowInviteForm(true);
               }}
             />
           </div>
-          <div style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(true)}>
+          <div style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(false)}>
             &laquo;
           </div>
         </div>
       ) : selectedProfile ? (
-        // Public profile view
-        <div style={containerStyle}>
+        // Public profile view.
+        <div style={extendedContainerStyle}>
           <PublicUserProfile userId={selectedProfile.userId} onBack={() => setSelectedProfile(null)} />
         </div>
       ) : showInviteForm ? (
-        // Invite Friend form
-        <div style={containerStyle}>
+        // Invite friend form.
+        <div style={extendedContainerStyle}>
           <div style={{ marginBottom: 16 }}>
-            <span
-              style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }}
-              onClick={() => setShowInviteForm(false)}
-            >
+            <span style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }} onClick={() => setShowInviteForm(false)}>
               &#8592;
             </span>
             Add New Friend
@@ -398,10 +352,10 @@ const FriendManagement: React.FC = () => {
           </Card>
         </div>
       ) : (
-        // Extended (full) main view
-        <div style={containerStyle}>
+        // Expanded / full view.
+        <div style={extendedContainerStyle}>
           <div style={{ marginBottom: 16, textAlign: "right" }}>
-            <span style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(false)}>
+            <span style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(true)}>
               &raquo;
             </span>
           </div>
