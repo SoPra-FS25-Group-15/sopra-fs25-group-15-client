@@ -12,6 +12,7 @@ import { User } from "@/types/user";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
 import { Button, Card, Flex, Popover, Tag } from "antd";
 import Link from "next/link";
+import { useApi } from "@/hooks/useApi";
 
 /** 
  * Left-side header links remain the same as before. 
@@ -33,20 +34,47 @@ type ProfileProps = {
 };
 
 const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
-  const { clear: clearToken } = useLocalStorage<User | null>("user", null);
-  const { user } = useGlobalUser();
+  const { clear: clearLocalUser } = useLocalStorage<User | null>("user", null);
+  const { user, setUser } = useGlobalUser();
+  const apiService = useApi();
 
-  function handleLogout() {
-    clearToken();
+  /**
+   * handleLogout: 
+   * 1) POST /auth/logout with Authorization: <token> 
+   * 2) On success (or error), remove from localStorage 
+   * 3) setUser(null)
+   */
+  async function handleLogout() {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      try {
+        // Call the backend endpoint:
+        await apiService.post<{ message: string }>(
+          "/auth/logout",
+          {}, // no body needed for logout
+          { headers: { Authorization: token } }
+        );
+        console.log("Successfully called backend logout.");
+      } catch (err) {
+        console.error("Error calling backend logout:", err);
+      }
+    }
+
+    // Either way, remove local info
+    clearLocalUser();
+    localStorage.removeItem("token");
+    setUser(null);
+    console.log("User after logout:", user);
   }
 
+  // For debugging, show whenever user changes
   useEffect(() => {
-    // Re-renders when the user changes
+    console.log("User changed:", user);
   }, [user]);
 
   if (user) {
     // Logged-in: show user card with popover
-    // The popover items now call onSelectView(...) instead of linking to a route
     const userLinks: MenuItem[] = [
       { label: "Profile", link: "/profile" },
       { label: "Achievements", onClick: () => onSelectView("achievements") },
@@ -56,11 +84,7 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
     ];
 
     return (
-      <Popover
-        content={<Menu items={userLinks} />}
-        trigger="hover"
-        mouseLeaveDelay={0.3}
-      >
+      <Popover content={<Menu items={userLinks} />} trigger="hover" mouseLeaveDelay={0.3}>
         <UserCard
           username={user.username ?? "username"}
           rank={user.mmr ? `${user.mmr} MMR` : "0 MMR"}
@@ -90,11 +114,7 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
 const Header: React.FC = () => {
   const { user } = useGlobalUser();
   // "achievements", "history", "settings", or null
-  const [activeView, setActiveView] = useState<null | "achievements" | "history" | "settings">(
-    null
-  );
-
-  useEffect(() => {}, [user]);
+  const [activeView, setActiveView] = useState<null | "achievements" | "history" | "settings">(null);
 
   // Called by Profile’s “Achievements,” “Game History,” or “Settings” items
   function handleSelectView(viewName: "achievements" | "history" | "settings") {
@@ -104,7 +124,7 @@ const Header: React.FC = () => {
 
   return (
     <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100 }}>
-      <Card styles={{ body: { padding: 4 } }} size="small">
+      <Card size="small">
         <Flex justify="space-between" align="center">
           {/* Left-hand side: standard routes + store */}
           <Menu

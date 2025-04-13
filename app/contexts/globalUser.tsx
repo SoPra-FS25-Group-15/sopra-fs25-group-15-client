@@ -1,10 +1,17 @@
 "use client";
 
 import { User } from "@/types/user";
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode
+} from "react";
 
 type GlobalStateType = {
   user: User | null;
+  setUser: (u: User | null) => void;
 };
 
 const GlobalUserContext = createContext<GlobalStateType | undefined>(undefined);
@@ -12,46 +19,70 @@ const GlobalUserContext = createContext<GlobalStateType | undefined>(undefined);
 export function GlobalUserProvider({ children }: { children: ReactNode }) {
   const [globalUser, setGlobalUser] = useState<User | null>(null);
 
-  useEffect(() => {
-    // Update the user from local storage when the component mounts
-    const updateUser = () => {
-      const stored = window.localStorage.getItem("user");
-      if (stored) {
-        setGlobalUser(JSON.parse(stored) as User | null);
-        console.log("Global User updated:", JSON.parse(stored) as User | null);
-      } else {
-        setGlobalUser(null);
-        console.log("Global User updated:", null);
+  // Helper to read user from localStorage:
+  function loadUserFromLocalStorage(): User | null {
+    const stored = window.localStorage.getItem("user");
+    if (stored) {
+      try {
+        return JSON.parse(stored) as User;
+      } catch {
+        console.warn("Failed to parse stored user");
+        return null;
       }
-    };
+    }
+    return null;
+  }
 
-    // Initial update
+  // Sync globalUser with localStorage:
+  const updateUser = () => {
+    const userFromStorage = loadUserFromLocalStorage();
+    setGlobalUser(userFromStorage);
+    console.log("GlobalUser updated:", userFromStorage);
+  };
+
+  useEffect(() => {
+    // Initial load
     updateUser();
 
-    // Listen for changes from other windows/tabs
-    const handleExternal = (event: StorageEvent) => {
+    // Listen for changes in other tabs/windows
+    const handleExternalStorage = (event: StorageEvent) => {
       if (event.key === "user") {
         updateUser();
       }
     };
 
-    // Listen for changes in the SAME tab via a custom event.
-    // Call window.dispatchEvent(new Event("userChanged")) whenever you update localStorage in the same tab.
-    const handleInternal = () => {
+    // Listen for changes in the same tab (you can dispatch a custom event when you update localStorage)
+    const handleInternalUpdate = () => {
       updateUser();
     };
 
-    window.addEventListener("storage", handleExternal);
-    window.addEventListener("userChanged", handleInternal);
+    window.addEventListener("storage", handleExternalStorage);
+    window.addEventListener("userChanged", handleInternalUpdate);
 
-    // Cleanup the event listeners on unmount
     return () => {
-      window.removeEventListener("storage", handleExternal);
-      window.removeEventListener("userChanged", handleInternal);
+      window.removeEventListener("storage", handleExternalStorage);
+      window.removeEventListener("userChanged", handleInternalUpdate);
     };
   }, []);
 
-  return <GlobalUserContext.Provider value={{ user: globalUser }}>{children}</GlobalUserContext.Provider>;
+  // Wrap a function to set user and also store in localStorage
+  // (or remove from localStorage if user is null).
+  const setUser = (user: User | null) => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
+    }
+    // If you want other components in the same tab to react, dispatch a custom event:
+    window.dispatchEvent(new Event("userChanged"));
+    setGlobalUser(user);
+  };
+
+  return (
+    <GlobalUserContext.Provider value={{ user: globalUser, setUser }}>
+      {children}
+    </GlobalUserContext.Provider>
+  );
 }
 
 /**
