@@ -27,10 +27,7 @@ const Achievements: React.FC = () => {
         color: "#fff",
       }}
     >
-      <Card
-        style={{ background: "transparent", border: "none", color: "#fff" }}
-        bodyStyle={{ padding: 0 }}
-      >
+      <Card style={{ background: "transparent", border: "none", color: "#fff" }} styles={{ body: { padding: 0 } }}>
         <div
           style={{
             display: "flex",
