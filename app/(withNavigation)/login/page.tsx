@@ -32,8 +32,6 @@ const Login: React.FC = () => {
       const response = await apiService.post<User>("/auth/login", values);
       if (response.token) {
         setUser(response);
-        // Also store the token under "token" for other components to use.
-        localStorage.setItem("token", response.token);
       }
       router.push("/");
     } catch (error) {

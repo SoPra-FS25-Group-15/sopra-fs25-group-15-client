@@ -8,6 +8,7 @@ import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import UserCard from "@/components/general/usercard";
 import PublicUserProfile from "@/components/general/publicProfile";
+import { useGlobalUser } from "@/contexts/globalUser";
 
 interface Friend {
   userId: string;
@@ -17,24 +18,21 @@ interface Friend {
 
 interface FriendRequest {
   requestId: string;
-  fromUserId: string;
-  username: string;
+  senderUsername: string;
+  recipientUsername: string;
   email?: string;
   profilePicture: string;
-  isIncoming: boolean;
+  incoming: boolean;
 }
 
 interface PublicProfile {
-  userId: string;
   username: string;
-  profilePicture: string;
 }
 
 const FriendManagement: React.FC = () => {
   const apiService = useApi();
 
   // Always call hooks in the same order.
-  const [authToken, setAuthToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState<boolean>(true);
 
   const [collapsed, setCollapsed] = useState<boolean>(true);
@@ -47,6 +45,8 @@ const FriendManagement: React.FC = () => {
 
   const [form] = Form.useForm();
   const [notification, setNotification] = useState<NotificationProps | null>(null);
+
+  const { user } = useGlobalUser();
 
   const containerStyle: React.CSSProperties = {
     position: "fixed",
@@ -61,40 +61,30 @@ const FriendManagement: React.FC = () => {
     padding: 16,
   };
 
-  // On mount, load token from localStorage.
   useEffect(() => {
-    let token = localStorage.getItem("token");
-    if (!token) {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          token = parsedUser.token;
-        } catch (err) {
-          console.error("Failed to parse user from localStorage:", err);
-        }
-      }
-    }
-    console.log("Token retrieved:", token);
-    setAuthToken(token);
+    const userData = localStorage.getItem("user");
     setLoadingToken(false);
+    if (!userData) {
+      return;
+    }
   }, []);
 
   // Fetch data once the token is available.
   useEffect(() => {
-    if (!authToken) return;
     fetchFriends();
     fetchFriendRequests();
     fetchSentRequests();
-  }, [authToken]);
+  }, []);
 
   // Build headers including Content-Type for JSON.
   const getAuthHeaders = () => {
-    console.log("Using token for API calls:", authToken);
-    return {
-      Authorization: authToken || "",
-      "Content-Type": "application/json",
-    };
+    if (user) {
+      console.log("Using token for API calls:", user.token);
+      return {
+        Authorization: user.token || "",
+        "Content-Type": "application/json",
+      };
+    }
   };
 
   const fetchFriends = async () => {
@@ -115,6 +105,7 @@ const FriendManagement: React.FC = () => {
     try {
       const headers = getAuthHeaders();
       const response = await apiService.get<FriendRequest[]>("/friends/requests", { headers });
+      console.log("Friend requests:", response);
       setFriendRequests(response);
     } catch (error: unknown) {
       setNotification({
@@ -130,7 +121,8 @@ const FriendManagement: React.FC = () => {
     try {
       const headers = getAuthHeaders();
       const allRequests = await apiService.get<FriendRequest[]>("/friends/all-requests", { headers });
-      const sent = allRequests.filter(request => !request.isIncoming);
+      console.log("All requests:", allRequests);
+      const sent = allRequests.filter((request) => !request.incoming);
       setSentRequests(sent);
     } catch (error: unknown) {
       setNotification({
@@ -201,11 +193,7 @@ const FriendManagement: React.FC = () => {
   const handleDeclineRequest = async (requestId: string) => {
     try {
       const headers = getAuthHeaders();
-      const response = await apiService.post<{ message: string }>(
-        `/friends/requests/${requestId}`,
-        {},
-        { headers }
-      );
+      const response = await apiService.post<{ message: string }>(`/friends/requests/${requestId}`, {}, { headers });
       setNotification({
         type: "success",
         message: response.message,
@@ -261,193 +249,191 @@ const FriendManagement: React.FC = () => {
     }
   };
 
-  return (
-    <>
-      {loadingToken ? (
-        <div>Loading...</div>
-      ) : !authToken ? (
-        <div>User authentication required. Please log in.</div>
-      ) : collapsed ? (
-        // Collapsed view.
-        <div style={{ ...containerStyle, width: 80, padding: 8, textAlign: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            {friends.map((friend) => (
-              <div
-                key={friend.userId}
-                style={{ marginBottom: 8, cursor: "pointer" }}
-                onClick={() =>
-                  setSelectedProfile({
-                    userId: friend.userId,
-                    username: friend.username,
-                    profilePicture: friend.profilePicture,
-                  })
-                }
+  if (loadingToken) {
+    return <div>Loading...</div>;
+  }
+
+  if (user) {
+    return (
+      <>
+        {collapsed ? (
+          // Collapsed view.
+          <div style={{ ...containerStyle, width: 80, padding: 8, textAlign: "center" }}>
+            <div style={{ marginBottom: 8 }}>
+              {friends.map((friend) => (
+                <div
+                  key={friend.userId}
+                  style={{ marginBottom: 8, cursor: "pointer" }}
+                  onClick={() =>
+                    setSelectedProfile({
+                      username: friend.username,
+                    })
+                  }
+                >
+                  <UserCard showPointer />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <Button
+                type="text"
+                icon={<PlusOutlined style={{ fontSize: "16px" }} />}
+                onClick={() => {
+                  setCollapsed(false);
+                  setShowInviteForm(true);
+                }}
+              />
+            </div>
+            <div style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(false)}>
+              &laquo;
+            </div>
+          </div>
+        ) : selectedProfile ? (
+          // Public profile view.
+          <div style={containerStyle}>
+            {notification && <Notification {...notification} />}
+            <PublicUserProfile userId={selectedProfile.username} onBack={() => setSelectedProfile(null)} />
+          </div>
+        ) : showInviteForm ? (
+          // Invite Friend form.
+          <div style={containerStyle}>
+            {notification && <Notification {...notification} />}
+            <div style={{ marginBottom: 16 }}>
+              <span
+                style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }}
+                onClick={() => setShowInviteForm(false)}
               >
-                <UserCard username={friend.username} showPointer />
-              </div>
-            ))}
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <Button
-              type="text"
-              icon={<PlusOutlined style={{ fontSize: "16px" }} />}
-              onClick={() => {
-                setCollapsed(false);
-                setShowInviteForm(true);
-              }}
-            />
-          </div>
-          <div style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(false)}>
-            &laquo;
-          </div>
-        </div>
-      ) : selectedProfile ? (
-        // Public profile view.
-        <div style={containerStyle}>
-          {notification && <Notification {...notification} />}
-          <PublicUserProfile userId={selectedProfile.userId} onBack={() => setSelectedProfile(null)} />
-        </div>
-      ) : showInviteForm ? (
-        // Invite Friend form.
-        <div style={containerStyle}>
-          {notification && <Notification {...notification} />}
-          <div style={{ marginBottom: 16 }}>
-            <span style={{ cursor: "pointer", fontWeight: "bold", marginRight: 8 }} onClick={() => setShowInviteForm(false)}>
-              &#8592;
-            </span>
-            Add New Friend
-          </div>
-          <Card>
-            <Form form={form} layout="vertical" onFinish={handleSendRequest}>
-              <Form.Item
-                name="target"
-                label="Friend's Email or Username"
-                rules={[{ required: true, message: "Please input your friend's email or username!" }]}
-              >
-                <Input placeholder="Enter your friend's email or username" />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit">
-                  Send Invitation
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-        </div>
-      ) : (
-        // Expanded main view.
-        <div style={containerStyle}>
-          {notification && <Notification {...notification} />}
-          <div style={{ marginBottom: 16, textAlign: "right" }}>
-            <span style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(true)}>
-              &raquo;
-            </span>
-          </div>
-          <div style={{ marginBottom: 16, textAlign: "right" }}>
-            <Button type="default" onClick={() => setShowInviteForm(true)}>
-              Add Friend
-            </Button>
-          </div>
-          <Card title="Friend Requests">
-            <List
-              dataSource={friendRequests}
-              locale={{ emptyText: "No friend requests available." }}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="accept"
-                      type="text"
-                      onClick={() => handleAcceptRequest(item.requestId)}
-                      icon={<CheckOutlined style={{ color: "green", fontSize: "16px" }} />}
-                    />,
-                    <Button
-                      key="decline"
-                      type="text"
-                      onClick={() => handleDeclineRequest(item.requestId)}
-                      icon={<CloseOutlined style={{ color: "red", fontSize: "16px" }} />}
-                    />,
-                  ]}
+                &#8592;
+              </span>
+              Add New Friend
+            </div>
+            <Card>
+              <Form form={form} layout="vertical" onFinish={handleSendRequest}>
+                <Form.Item
+                  name="target"
+                  label="Friend's Email or Username"
+                  rules={[{ required: true, message: "Please input your friend's email or username!" }]}
                 >
-                  <UserCard
-                    username={item.username}
-                    showPointer
-                    onClick={() =>
-                      setSelectedProfile({
-                        userId: item.fromUserId,
-                        username: item.username,
-                        profilePicture: item.profilePicture,
-                      })
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-          <Card title="Sent Friend Requests" style={{ marginTop: 16 }}>
-            <List
-              dataSource={sentRequests}
-              locale={{ emptyText: "No sent friend requests." }}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="cancel"
-                      type="text"
-                      onClick={() => handleCancelRequest(item.requestId)}
-                      icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
-                    />,
-                  ]}
-                >
-                  <UserCard
-                    username={item.username}
-                    showPointer
-                    onClick={() =>
-                      setSelectedProfile({
-                        userId: item.fromUserId,
-                        username: item.username,
-                        profilePicture: item.profilePicture,
-                      })
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-          <Card title="Friends List" style={{ marginTop: 16 }}>
-            <List
-              dataSource={friends}
-              locale={{ emptyText: "No friends found." }}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="remove"
-                      type="text"
-                      onClick={() => handleRemoveFriend(item.userId)}
-                      icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
-                    />,
-                  ]}
-                >
-                  <UserCard
-                    username={item.username}
-                    showPointer
-                    onClick={() =>
-                      setSelectedProfile({
-                        userId: item.userId,
-                        username: item.username,
-                        profilePicture: item.profilePicture,
-                      })
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-        </div>
-      )}
-    </>
-  );
+                  <Input placeholder="Enter your friend's email or username" />
+                </Form.Item>
+                <Form.Item>
+                  <Button type="primary" htmlType="submit">
+                    Send Invitation
+                  </Button>
+                </Form.Item>
+              </Form>
+            </Card>
+          </div>
+        ) : (
+          // Expanded main view.
+          <div style={containerStyle}>
+            {notification && <Notification {...notification} />}
+            <div style={{ marginBottom: 16, textAlign: "right" }}>
+              <span style={{ cursor: "pointer", fontWeight: "bold" }} onClick={() => setCollapsed(true)}>
+                &raquo;
+              </span>
+            </div>
+            <div style={{ marginBottom: 16, textAlign: "right" }}>
+              <Button type="default" onClick={() => setShowInviteForm(true)}>
+                Add Friend
+              </Button>
+            </div>
+            <Card title="Friend Requests">
+              <List
+                dataSource={friendRequests}
+                locale={{ emptyText: "No friend requests available." }}
+                renderItem={(item) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        key="accept"
+                        type="text"
+                        onClick={() => handleAcceptRequest(item.requestId)}
+                        icon={<CheckOutlined style={{ color: "green", fontSize: "16px" }} />}
+                      />,
+                      <Button
+                        key="decline"
+                        type="text"
+                        onClick={() => handleDeclineRequest(item.requestId)}
+                        icon={<CloseOutlined style={{ color: "red", fontSize: "16px" }} />}
+                      />,
+                    ]}
+                  >
+                    <UserCard
+                      username={item.senderUsername}
+                      showPointer
+                      onClick={() =>
+                        setSelectedProfile({
+                          username: item.senderUsername,
+                        })
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+            <Card title="Sent Friend Requests" style={{ marginTop: 16 }}>
+              <List
+                dataSource={sentRequests}
+                locale={{ emptyText: "No sent friend requests." }}
+                renderItem={(item) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        key="cancel"
+                        type="text"
+                        onClick={() => handleCancelRequest(item.requestId)}
+                        icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
+                      />,
+                    ]}
+                  >
+                    <UserCard
+                      username={item.recipientUsername}
+                      rank={item.email}
+                      showPointer
+                      onClick={() =>
+                        setSelectedProfile({
+                          username: item.recipientUsername,
+                        })
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+            <Card title="Friends List" style={{ marginTop: 16 }}>
+              <List
+                dataSource={friends}
+                locale={{ emptyText: "No friends found." }}
+                renderItem={(item) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        key="remove"
+                        type="text"
+                        onClick={() => handleRemoveFriend(item.userId)}
+                        icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
+                      />,
+                    ]}
+                  >
+                    <UserCard
+                      username={item.username}
+                      showPointer
+                      onClick={() =>
+                        setSelectedProfile({
+                          username: item.username,
+                        })
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+          </div>
+        )}
+      </>
+    );
+  }
 };
 
 export default FriendManagement;
