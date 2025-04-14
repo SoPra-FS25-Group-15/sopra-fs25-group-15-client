@@ -1,21 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import Menu, { MenuItem } from "@/components/general/menu";
 import UserCard from "@/components/general/usercard";
+import Achievements from "@/components/layout/achievements";
+import GameHistory from "@/components/layout/gameHistory";
+import Settings from "@/components/layout/settings";
+import UserProfile from "@/components/layout/user";
 import { useGlobalUser } from "@/contexts/globalUser";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
-import { Button, Card, Flex, Popover, Tag, Modal } from "antd";
+import { Button, Card, Flex, Popover, Tag } from "antd";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
-// 1) Import the profile component that fetches from localStorage itself
-import UserProfile from "@/components/layout/user"; // your code above
-
-//
-// App-level links for the main nav
-//
+/**
+ * Left-side header links remain the same as before.
+ */
 const appLinks: MenuItem[] = [
   { label: "Home", link: "/" },
   { label: "Play Casual", link: "/casual" },
@@ -24,83 +25,51 @@ const appLinks: MenuItem[] = [
   { label: "Game Rules", link: "/rules" },
 ];
 
-//
-// For the user menu links, we no longer include `link: "/profile"`
-// because we want to show the local UserProfile in a modal.
-//
-const userMenu = (
-  handleShowProfile: () => void,
-  handleLogout: () => void
-): MenuItem[] => [
-  {
-    label: "Profile",
-    onClick: handleShowProfile, // Open the UserProfile modal
-  },
-  { label: "Achievements", link: "/achivements" },
-  { label: "Game History", link: "/history" },
-  { label: "Settings", link: "/settings" },
-  { label: "Sign out", onClick: handleLogout },
-];
+/**
+ * We define the props for Profile to accept a callback onSelectView(viewName).
+ * We’ll call it from the “Achievements,” “Game History,” and “Settings” menu items.
+ */
+type Screens = "profile" | "achievements" | "history" | "settings";
 
-//
-// This subcomponent handles the "logged in user" header area,
-// including the popover + "sign out" and "profile" actions.
-//
-const ProfileSection: React.FC = () => {
+type ProfileProps = {
+  onSelectView: (viewName: Screens) => void;
+};
+
+const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
   const { clear: clearToken } = useLocalStorage<User | null>("user", null);
   const { user } = useGlobalUser();
 
-  // State for opening/closing the UserProfile modal
-  const [showProfile, setShowProfile] = useState(false);
-
-  function handleShowProfile() {
-    setShowProfile(true);
-  }
-  function handleCloseProfile() {
-    setShowProfile(false);
-  }
-
   function handleLogout() {
     clearToken();
-    // Optionally refresh or redirect
   }
 
-  // Rerender whenever user changes
-  useEffect(() => {}, [user]);
+  useEffect(() => {
+    // Re-renders when the user changes
+  }, [user]);
 
-  // Logged-in case:
   if (user) {
-    return (
-      <>
-        <Popover
-          content={<Menu items={userMenu(handleShowProfile, handleLogout)} />}
-          trigger="hover"
-          mouseLeaveDelay={0.3}
-        >
-          <UserCard
-            // Display name and MMR in the user card
-            username={user.username ?? "username"}
-            rank={user.mmr ? `${user.mmr} MMR` : "0 MMR"}
-            showPointer
-            subview={<DownOutlined />}
-          />
-        </Popover>
+    // Logged-in: show user card with popover
+    // The popover items now call onSelectView(...) instead of linking to a route
+    const userLinks: MenuItem[] = [
+      { label: "Profile", onClick: () => onSelectView("profile") },
+      { label: "Achievements", onClick: () => onSelectView("achievements") },
+      { label: "Game History", onClick: () => onSelectView("history") },
+      { label: "Settings", onClick: () => onSelectView("settings") },
+      { label: "Sign out", onClick: handleLogout },
+    ];
 
-        {/* Our UserProfile (from your code) in an AntD modal. 
-            The component itself handles localStorage userId/token. */}
-        <Modal
-          open={showProfile}
-          footer={null}
-          onCancel={handleCloseProfile}
-          // optional: style={{ top: 80 }} or width, etc.
-        >
-          <UserProfile />
-        </Modal>
-      </>
+    return (
+      <Popover content={<Menu items={userLinks} />} trigger="hover" mouseLeaveDelay={0.3}>
+        <UserCard
+          username={user.username ?? "username"}
+          rank={user.mmr ? `${user.mmr} MMR` : "0 MMR"}
+          showPointer
+          subview={<DownOutlined />}
+        />
+      </Popover>
     );
-  }
-  // Not logged in => show Register/Login
-  else {
+  } else {
+    // Not logged in: show Register + Login buttons
     return (
       <Flex align="center" justify="center" gap={8} style={{ height: 72, paddingRight: 16 }}>
         <Link href="/register">
@@ -114,18 +83,27 @@ const ProfileSection: React.FC = () => {
   }
 };
 
-//
-// The top-level nav header with the app menu and the user's profile section
-//
+/**
+ * Header: keeps track of the active view in state, shows the corresponding component below.
+ */
 const Header: React.FC = () => {
   const { user } = useGlobalUser();
+  // "achievements", "history", "settings", or null
+  const [activeView, setActiveView] = useState<Screens | null>(null);
 
   useEffect(() => {}, [user]);
 
+  // Called by Profile’s “Achievements,” “Game History,” or “Settings” items
+  function handleSelectView(viewName: Screens) {
+    // If user clicks the same item again, close it; otherwise open the newly selected view
+    setActiveView((prev) => (prev === viewName ? null : viewName));
+  }
+
   return (
     <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100 }}>
-      <Card size="small" style={{ padding: 4 }}>
+      <Card styles={{ body: { padding: 4 } }} size="small">
         <Flex justify="space-between" align="center">
+          {/* Left-hand side: standard routes + store */}
           <Menu
             items={[
               ...appLinks,
@@ -141,9 +119,19 @@ const Header: React.FC = () => {
             ]}
             horizontal
           />
-          <ProfileSection />
+
+          {/* Right-hand side: Profile w/ popover */}
+          <Profile onSelectView={handleSelectView} />
         </Flex>
       </Card>
+
+      {/* Conditionally render the chosen view below the header */}
+      <div style={{ marginTop: 80, padding: 16 }}>
+        {activeView === "profile" && <UserProfile />}
+        {activeView === "achievements" && <Achievements />}
+        {activeView === "history" && <GameHistory />}
+        {activeView === "settings" && <Settings />}
+      </div>
     </nav>
   );
 };
