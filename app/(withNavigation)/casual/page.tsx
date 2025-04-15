@@ -1,51 +1,33 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Row, Col, Modal, Typography } from "antd";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import LargeCardButton from "@/components/general/LargeCardButton";
 import { UserAddOutlined, LoginOutlined } from "@ant-design/icons";
+import { useGlobalUser } from "@/contexts/globalUser";
 
 const { Title, Paragraph } = Typography;
 
 const PlayCasual: React.FC = () => {
   const router = useRouter();
   const apiService = useApi();
+  const { user } = useGlobalUser();
   const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [showJoinGameModal, setShowJoinGameModal] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [loadingToken, setLoadingToken] = useState<boolean>(true);
 
-  // Retrieve token from localStorage on mount.
-  useEffect(() => {
-    let token = localStorage.getItem("token");
-    if (!token) {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          token = parsedUser.token;
-        } catch (err) {
-          console.error("Failed to parse user from localStorage:", err);
-        }
-      }
-    }
-    console.log("Token retrieved:", token);
-    setAuthToken(token);
-    setLoadingToken(false);
-  }, []);
-
+  // getAuthHeaders uses the token from the global user context
   const getAuthHeaders = () => ({
-    Authorization: authToken || "",
+    Authorization: user?.token || "",
     "Content-Type": "application/json",
   });
 
-  // Handler: call backend API to create a lobby and reroute to /lobbies/{lobbyCode}
+  // Handler to create a lobby via the backend API and redirect to /lobbies/{lobbyCode}
   const handleCreateLobby = async () => {
-    if (loadingToken) {
-      setNotification({ type: "error", message: "Loading token, please try again." });
+    if (!user) {
+      setNotification({ type: "error", message: "User not logged in. Please log in to create a lobby." });
       return;
     }
     try {
@@ -56,7 +38,7 @@ const PlayCasual: React.FC = () => {
         maxPlayers: 8,
       };
 
-      // Define the expected response type (note: using lobbyCode, not lobbyId)
+      // Define the expected response type (note: expecting lobbyCode, not lobbyId)
       interface LobbyResponse {
         lobbyCode: string;
       }
@@ -90,7 +72,7 @@ const PlayCasual: React.FC = () => {
     setShowJoinGameModal(false);
   };
 
-  // Define a common style for both buttons to ensure equal size.
+  // Define a common style for both large card buttons.
   const buttonStyle = { width: "100%", height: "150px" };
 
   return (
