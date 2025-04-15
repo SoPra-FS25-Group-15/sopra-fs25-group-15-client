@@ -81,7 +81,8 @@ reason).
 ---
 
 ## Contributions Week 3 - [Begin Date] to [End Date]
-
+| **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
+| ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
 | **ctfbruce** | 15.04.2025   | [Link to Commit 1] | Implement websocket endpoint for sending friend requests | We need a way to receive friend requests in real time as part of our notification system. Additionally, for this I had to write the websocket friend controller which is neccesary for the proceeding friend websocket tasks |
 | **ctfbruce** | 15.04.2025   | [Link to Commit 1] | Implement websocket endpoint for receviing, accepting and rejecting friend requests | Building on the previous task, I implemented the websocket functionality for receiving, and responding to friend requests. Once again, this is necessary for the real time notifications |
 | **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
