@@ -1,5 +1,6 @@
 import { GlobalUserProvider } from "@/contexts/globalUser";
-import { WebSocketProvider } from "@/contexts/webSocketProvider"; // import the new provider
+import { WebSocketProvider } from "@/contexts/webSocketProvider";
+import GlobalInvitePopup from "@/components/general/globalPopUp"; // adjust the import path as needed
 import "@/styles/globals.css";
 import { purple, red } from "@ant-design/colors";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
@@ -53,6 +54,8 @@ export default function RootLayout({
               }}
             >
               <AntdRegistry>{children}</AntdRegistry>
+              {/* Render the global invite popup here so it shows on every page */}
+              <GlobalInvitePopup />
             </ConfigProvider>
           </WebSocketProvider>
         </GlobalUserProvider>

@@ -48,10 +48,7 @@ const LobbyCreatePage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
   const { user } = useGlobalUser();
-
-  // We'll always treat the current user as admin for this page.
   const [isAdmin] = useState(true);
-
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${user?.token ?? ""}`,
     "Content-Type": "application/json",
@@ -67,13 +64,7 @@ const LobbyCreatePage: React.FC = () => {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteInput, setInviteInput] = useState("");
 
-  // Local state for popup invitation (for when an invite is received)
-  const [popupInvite, setPopupInvite] = useState<{
-    fromUsername: string;
-    lobbyCode: string;
-  } | null>(null);
-
-  // Local STOMP connection for lobby management
+  // Local STOMP connection for lobby creation, join, and updates.
   const stompClient = useRef<Client | null>(null);
   const [stompConnected, setStompConnected] = useState(false);
   const lobbySubscription = useRef<unknown>(null);
@@ -83,6 +74,7 @@ const LobbyCreatePage: React.FC = () => {
     if (params.id) {
       const id = Array.isArray(params.id) ? params.id[0] : params.id;
       setLobbyCode(id);
+      console.log("Lobby code from URL:", id);
     }
   }, [params.id]);
 
@@ -103,19 +95,21 @@ const LobbyCreatePage: React.FC = () => {
   }, [maxPlayers, playersPerTeam, stompConnected, lobbyCode]);
 
   useEffect(() => {
-    // Create a STOMP client for this page's lobby management
+    console.log("User token:", user?.token);
     stompClient.current = new Client({
       webSocketFactory: () =>
         new SockJS(`http://localhost:8080/ws/lobby-manager?token=${user?.token ?? ""}`),
       connectHeaders: {
         Authorization: `Bearer ${user?.token ?? ""}`,
       },
+      heartbeatIncoming: 0,
+      heartbeatOutgoing: 0,
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("Local STOMP connected");
         setStompConnected(true);
 
-        // Subscribe for lobby creation result
+        // Subscribe for lobby creation result.
         stompClient.current?.subscribe(
           "/user/topic/lobby/create/result",
           (msg) => {
@@ -147,7 +141,7 @@ const LobbyCreatePage: React.FC = () => {
           }
         );
 
-        // Subscribe for invite responses (updates for sent invites)
+        // Subscribe for invite responses (for sent invites).
         inviteSubscription.current = stompClient.current?.subscribe(
           "/user/topic/lobby-manager/invite/result",
           (msg) => {
@@ -168,25 +162,7 @@ const LobbyCreatePage: React.FC = () => {
           }
         );
 
-        // Subscribe for incoming invitations for the recipient.
-        stompClient.current?.subscribe(
-          "/user/topic/lobby-manager/invites",
-          (msg) => {
-            console.log("Received invite message:", msg.body);
-            try {
-              const response = JSON.parse(msg.body);
-              if (response.type === "INVITE_IN") {
-                const { fromUsername, lobbyCode } = response.payload;
-                console.log("Setting popupInvite for invitation:", fromUsername, lobbyCode);
-                setPopupInvite({ fromUsername, lobbyCode });
-              }
-            } catch (err) {
-              console.error("Error processing incoming invite:", err);
-            }
-          }
-        );
-
-        // Subscribe for lobby updates if a lobbyCode exists
+        // Subscribe for lobby updates if a lobbyCode exists.
         if (lobbyCode && !lobbySubscription.current) {
           lobbySubscription.current = stompClient.current!.subscribe(
             `/topic/lobby/${lobbyCode}`,
@@ -201,7 +177,7 @@ const LobbyCreatePage: React.FC = () => {
           );
         }
 
-        // If no lobby code exists, create the lobby.
+        // If no lobby code exists, create a lobby.
         if (!lobbyCode) {
           console.log("No lobbyCode present, publishing lobby creation request.");
           stompClient.current!.publish({
@@ -256,13 +232,16 @@ const LobbyCreatePage: React.FC = () => {
     setInviteModalVisible(true);
   };
 
-  // Send an invitation by username.
+  // Updated handleInviteOk to send the message with both a "type" and a "payload" property.
   const handleInviteOk = () => {
     if (inviteInput && stompConnected && stompClient.current) {
       console.log("Publishing invitation for username:", inviteInput);
       stompClient.current.publish({
         destination: "/app/lobby-manager/invite",
-        body: JSON.stringify({ toUsername: inviteInput }),
+        body: JSON.stringify({
+          type: "INVITE",
+          payload: { toUsername: inviteInput },
+        }),
       });
       setInvitedUsers((prev) => [
         ...prev,
@@ -280,29 +259,6 @@ const LobbyCreatePage: React.FC = () => {
     console.log("Cancelling invite modal");
     setInviteModalVisible(false);
     setInviteInput("");
-  };
-
-  // Handle accepting an invitation.
-  const handleAcceptInvite = (invite: { fromUsername: string; lobbyCode: string }) => {
-    if (stompConnected && stompClient.current) {
-      console.log("Accepting invitation from:", invite.fromUsername);
-      stompClient.current.publish({
-        destination: "/app/lobby-manager/invite/accept",
-        body: JSON.stringify({ fromUsername: invite.fromUsername, lobbyCode: invite.lobbyCode }),
-      });
-      router.push(`/lobby/${invite.lobbyCode}`);
-    }
-  };
-
-  // Handle declining an invitation.
-  const handleDeclineInvite = (invite: { fromUsername: string; lobbyCode: string }) => {
-    if (stompConnected && stompClient.current) {
-      console.log("Declining invitation from:", invite.fromUsername);
-      stompClient.current.publish({
-        destination: "/app/lobby-manager/invite/decline",
-        body: JSON.stringify({ fromUsername: invite.fromUsername, lobbyCode: invite.lobbyCode }),
-      });
-    }
   };
 
   const handleStartGame = async () => {
@@ -418,11 +374,7 @@ const LobbyCreatePage: React.FC = () => {
           >
             {invitedUsers.length > 0 ? (
               invitedUsers.map((item) => (
-                <UserCard
-                  key={item.username}
-                  username={item.username}
-                  subview={<Tag color="purple">{item.status}</Tag>}
-                />
+                <UserCard key={item.username} username={item.username} subview={<Tag color="purple">{item.status}</Tag>} />
               ))
             ) : (
               <Text style={{ color: "#fff" }}>No invites sent yet.</Text>
@@ -478,46 +430,6 @@ const LobbyCreatePage: React.FC = () => {
         <Button onClick={handleInviteOk} type="primary" style={{ width: "100%" }}>
           Send Invitation
         </Button>
-      </Modal>
-
-      {/* Popup Modal for Received Invitation */}
-      <Modal
-        title="Lobby Invitation"
-        open={popupInvite !== null}
-        onCancel={() => {
-          console.log("User cancelled popup invitation");
-          setPopupInvite(null);
-        }}
-        footer={null}
-      >
-        {popupInvite && (
-          <>
-            <Paragraph>
-              You have received an invitation from <b>{popupInvite.fromUsername}</b> to join lobby <b>{popupInvite.lobbyCode}</b>.
-            </Paragraph>
-            <div style={{ textAlign: "right" }}>
-              <Button
-                onClick={() => {
-                  console.log("User declined invitation:", popupInvite);
-                  handleDeclineInvite(popupInvite);
-                }}
-                danger
-                style={{ marginRight: 10 }}
-              >
-                Decline
-              </Button>
-              <Button
-                type="primary"
-                onClick={() => {
-                  console.log("User accepted invitation:", popupInvite);
-                  handleAcceptInvite(popupInvite);
-                }}
-              >
-                Accept
-              </Button>
-            </div>
-          </>
-        )}
       </Modal>
     </div>
   );

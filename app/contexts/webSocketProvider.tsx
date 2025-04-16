@@ -9,7 +9,7 @@ import { useGlobalUser } from '@/contexts/globalUser';
 interface IWebSocketContext {
   stompConnected: boolean;
   popupInvite: { fromUsername: string; lobbyCode: string } | null;
-  // Other methods you might need, e.g. to publish messages.
+  setPopupInvite: React.Dispatch<React.SetStateAction<{ fromUsername: string; lobbyCode: string } | null>>;
 }
 
 const WebSocketContext = createContext<IWebSocketContext | null>(null);
@@ -29,12 +29,14 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         connectHeaders: {
           Authorization: `Bearer ${user.token}`,
         },
+        // Disable heartbeats to avoid malformed frame errors.
+        heartbeatIncoming: 0,
+        heartbeatOutgoing: 0,
         reconnectDelay: 5000,
         onConnect: () => {
           console.log("Global STOMP connected");
           setStompConnected(true);
-
-          // Subscribe for incoming invitations
+          // Subscribe for incoming invitations globally.
           stompClient.current?.subscribe(
             "/user/topic/lobby-manager/invites",
             (msg) => {
@@ -45,7 +47,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                   const { fromUsername, lobbyCode } = response.payload;
                   console.log("Global: Setting popupInvite:", fromUsername, lobbyCode);
                   setPopupInvite({ fromUsername, lobbyCode });
-                  // Optionally, you can use a global notification library here.
+                  // Optionally, display a notification.
                   message.info(`Invitation from ${fromUsername} for lobby ${lobbyCode}`);
                 }
               } catch (err) {
@@ -73,7 +75,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [user?.token]);
 
   return (
-    <WebSocketContext.Provider value={{ stompConnected, popupInvite }}>
+    <WebSocketContext.Provider value={{ stompConnected, popupInvite, setPopupInvite }}>
       {children}
     </WebSocketContext.Provider>
   );
