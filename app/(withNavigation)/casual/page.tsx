@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Row, Col, Modal, Typography } from "antd";
+import { Row, Col, Modal, Typography, Input, message } from "antd";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
@@ -16,43 +16,42 @@ const PlayCasual: React.FC = () => {
   const apiService = useApi();
   const { user } = useGlobalUser();
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-  const [showJoinGameModal, setShowJoinGameModal] = useState(false);
+  const [showJoinLobbyModal, setShowJoinLobbyModal] = useState(false);
+  const [joinLobbyCode, setJoinLobbyCode] = useState("");
+  const [isCreatingLobby, setIsCreatingLobby] = useState(false);
 
-  // getAuthHeaders uses the token from the global user context
   const getAuthHeaders = () => ({
     Authorization: user?.token || "",
     "Content-Type": "application/json",
   });
 
-  // Handler to create a lobby via the backend API and redirect to /lobbies/{lobbyCode}
+  // Handler to create a lobby via the backend API.
+  // On success, redirect to the lobby page with the returned lobby code.
   const handleCreateLobby = async () => {
     if (!user) {
       setNotification({ type: "error", message: "User not logged in. Please log in to create a lobby." });
       return;
     }
+    
     try {
-      // Payload to create a casual lobby (unranked solo mode)
+      setIsCreatingLobby(true);
+      
+      // Payload to create a casual lobby (e.g., unranked solo mode)
       const payload = {
         isPrivate: true,
         mode: "solo",
         maxPlayers: 8,
       };
 
-      // Define the expected response type (note: expecting lobbyCode, not lobbyId)
-      interface LobbyResponse {
-        lobbyCode: string;
-      }
-
-      const headers = getAuthHeaders();
-
-      // Make POST request with auth headers.
-      const response = (await apiService.post("/lobbies", payload, { headers })) as LobbyResponse;
+      // Expected response should contain a lobbyCode (as per your REST API documentation)
+      const response = (await apiService.post("/lobbies", payload, { headers: getAuthHeaders() })) as { lobbyCode: string };
       const lobbyCode = response.lobbyCode;
+      
       if (!lobbyCode) {
         setNotification({ type: "error", message: "Lobby creation failed: no lobby code returned." });
         return;
       }
-      // Redirect to the lobby page using the lobby code
+      
       router.push(`/lobbies/${lobbyCode}`);
     } catch (error: unknown) {
       console.error("Error creating lobby:", error);
@@ -61,19 +60,23 @@ const PlayCasual: React.FC = () => {
       } else {
         setNotification({ type: "error", message: "Failed to create lobby." });
       }
+    } finally {
+      setIsCreatingLobby(false);
     }
   };
 
-  const handleJoinGame = () => {
-    setShowJoinGameModal(true);
+  // Handler to join a lobby.
+  // The user inputs a lobby code, and on confirmation we redirect to /lobbies/{lobbyCode}.
+  const handleJoinLobby = () => {
+    if (!joinLobbyCode || joinLobbyCode.trim() === "") {
+      message.error("Please enter a valid lobby code");
+      return;
+    }
+    
+    // Redirect to the lobby page.
+    // The LobbyPage will handle the STOMP join process (or use an API join endpoint) using the lobby code.
+    router.push(`/lobbies/${joinLobbyCode.trim()}`);
   };
-
-  const closeJoinGameModal = () => {
-    setShowJoinGameModal(false);
-  };
-
-  // Define a common style for both large card buttons.
-  const buttonStyle = { width: "100%", height: "150px" };
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -85,45 +88,45 @@ const PlayCasual: React.FC = () => {
             Host a game and invite your friends. This game mode will not affect your ranked rating.
           </Paragraph>
           <Paragraph style={{ margin: "1rem 0" }}>
-            <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>
-              2-8 Players
-            </span>
+            <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>2-8 Players</span>
             <span style={{ margin: "0 0.5rem", color: "#aaa" }}>|</span>
-            <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>
-              20-60 Minutes
-            </span>
+            <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>20-60 Minutes</span>
           </Paragraph>
         </Col>
       </Row>
       <Row justify="center" style={{ marginTop: "2rem" }} gutter={[16, 16]}>
         <Col xs={24} md={6}>
           <LargeCardButton
-            style={buttonStyle}
+            style={{ width: "100%", height: "150px" }}
             label="Create Lobby"
             onClick={handleCreateLobby}
             icon={<UserAddOutlined style={{ fontSize: "2rem" }} />}
+            disabled={isCreatingLobby}
           />
         </Col>
         <Col xs={24} md={6}>
           <LargeCardButton
-            style={buttonStyle}
+            style={{ width: "100%", height: "150px" }}
             label="Join Lobby"
-            onClick={handleJoinGame}
+            onClick={() => setShowJoinLobbyModal(true)}
             icon={<LoginOutlined style={{ fontSize: "2rem" }} />}
           />
         </Col>
       </Row>
 
-      {/* Join Lobby Modal Pop-up */}
       <Modal
         title="Join Lobby"
-        open={showJoinGameModal}
-        onCancel={closeJoinGameModal}
-        footer={null}
+        open={showJoinLobbyModal}
+        onOk={handleJoinLobby}
+        onCancel={() => setShowJoinLobbyModal(false)}
       >
-        <Paragraph>
-          Join Lobby functionality is coming soon. Please come back later.
-        </Paragraph>
+        <Paragraph>Please enter the lobby code provided by your friend:</Paragraph>
+        <Input
+          placeholder="Lobby Code"
+          value={joinLobbyCode}
+          onChange={(e) => setJoinLobbyCode(e.target.value)}
+          onPressEnter={handleJoinLobby}
+        />
       </Modal>
     </div>
   );
