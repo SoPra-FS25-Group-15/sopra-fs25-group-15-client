@@ -1,4 +1,5 @@
 import { GlobalUserProvider } from "@/contexts/globalUser";
+import { WebSocketProvider } from "@/contexts/webSocketProvider"; // import the new provider
 import "@/styles/globals.css";
 import { purple, red } from "@ant-design/colors";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
@@ -12,9 +13,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body
@@ -30,34 +31,30 @@ export default function RootLayout({
         }}
       >
         <GlobalUserProvider>
-          <ConfigProvider
-            theme={{
-              token: {
-                //Seed token
-                colorPrimary: purple[5],
-                colorBgBase: "#222",
-                fontSize: 16,
-                colorLink: purple[3],
-
-                //Map token
-                colorTextBase: "#fff",
-                colorPrimaryBg: "#222",
-                colorBgElevated: "#333",
-                colorBgSolid: purple[5],
-                colorBorder: "#555",
-                colorBorderSecondary: "#444",
-
-                colorErrorBg: red[9],
-                colorErrorBorder: red[8],
-                colorErrorText: "#fff",
-
-                //Alias token
-                colorTextPlaceholder: "#aaa",
-              },
-            }}
-          >
-            <AntdRegistry>{children}</AntdRegistry>
-          </ConfigProvider>
+          <WebSocketProvider>
+            <ConfigProvider
+              theme={{
+                token: {
+                  colorPrimary: purple[5],
+                  colorBgBase: "#222",
+                  fontSize: 16,
+                  colorLink: purple[3],
+                  colorTextBase: "#fff",
+                  colorPrimaryBg: "#222",
+                  colorBgElevated: "#333",
+                  colorBgSolid: purple[5],
+                  colorBorder: "#555",
+                  colorBorderSecondary: "#444",
+                  colorErrorBg: red[9],
+                  colorErrorBorder: red[8],
+                  colorErrorText: "#fff",
+                  colorTextPlaceholder: "#aaa",
+                },
+              }}
+            >
+              <AntdRegistry>{children}</AntdRegistry>
+            </ConfigProvider>
+          </WebSocketProvider>
         </GlobalUserProvider>
       </body>
     </html>
