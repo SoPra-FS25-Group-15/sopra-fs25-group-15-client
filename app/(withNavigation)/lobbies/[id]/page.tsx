@@ -1,22 +1,22 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useRef } from "react";
 import {
   InputNumber,
   Button,
-  List,
   Modal,
   Input,
   message,
   Card,
   Tag,
   Select,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Divider,
   Typography,
 } from "antd";
-import { Flex } from "antd"; // Assumes Flex is available as in your round card page
 import {
   UserAddOutlined,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CopyOutlined,
   SettingOutlined,
   UserOutlined,
@@ -24,10 +24,12 @@ import {
 } from "@ant-design/icons";
 import { useRouter, useParams } from "next/navigation";
 import UserCard from "@/components/general/usercard";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { useGlobalUser } from "@/contexts/globalUser";
 
 const { Title, Text, Paragraph } = Typography;
 
-// Helper function for allowed team sizes based on total players.
 const getAllowedTeamSizes = (players: number): number[] => {
   switch (players) {
     case 2:
@@ -49,54 +51,35 @@ const getAllowedTeamSizes = (players: number): number[] => {
 const LobbyCreatePage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
-
-  // Token and Auth headers
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [loadingToken, setLoadingToken] = useState<boolean>(true);
-  useEffect(() => {
-    let token = localStorage.getItem("token");
-    if (!token) {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          token = parsedUser.token;
-        } catch (err) {
-          console.error("Failed to parse user from localStorage:", err);
-        }
-      }
-    }
-    console.log("Token retrieved:", token);
-    setAuthToken(token);
-    setLoadingToken(false);
-  }, []);
+  const { user } = useGlobalUser();
 
   const getAuthHeaders = () => ({
-    Authorization: authToken || "",
+    // Although SockJS fallback may ignore these headers,
+    // they can be used if the client connects via a raw WebSocket.
+    Authorization: `Bearer ${user?.token ?? ""}`,
     "Content-Type": "application/json",
   });
 
-  // Lobby state
   const [lobbyCode, setLobbyCode] = useState("");
-  const [maxPlayers, setMaxPlayers] = useState(4); // Allowed range: 2–8
+  const [maxPlayers, setMaxPlayers] = useState(4);
   const [playersPerTeam, setPlayersPerTeam] = useState(2);
 
-  // Fetch friends from your API.
-  const [friends, setFriends] = useState<
-    Array<{ id: number; username: string; email?: string }>
+  const [invitedUsers, setInvitedUsers] = useState<
+    Array<{ username: string; status: string }>
   >([]);
-  useEffect(() => {
-    fetch("/friends")
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to fetch friends");
-        return response.json();
-      })
-      .then((data) => setFriends(data))
-      .catch((error) => console.error("Error fetching friends:", error));
-  }, []);
+  const [joinedUsers, setJoinedUsers] = useState<Array<{ username: string }>>([]);
 
-  // Use URL parameter as lobby code.
+  const [isAdmin] = useState(true);
+
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteInput, setInviteInput] = useState("");
+
+  const stompClient = useRef<Client | null>(null);
+  const [stompConnected, setStompConnected] = useState(false);
+
+  const lobbySubscription = useRef<unknown>(null);
+  const inviteSubscription = useRef<unknown>(null);
+
   useEffect(() => {
     if (params.id) {
       const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -104,7 +87,6 @@ const LobbyCreatePage: React.FC = () => {
     }
   }, [params.id]);
 
-  // Reset playersPerTeam when maxPlayers changes.
   useEffect(() => {
     const allowed = getAllowedTeamSizes(maxPlayers);
     if (!allowed.includes(playersPerTeam)) {
@@ -112,122 +94,148 @@ const LobbyCreatePage: React.FC = () => {
         `Resetting playersPerTeam from ${playersPerTeam} to ${allowed[0]} for ${maxPlayers} players`
       );
       setPlayersPerTeam(allowed[0]);
-      if (socketConnected && socketRef.current && isAdmin) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: "UPDATE_CONFIG",
-            payload: { playersPerTeam: allowed[0] },
-          })
-        );
+      if (stompConnected && stompClient.current && isAdmin && lobbyCode) {
+        stompClient.current.publish({
+          destination: `/app/lobby/${lobbyCode}/update`,
+          body: JSON.stringify({ playersPerTeam: allowed[0] }),
+        });
       }
     }
-  }, [maxPlayers, playersPerTeam]);
+  }, [maxPlayers, playersPerTeam, stompConnected, isAdmin, lobbyCode]);
 
-  // User lists state
-  const [invitedUsers, setInvitedUsers] = useState<
-    Array<{ username: string; status: string }>
-  >([]);
-  const [joinedUsers, setJoinedUsers] = useState<Array<{ username: string }>>([]);
-
-  // Assume current user is admin.
-  const [isAdmin] = useState(true);
-  const [socketConnected, setSocketConnected] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [wsError, setWsError] = useState<string | null>(null);
-
-  // Modal state for inviting friends.
-  const [inviteModalVisible, setInviteModalVisible] = useState(false);
-  const [inviteInput, setInviteInput] = useState("");
-
-  // WebSocket reference.
-  const socketRef = useRef<WebSocket | null>(null);
   useEffect(() => {
-    socketRef.current = new WebSocket("ws://localhost:8080/ws/lobby");
-    socketRef.current.onopen = () => {
-      console.log("WebSocket connected");
-      setSocketConnected(true);
-      if (!lobbyCode) setLobbyCode("12345");
-      socketRef.current?.send(
-        JSON.stringify({
-          type: "CREATE_LOBBY",
-          payload: { maxPlayers, playersPerTeam },
-        })
-      );
-    };
-    socketRef.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        switch (data.type) {
-          case "LOBBY_UPDATE":
-            if (data.payload) {
-              setInvitedUsers(data.payload.invitedUsers || []);
-              setJoinedUsers(data.payload.joinedUsers || []);
-            }
-            break;
-          case "INVITE_RESPONSE":
-            const { username, status } = data.payload;
-            setInvitedUsers((prev) =>
-              prev.map((user) =>
-                user.username === username ? { ...user, status } : user
-              )
-            );
-            break;
-          default:
-            console.warn("Unhandled message type:", data.type);
-        }
-      } catch (error) {
-        console.error("Error parsing WebSocket message", error);
-      }
-    };
-    socketRef.current.onerror = (error) => {
-      console.error("WebSocket error", error);
-      setWsError("WebSocket encountered an error.");
-    };
-    socketRef.current.onclose = () => {
-      console.log("WebSocket disconnected");
-      setSocketConnected(false);
-    };
-    return () => {
-      socketRef.current?.close();
-    };
-  }, [maxPlayers, playersPerTeam, lobbyCode]);
+    stompClient.current = new Client({
+      // Note the updated URL: using "lobby-manager" (correct spelling)
+      // and adding a query parameter "token" for authentication
+      webSocketFactory: () =>
+        new SockJS(`http://localhost:8080/ws/lobby-manager?token=${user?.token ?? ""}`),
+      connectHeaders: {
+        Authorization: `Bearer ${user?.token ?? ""}`,
+      },
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log("STOMP connected");
+        setStompConnected(true);
 
-  // Handlers
+        // Lobby create subscription
+        stompClient.current?.subscribe(
+          "/user/topic/lobby/create/result",
+          (msg) => {
+            try {
+              const response = JSON.parse(msg.body);
+              if (response.type === "LOBBY_CREATED") {
+                console.log("Lobby created:", response.payload);
+                setLobbyCode(response.payload.code);
+
+                if (!lobbySubscription.current) {
+                  lobbySubscription.current = stompClient.current?.subscribe(
+                    `/topic/lobby/${response.payload.code}`,
+                    (updateMsg) => {
+                      const data = JSON.parse(updateMsg.body);
+                      if (data.type === "LOBBY_UPDATE") {
+                        setInvitedUsers(data.payload.invitedUsers || []);
+                        setJoinedUsers(data.payload.joinedUsers || []);
+                      }
+                    }
+                  );
+                }
+              } else if (response.type === "LOBBY_CREATE_ERROR") {
+                message.error(response.payload);
+              }
+            } catch (err) {
+              console.error("Error processing lobby creation response:", err);
+            }
+          }
+        );
+
+        // Invite response subscription
+        inviteSubscription.current = stompClient.current?.subscribe(
+          "/user/topic/lobby-manager/invite/result",
+          (msg) => {
+            try {
+              const response = JSON.parse(msg.body);
+              if (response.type === "INVITE_RESPONSE") {
+                const { username, status } = response.payload;
+                setInvitedUsers((prev) =>
+                  prev.map((u) =>
+                    u.username === username ? { ...u, status } : u
+                  )
+                );
+              }
+            } catch (err) {
+              console.error("Error processing invite response:", err);
+            }
+          }
+        );
+
+        // If we have a lobbyCode from the URL, subscribe
+        if (lobbyCode && !lobbySubscription.current && stompClient.current) {
+          lobbySubscription.current = stompClient.current.subscribe(
+            `/topic/lobby/${lobbyCode}`,
+            (updateMsg) => {
+              const data = JSON.parse(updateMsg.body);
+              if (data.type === "LOBBY_UPDATE") {
+                setInvitedUsers(data.payload.invitedUsers || []);
+                setJoinedUsers(data.payload.joinedUsers || []);
+              }
+            }
+          );
+        }
+
+        // If no code, create lobby
+        if (!lobbyCode && stompClient.current) {
+          stompClient.current.publish({
+            destination: "/app/lobby/create",
+            body: JSON.stringify({ maxPlayers, playersPerTeam }),
+          });
+        }
+      },
+      onStompError: (frame) => {
+        console.error("Broker reported error: " + frame.headers["message"]);
+        console.error("Additional details: " + frame.body);
+      },
+      onDisconnect: () => {
+        setStompConnected(false);
+      },
+    });
+
+    stompClient.current.activate();
+
+    return () => {
+      stompClient.current?.deactivate();
+    };
+  }, [lobbyCode, maxPlayers, playersPerTeam, user?.token]);
+
   const handleMaxPlayersChange = (value: number | null) => {
     if (value !== null && value >= 2 && value <= 8) {
       setMaxPlayers(value);
-      if (socketConnected && socketRef.current && isAdmin) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: "UPDATE_CONFIG",
-            payload: { maxPlayers: value },
-          })
-        );
+      if (stompConnected && stompClient.current && isAdmin && lobbyCode) {
+        stompClient.current.publish({
+          destination: `/app/lobby/${lobbyCode}/update`,
+          body: JSON.stringify({ maxPlayers: value }),
+        });
       }
     }
   };
 
   const handlePlayersPerTeamChange = (value: number) => {
     setPlayersPerTeam(value);
-    if (socketConnected && socketRef.current && isAdmin) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "UPDATE_CONFIG",
-          payload: { playersPerTeam: value },
-        })
-      );
+    if (stompConnected && stompClient.current && isAdmin && lobbyCode) {
+      stompClient.current.publish({
+        destination: `/app/lobby/${lobbyCode}/update`,
+        body: JSON.stringify({ playersPerTeam: value }),
+      });
     }
   };
 
   const openInviteModal = () => setInviteModalVisible(true);
+
   const handleInviteOk = () => {
-    if (inviteInput && socketConnected && isAdmin && socketRef.current) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "INVITE_FRIEND",
-          payload: { email: inviteInput },
-        })
-      );
+    if (inviteInput && stompConnected && isAdmin && stompClient.current) {
+      stompClient.current.publish({
+        destination: "/app/lobby-manager/invite",
+        body: JSON.stringify({ toUsername: inviteInput }),
+      });
       setInvitedUsers((prev) => [
         ...prev,
         { username: inviteInput, status: "pending" },
@@ -236,47 +244,15 @@ const LobbyCreatePage: React.FC = () => {
       setInviteModalVisible(false);
       setInviteInput("");
     } else {
-      message.error("Please enter a valid email or username.");
+      message.error("Please enter a valid username.");
     }
   };
+
   const handleInviteCancel = () => {
     setInviteModalVisible(false);
     setInviteInput("");
   };
 
-  const handleInviteFromFriend = (friend: { id: number; username: string; email?: string }) => {
-    if (socketConnected && isAdmin && socketRef.current) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "INVITE_FRIEND",
-          payload: { email: friend.email || friend.username },
-        })
-      );
-      setInvitedUsers((prev) => [
-        ...prev,
-        { username: friend.username, status: "pending" },
-      ]);
-      message.success(`Invitation sent to ${friend.username}.`);
-    }
-  };
-
-  const handleKick = (username: string) => {
-    if (socketConnected && isAdmin && socketRef.current) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "KICK_USER",
-          payload: { username },
-        })
-      );
-      setJoinedUsers((prev) =>
-        prev.filter((user) => user.username !== username)
-      );
-      message.success(`Kicked ${username} from the lobby.`);
-    }
-  };
-
-  const teamsAreBalanced = playersPerTeam === 1 || joinedUsers.length % playersPerTeam === 0;
-  const canStartGame = joinedUsers.length >= 2 && teamsAreBalanced;
   const handleStartGame = async () => {
     try {
       const response = await fetch("/games", {
@@ -295,12 +271,27 @@ const LobbyCreatePage: React.FC = () => {
   };
 
   const allowedTeamOptions = getAllowedTeamSizes(maxPlayers);
+  const teamsAreBalanced =
+    playersPerTeam === 1 || joinedUsers.length % playersPerTeam === 0;
+  const canStartGame = joinedUsers.length >= 2 && teamsAreBalanced;
 
   return (
-    <Flex vertical gap={20} style={{ width: "100%", minHeight: "100vh", padding: 30 }}>
-      
-      {/* Page Title and Lobby Code */}
-      <Flex vertical align="center" gap={10} style={{ width: "100%" }}>
+    <div
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        padding: 30,
+        backgroundColor: "#282c34",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
         <Title level={2} style={{ color: "#fff", fontWeight: 600 }}>
           Create Lobby
         </Title>
@@ -314,36 +305,38 @@ const LobbyCreatePage: React.FC = () => {
         >
           <Text
             style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#8a2be2" }}
-            copyable={{ text: lobbyCode, icon: <CopyOutlined style={{ color: "#8a2be2" }} /> }}
+            copyable={{ text: lobbyCode }}
           >
             Lobby Code: {lobbyCode || "Loading..."}
           </Text>
         </div>
-      </Flex>
-      
-      {/* Main Content: Three columns */}
-      <Flex gap={20} style={{ width: "100%", flexGrow: 1 }}>
-        {/* Left Column: Lobby Settings */}
-        <Flex vertical gap={20} style={{ flex: "0 0 250px" }}>
-          <Card style={{ borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
-            <Flex align="center" gap={10}>
+      </div>
+
+      <div style={{ display: "flex", gap: 20, width: "100%", marginTop: 30 }}>
+        <div style={{ flex: "0 0 250px" }}>
+          <Card style={{ borderRadius: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <SettingOutlined style={{ fontSize: "1.5rem", color: "#fff" }} />
-              <Text strong style={{ color: "#fff", fontSize: "1.2rem" }}>Lobby Settings</Text>
-            </Flex>
-            <Flex vertical gap={20} style={{ marginTop: 20 }}>
-              <Flex vertical style={{ width: "100%" }}>
-                <Text strong style={{ color: "#fff" }}>Number of Players</Text>
-                <InputNumber
-                  min={2}
-                  max={8}
-                  value={maxPlayers}
-                  onChange={handleMaxPlayersChange}
-                  disabled={!isAdmin}
-                  style={{ marginTop: 10, width: "100%" }}
-                />
-              </Flex>
-              <Flex vertical style={{ width: "100%" }}>
-                <Text strong style={{ color: "#fff" }}>Players per Team</Text>
+              <Text strong style={{ color: "#fff", fontSize: "1.2rem" }}>
+                Lobby Settings
+              </Text>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <Text strong style={{ color: "#fff" }}>
+                Number of Players
+              </Text>
+              <InputNumber
+                min={2}
+                max={8}
+                value={maxPlayers}
+                onChange={handleMaxPlayersChange}
+                disabled={!isAdmin}
+                style={{ marginTop: 10, width: "100%" }}
+              />
+              <div style={{ marginTop: 20 }}>
+                <Text strong style={{ color: "#fff" }}>
+                  Players per Team
+                </Text>
                 <Select
                   value={playersPerTeam}
                   onChange={handlePlayersPerTeamChange}
@@ -356,127 +349,109 @@ const LobbyCreatePage: React.FC = () => {
                     </Select.Option>
                   ))}
                 </Select>
-              </Flex>
-            </Flex>
+              </div>
+            </div>
           </Card>
-        </Flex>
+        </div>
 
-        {/* Middle Column: Invited Users */}
-        <Flex vertical gap={20} style={{ flex: 1 }}>
+        <div style={{ flex: 1 }}>
           <Card
             title={
-              <Flex align="center" gap={5}>
+              <>
                 <UserOutlined style={{ fontSize: "1.2rem", color: "#fff" }} />
-                <Text strong style={{ color: "#fff" }}>Invited Users</Text>
-              </Flex>
+                <Text strong style={{ color: "#fff", marginLeft: 8 }}>
+                  Invited Users
+                </Text>
+              </>
             }
             extra={
               isAdmin && (
-                <Button type="primary" icon={<UserAddOutlined />} onClick={openInviteModal}>
+                <Button
+                  type="primary"
+                  icon={<UserAddOutlined />}
+                  onClick={openInviteModal}
+                >
                   Invite Friend
                 </Button>
               )
             }
-            style={{ borderRadius: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", flex: 1 }}
+            style={{ borderRadius: 8 }}
           >
             {invitedUsers.length > 0 ? (
-              <List
-                dataSource={invitedUsers}
-                renderItem={(item) => (
-                  <List.Item>
-                    <UserCard
-                      username={item.username}
-                      subview={<Tag color="purple">{item.status}</Tag>}
-                    />
-                  </List.Item>
-                )}
-              />
+              invitedUsers.map((item) => (
+                <UserCard
+                  key={item.username}
+                  username={item.username}
+                  subview={<Tag color="purple">{item.status}</Tag>}
+                />
+              ))
             ) : (
               <Text style={{ color: "#fff" }}>No invites sent yet.</Text>
             )}
           </Card>
-        </Flex>
+        </div>
 
-        {/* Right Column: Joined Users */}
-        <Flex vertical gap={20} style={{ flex: 1 }}>
+        <div style={{ flex: 1 }}>
           <Card
             title={
-              <Flex align="center" gap={5}>
+              <>
                 <TeamOutlined style={{ fontSize: "1.2rem", color: "#fff" }} />
-                <Text strong style={{ color: "#fff" }}>Joined Users</Text>
-              </Flex>
+                <Text strong style={{ color: "#fff", marginLeft: 8 }}>
+                  Joined Users
+                </Text>
+              </>
             }
-            style={{ borderRadius: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", flex: 1 }}
+            style={{ borderRadius: 8 }}
           >
             {joinedUsers.length > 0 ? (
-              <List
-                dataSource={joinedUsers}
-                renderItem={(item) => (
-                  <List.Item actions={isAdmin ? [<Button key={item.username} type="link" onClick={() => handleKick(item.username)}>Kick</Button>] : []}>
-                    <UserCard username={item.username} />
-                  </List.Item>
-                )}
-              />
+              joinedUsers.map((item) => (
+                <UserCard key={item.username} username={item.username} />
+              ))
             ) : (
               <Text style={{ color: "#fff" }}>No players have joined yet.</Text>
             )}
           </Card>
-        </Flex>
-      </Flex>
-      
-      {/* Start Game Button (below all columns) */}
-      <Flex vertical align="center" gap={20} style={{ width: "100%" }}>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", marginTop: 30, justifyContent: "center" }}>
         <Button
           onClick={handleStartGame}
           type="primary"
           size="large"
           disabled={!canStartGame}
-          style={{ padding: "0.5rem 2rem", fontSize: "1rem" }}
         >
           Start Game
         </Button>
-        {joinedUsers.length > 0 && playersPerTeam > 1 && !teamsAreBalanced && (
-          <Text type="warning" style={{ color: "#fff" }}>
-            Teams are not balanced; total joined players must be evenly divisible by players per team.
+      </div>
+
+      {joinedUsers.length > 0 && playersPerTeam > 1 && !teamsAreBalanced && (
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <Text style={{ color: "#fff" }}>
+            Teams are not balanced; total joined players must be evenly divisible
+            by players per team.
           </Text>
-        )}
-      </Flex>
-      
-      {/* Invite Friend Modal */}
+        </div>
+      )}
+
       <Modal
         title="Invite Friend"
         visible={inviteModalVisible}
         onCancel={handleInviteCancel}
         footer={null}
       >
-        <Paragraph strong>Choose from your friends:</Paragraph>
-        <List
-          dataSource={friends}
-          renderItem={(friend) => (
-            <List.Item
-              actions={[
-                <Button key={friend.id} type="link" onClick={() => handleInviteFromFriend(friend)}>
-                  Invite
-                </Button>,
-              ]}
-            >
-              <UserCard username={friend.username} />
-            </List.Item>
-          )}
-        />
-        <Divider />
-        <Paragraph strong>Or invite by email:</Paragraph>
+        <Paragraph strong>Or invite by username:</Paragraph>
         <Input
-          placeholder="Enter friend's email or username"
+          placeholder="Enter friend's username"
           value={inviteInput}
           onChange={(e) => setInviteInput(e.target.value)}
           style={{ marginBottom: 10 }}
         />
         <Button onClick={handleInviteOk} type="primary" style={{ width: "100%" }}>
-          Invite by Email
+          Invite by Username
         </Button>
       </Modal>
-    </Flex>
+    </div>
   );
 };
 
