@@ -389,7 +389,7 @@ const FriendManagement: React.FC = () => {
                   >
                     <UserCard
                       username={item.recipientUsername}
-                      rank={item.email}
+                      subviewBottom={item.email}
                       showPointer
                       onClick={() =>
                         setSelectedProfile({

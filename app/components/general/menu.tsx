@@ -81,9 +81,10 @@ const MenuItem: React.FC<MenuItem> = ({ label, link, onClick, subview }: MenuIte
 export type Menu = {
   items: MenuItem[];
   horizontal?: boolean;
+  style?: React.CSSProperties;
 };
 
-const Menu: React.FC<Menu> = ({ items, horizontal }) => {
+const Menu: React.FC<Menu> = ({ items, horizontal, style }) => {
   return (
     <ul
       style={{
@@ -92,6 +93,7 @@ const Menu: React.FC<Menu> = ({ items, horizontal }) => {
         gap: horizontal ? 16 : 2,
         alignItems: horizontal ? "center" : "flex-start",
         listStyle: "none",
+        ...style,
       }}
     >
       {items.map((item, index) => (
