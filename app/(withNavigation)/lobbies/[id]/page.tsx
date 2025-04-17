@@ -4,18 +4,12 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   InputNumber,
   Button,
-  // Modal,
-  // Input,
   message,
   Card,
-  // Tag,
-  // Select,
   Typography,
 } from "antd";
 import {
-  // UserAddOutlined,
   SettingOutlined,
-  // UserOutlined,
   TeamOutlined,
   CopyOutlined,
 } from "@ant-design/icons";
@@ -25,68 +19,32 @@ import SockJS from "sockjs-client";
 import { useGlobalUser } from "@/contexts/globalUser";
 import UserCard from "@/components/general/usercard";
 import Notification, { NotificationProps } from "@/components/general/notification";
+import type { LobbyStatusPayload } from "@/types/websocket";
 
-const { Title, Text, /*Paragraph*/ } = Typography;
+const { Title, Text } = Typography;
 
 interface JoinedUser {
   username: string;
   userid: number;
 }
 
-// interface InvitedUser {
-//   username: string;
-//   status: string;
-// }
-
-interface LobbyStatusPayload {
-  lobbyId: number;
-  code: string;
-  host?: { id: number; username: string };
-  mode: string;
-  maxPlayers: string;
-  playersPerTeam: number;
-  roundCardsStartAmount: number;
-  private: boolean;
-  status: string;
-  players?: Array<{ id: number; username: string; status: string }>;
-}
-
-interface WebSocketMessage<T> {
-  type: string;
-  payload: T;
-}
-
-// const getAllowedTeamSizes = (players: number): number[] => {
-//   switch (players) {
-//     case 2:
-//     case 3:
-//     case 5:
-//     case 7:
-//       return [1];
-//     case 4:
-//       return [1, 2];
-//     case 6:
-//       return [1, 2, 3];
-//     case 8:
-//       return [1, 2, 4];
-//     default:
-//       return [1];
-//   }
-// };
-
 const LobbyPage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
   const { user } = useGlobalUser();
 
+  // Debug
+  console.log("[LobbyPage] useGlobalUser() →", user);
+  if (typeof window !== "undefined") {
+    console.log("[LobbyPage] localStorage.user →", window.localStorage.getItem("user"));
+    console.log("[LobbyPage] localStorage.token →", window.localStorage.getItem("token"));
+  }
+
   const [lobbyCode, setLobbyCode] = useState<string>("");
   const [maxPlayers, setMaxPlayers] = useState<number>(4);
   const [playersPerTeam, setPlayersPerTeam] = useState<number>(1);
   const [joinedUsers, setJoinedUsers] = useState<JoinedUser[]>([]);
-  // const [invitedUsers, setInvitedUsers] = useState<InvitedUser[]>([]);
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-  // const [inviteModalVisible, setInviteModalVisible] = useState<boolean>(false);
-  // const [inviteInput, setInviteInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [isHost, setIsHost] = useState<boolean>(false);
   const [lobbyIdNumber, setLobbyIdNumber] = useState<number | null>(null);
@@ -96,6 +54,7 @@ const LobbyPage: React.FC = () => {
   const updateSubscription = useRef<StompSubscription | null>(null);
   const usersSubscription = useRef<StompSubscription | null>(null);
 
+  // Grab code from URL
   useEffect(() => {
     if (params.id) {
       const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -103,6 +62,7 @@ const LobbyPage: React.FC = () => {
     }
   }, [params.id]);
 
+  // STOMP setup
   useEffect(() => {
     if (!user?.token) {
       setNotification({ type: "error", message: "Please log in to access the lobby." });
@@ -117,6 +77,7 @@ const LobbyPage: React.FC = () => {
       heartbeatOutgoing: 0,
       reconnectDelay: 5000,
       onConnect: () => {
+        console.log("[LobbyPage] STOMP connected as", user.username);
         setLoading(false);
         if (!lobbyCode) return;
 
@@ -128,17 +89,21 @@ const LobbyPage: React.FC = () => {
         statusSubscription.current = client.subscribe(
           `/app/lobby-manager/lobby/${lobbyCode}`,
           (msg) => {
-            const wsMsg = JSON.parse(msg.body) as WebSocketMessage<LobbyStatusPayload>;
+            const wsMsg = JSON.parse(msg.body) as { type: string; payload: LobbyStatusPayload };
             if (wsMsg.type !== "LOBBY_STATUS") return;
 
             const p = wsMsg.payload;
+            console.log("[LobbyPage] LOBBY_STATUS payload:", p);
+            console.log("[LobbyPage] payload.host:", p.host);
+            console.log("[LobbyPage] current user.userid:", user.userid);
+
             setLobbyIdNumber(p.lobbyId);
-            setJoinedUsers(
-              (p.players ?? []).map((u) => ({ username: u.username, userid: u.id }))
-            );
-            setMaxPlayers(parseInt(p.maxPlayers, 10));
+            setJoinedUsers(p.players.map(u => ({ username: u.username, userid: u.userid })));
+            setMaxPlayers(Number(p.maxPlayers));
             setPlayersPerTeam(p.playersPerTeam);
-            setIsHost(p.host?.username === user.username);
+
+            // **FIX** compare host.userid to user.userid
+            setIsHost(p.host.userid === user.userid);
 
             subscribeToLobbyTopics(p.lobbyId);
           }
@@ -162,20 +127,17 @@ const LobbyPage: React.FC = () => {
     };
   }, [user?.token, lobbyCode]);
 
+  // Subscribe to in‑lobby topics
   const subscribeToLobbyTopics = (lobbyId: number) => {
     if (!stompClient.current) return;
 
     updateSubscription.current = stompClient.current.subscribe(
       `/topic/lobby/${lobbyId}`,
       (msg) => {
-        const data = JSON.parse(msg.body) as WebSocketMessage<Partial<LobbyStatusPayload>>;
+        const data = JSON.parse(msg.body) as { type: string; payload: Partial<LobbyStatusPayload> };
         if (data.type === "UPDATE_SUCCESS" && data.payload) {
-          if (data.payload.maxPlayers) {
-            setMaxPlayers(Number(data.payload.maxPlayers));
-          }
-          // if (data.payload.playersPerTeam !== undefined) {
-          //   setPlayersPerTeam(data.payload.playersPerTeam);
-          // }
+          if (data.payload.maxPlayers) setMaxPlayers(Number(data.payload.maxPlayers));
+          if (data.payload.playersPerTeam !== undefined) setPlayersPerTeam(data.payload.playersPerTeam);
         }
         if (data.type === "LOBBY_DISBANDED") {
           message.warning("Lobby disbanded by host");
@@ -188,67 +150,37 @@ const LobbyPage: React.FC = () => {
       `/topic/lobby/${lobbyId}/users`,
       (msg) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = JSON.parse(msg.body) as WebSocketMessage<any>;
+        const data = JSON.parse(msg.body) as { type: string; payload: any };
         if (data.type === "USER_JOINED") {
           const { username, id } = data.payload;
-          setJoinedUsers((curr) =>
-            curr.some((u) => u.userid === id)
-              ? curr
-              : [...curr, { username, userid: id }]
-          );
+          setJoinedUsers(curr => curr.some(u => u.userid === id) ? curr : [...curr, { username, userid: id }]);
         }
         if (data.type === "USER_LEFT" || data.type === "USER_DISCONNECTED") {
-          const userIdToRemove = data.type === "USER_LEFT"
-            ? data.payload.userId
-            : data.payload;
-          setJoinedUsers((curr) => curr.filter((u) => u.userid !== userIdToRemove));
+          const toRemove = data.type === "USER_LEFT" ? data.payload.userId : data.payload;
+          setJoinedUsers(curr => curr.filter(u => u.userid !== toRemove));
         }
       }
     );
   };
 
-  const handleMaxPlayersChange = (value: number | null) => {
-    if (
-      value !== null &&
-      lobbyIdNumber !== null &&
-      stompClient.current &&
-      value >= playersPerTeam
-    ) {
+  // Handlers
+  const handleMaxPlayersChange = (val: number | null) => {
+    if (val !== null && lobbyIdNumber !== null && stompClient.current && val >= playersPerTeam) {
       stompClient.current.publish({
         destination: `/app/lobby/${lobbyIdNumber}/update`,
-        body: JSON.stringify({ type: "UPDATE", payload: { maxPlayers: value } }),
+        body: JSON.stringify({ type: "UPDATE", payload: { maxPlayers: val } }),
       });
     }
   };
 
-  // const handlePlayersPerTeamChange = (value: number) => {
-  //   if (lobbyIdNumber !== null && stompClient.current) {
-  //     stompClient.current.publish({
-  //       destination: `/app/lobby/${lobbyIdNumber}/update`,
-  //       body: JSON.stringify({
-  //         type: "UPDATE",
-  //         payload: { playersPerTeam: value },
-  //       }),
-  //     });
-  //   }
-  // };
-
-  // const handleInviteUser = () => {
-  //   if (!inviteInput.trim() || !stompClient.current) {
-  //     message.error("Enter a username");
-  //     return;
-  //   }
-  //   stompClient.current.publish({
-  //     destination: "/app/lobby-manager/invite",
-  //     body: JSON.stringify({
-  //       type: "INVITE",
-  //       payload: { toUsername: inviteInput.trim() },
-  //     }),
-  //   });
-  //   setInvitedUsers((curr) => [...curr, { username: inviteInput.trim(), status: "pending" }]);
-  //   setInviteModalVisible(false);
-  //   setInviteInput("");
-  // };
+  const handleStartGame = () => {
+    if (lobbyIdNumber !== null && stompClient.current && user) {
+      stompClient.current.publish({
+        destination: `/app/game/start`,
+        body: JSON.stringify({ type: "START_GAME", token: user.token, code: lobbyCode }),
+      });
+    }
+  };
 
   const handleLeaveLobby = () => {
     if (lobbyIdNumber !== null && stompClient.current) {
@@ -267,14 +199,12 @@ const LobbyPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100vh",
+      }}>
         <div style={{ textAlign: "center" }}>
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4" />
           <div>Loading lobby…</div>
@@ -283,11 +213,7 @@ const LobbyPage: React.FC = () => {
     );
   }
 
-  // const allowedTeamOptions = getAllowedTeamSizes(maxPlayers);
-  // const teamsAreBalanced =
-  //   playersPerTeam === 1 || joinedUsers.length % playersPerTeam === 0;
-  const canStartGame =
-    joinedUsers.length >= 2 /*&& teamsAreBalanced*/ && isHost;
+  const canStartGame = joinedUsers.length >= 2 && isHost;
 
   return (
     <div style={{ padding: 24, backgroundColor: "#282c34", minHeight: "100vh" }}>
@@ -330,52 +256,10 @@ const LobbyPage: React.FC = () => {
               style={{ width: "100%" }}
             />
           </div>
-          {/* <div style={{ marginBottom: 12 }}>
-            <Text style={{ color: "#fff" }}>Per Team</Text>
-            <Select
-              value={playersPerTeam}
-              onChange={handlePlayersPerTeamChange}
-              disabled={!isHost}
-              style={{ width: "100%" }}
-            >
-              {allowedTeamOptions.map((opt) => (
-                <Select.Option key={opt} value={opt}>
-                  {opt}
-                </Select.Option>
-              ))}
-            </Select>
-          </div> */}
           <Button danger block onClick={handleLeaveLobby}>
             Leave
           </Button>
         </Card>
-
-        {/* <Card
-          title={
-            <>
-              <UserOutlined style={{ color: "#fff", marginRight: 8 }} />
-              <Text style={{ color: "#fff" }}>Invited</Text>
-            </>
-          }
-          extra={
-            <Button icon={<UserAddOutlined />} onClick={() => setInviteModalVisible(true)}>
-              Invite
-            </Button>
-          }
-          style={{ flex: 1, borderRadius: 8 }}
-        >
-          {invitedUsers.length > 0 ? (
-            invitedUsers.map((u) => (
-              <UserCard
-                key={u.username}
-                username={u.username}
-                subview={<Tag color="purple">{u.status}</Tag>}
-              />
-            ))
-          ) : (
-            <Text style={{ color: "#fff" }}>No invites sent.</Text>
-          )}
-        </Card> */}
 
         <Card
           title={
@@ -387,9 +271,7 @@ const LobbyPage: React.FC = () => {
           style={{ flex: 1, borderRadius: 8 }}
         >
           {joinedUsers.length > 0 ? (
-            joinedUsers.map((u) => (
-              <UserCard key={u.userid} username={u.username} />
-            ))
+            joinedUsers.map(u => <UserCard key={u.userid} username={u.username} />)
           ) : (
             <Text style={{ color: "#fff" }}>No one joined yet.</Text>
           )}
@@ -397,34 +279,10 @@ const LobbyPage: React.FC = () => {
       </div>
 
       <div style={{ textAlign: "center", marginTop: 24 }}>
-        <Button type="primary" size="large" disabled={!canStartGame}>
+        <Button type="primary" size="large" disabled={!canStartGame} onClick={handleStartGame}>
           Start Game
         </Button>
       </div>
-
-      {/* {!teamsAreBalanced && (
-        <div style={{ textAlign: "center", marginTop: 12 }}>
-          <Text style={{ color: "#fff" }}>Teams must be evenly balanced.</Text>
-        </div>
-      )} */}
-
-      {/* <Modal
-        title="Invite by Username"
-        open={inviteModalVisible}
-        onCancel={() => setInviteModalVisible(false)}
-        footer={null}
-      >
-        <Paragraph>Enter username to invite:</Paragraph>
-        <Input
-          placeholder="Username"
-          value={inviteInput}
-          onChange={(e) => setInviteInput(e.target.value)}
-          style={{ marginBottom: 12 }}
-        />
-        <Button type="primary" block onClick={handleInviteUser}>
-          Send
-        </Button>
-      </Modal> */}
     </div>
   );
 };
