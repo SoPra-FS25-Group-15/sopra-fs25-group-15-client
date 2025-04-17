@@ -13,6 +13,7 @@
     "@ant-design/nextjs-registry": "^1.0.2",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@stomp/stompjs": "^7.1.1",
+    "@types/sockjs-client": "^1.5.4",
     "axios": "^1.8.4",
     "leaflet": "^1.9.4",
     "next": "^15.2.4",
@@ -22,6 +23,7 @@
     "react-dom": "^19.1.0",
     "react-leaflet": "^5.0.0",
     "sockjs-client": "^1.6.1",
+    "stomp": "^0.1.1",
     "ws": "^8.18.1"
   },
   "devDependencies": {
@@ -30,6 +32,7 @@
     "@types/node": "^22.13.14",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
+    "@types/ws": "^8.18.1",
     "@types/sockjs-client": "^1.5.4",
     "eslint": "^9.23.0",
     "eslint-config-next": "^15.2.4",
