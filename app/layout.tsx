@@ -26,8 +26,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           backgroundColor: "#111",
         }}
       >
-        <WebSocketProvider>
-          <ContextProvider>
+        <ContextProvider>
+          <WebSocketProvider>
             <ConfigProvider
               theme={{
                 token: {
@@ -53,8 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
               <AntdRegistry>{children}</AntdRegistry>
             </ConfigProvider>
-          </ContextProvider>
-        </WebSocketProvider>
+          </WebSocketProvider>
+        </ContextProvider>
       </body>
     </html>
   );
