@@ -23,6 +23,7 @@ export interface RoundCardModifiers {
 
 export type RoundCardIdentifier = "standard" | "blitz" | "radio";
 
+//TODO: title, description and modifiers will be removed and fetched from the server
 const cards: RoundCard[] = [
   {
     identifier: "standard",
@@ -44,8 +45,7 @@ const cards: RoundCard[] = [
     identifier: "radio",
     icon: CustomerServiceOutlined,
     title: "Radio",
-    description:
-      "Instead of exploring streetview, you will listen to a radio station.",
+    description: "Instead of exploring streetview, you will listen to a radio station.",
     modifiers: { time: 60, guesses: 1, streetview: "Hidden", map: "None" } as RoundCardModifiers,
     themeColor: red,
   },
@@ -53,11 +53,10 @@ const cards: RoundCard[] = [
 
 export function getRoundCards(intentifiers: RoundCardIdentifier[]): RoundCard[] {
   return intentifiers.reduce((result, id) => {
-    const card = cards.find(card => card.identifier === id);
+    const card = cards.find((card) => card.identifier === id);
     if (card) {
       result.push(card);
     }
     return result;
   }, [] as RoundCard[]);
 }
-

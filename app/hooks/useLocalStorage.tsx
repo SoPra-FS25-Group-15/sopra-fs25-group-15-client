@@ -42,7 +42,7 @@ export default function useLocalStorage<T>(key: string, defaultValue: T): LocalS
     setValue(newVal);
     if (typeof window !== "undefined") {
       globalThis.localStorage.setItem(key, JSON.stringify(newVal));
-      window.dispatchEvent(new Event("userChanged"));
+      notify(key);
     }
   };
 
@@ -51,9 +51,22 @@ export default function useLocalStorage<T>(key: string, defaultValue: T): LocalS
     setValue(defaultValue);
     if (typeof window !== "undefined") {
       globalThis.localStorage.removeItem(key);
-      window.dispatchEvent(new Event("userChanged"));
+      notify(key);
     }
   };
 
   return { value, set, clear };
+}
+
+function notify(key: string) {
+  switch (key) {
+    case "user":
+      window.dispatchEvent(new Event("userChanged"));
+      break;
+    case "user-attributes":
+      window.dispatchEvent(new Event("userAttributesChanged"));
+      break;
+    default:
+      break;
+  }
 }

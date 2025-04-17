@@ -1,72 +1,73 @@
+import { purple } from "@ant-design/colors";
+import { Avatar, Card, Flex } from "antd";
 import React from "react";
-import { Avatar, Card, Flex, Tag } from "antd";
-import { UserOutlined } from "@ant-design/icons";
 
-/**
- * Properties for the UserCard component.
- *
- * @property username - `Optional` The user's display name.
- * @property rank - `Optional` The rank of the user.
- * @property showPointer - `Optional` Determines if the cursor should change to a pointer on hover.
- * @property onClick - `Optional` Callback fired when the card is clicked.
- * @property subview - `Optional` React node rendered alongside the main user details.
- */
 interface UserCardProps {
+  borderless?: boolean;
+  iconsize?: "large" | "small";
   username?: string;
-  rank?: string;
   showPointer?: boolean;
   onClick?: () => void;
-  subview?: React.ReactNode;
+  subviewBottom?: React.ReactNode;
+  subviewRight?: React.ReactNode;
+  style?: React.CSSProperties;
 }
 
-/**
- * UserCard component.
- *
- * This component renders a compact card displaying a user's avatar, username, and rank.
- * It supports additional clickable functionality and an optional subview, rendered to the right of the user details.
- * The card can be styled to change the cursor to a pointer when hovered over.
- * Leave the username and rank fields unset to render only the avatar.
- *
- * @property username - `Optional` The user's display name.
- * @property rank - `Optional` The rank of the user.
- * @property showPointer - `Optional` Determines if the cursor should change to a pointer on hover.
- * @property onClick - `Optional` Callback fired when the card is clicked.
- * @property subview - `Optional` React node rendered alongside the main user details.
- *
- * @returns A React element representing the user card.
- */
 const UserCard: React.FC<
   UserCardProps & React.HTMLAttributes<HTMLSpanElement> // Extend the props for the component to work with antd <Popover>
 > = ({
+  borderless = false,
+  iconsize = "large",
   username,
-  rank,
   showPointer,
   onClick,
-  subview,
+  subviewBottom,
+  subviewRight,
+  style,
   ...props
 }): React.ReactElement => {
   return (
     <Card
       {...props}
       onClick={onClick ? onClick : undefined}
-      size="small"
+      style={{
+        width: "100%",
+        border: borderless ? "none" : "1px solid rgba(255, 255, 255, 0.2)",
+        background: borderless ? "transparent" : "#222",
+        ...style,
+      }}
       styles={{
         body: {
-          height: 72,
-          minWidth: 72,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100%",
+          padding: borderless ? 0 : "12px 16px",
           cursor: showPointer ? "pointer" : "default",
         },
       }}
     >
-      <Flex gap={32} align="center" justify="center" style={{ height: "100%" }}>
-        <Flex gap={16}>
-          <Avatar size={42} icon={<UserOutlined />} />
-          <Flex vertical align="start">
-            {username && <p>{username}</p>}
-            {rank && <Tag color="purple">{rank}</Tag>}
+      <Flex gap={32} align="center" justify="space-between" style={{ height: "100%", width: "100%" }}>
+        <Flex gap={iconsize == "large" ? 16 : 8} align="center">
+          <Avatar
+            size={iconsize == "large" ? 42 : 28}
+            style={{
+              flexShrink: 0,
+              verticalAlign: "middle",
+              backgroundColor: purple[2],
+              color: purple[5],
+              fontWeight: 500,
+              fontSize: iconsize == "large" ? 20 : 14,
+            }}
+          >
+            {username ? username.charAt(0).toUpperCase() : "?"}
+          </Avatar>
+          <Flex vertical gap={4} style={{ lineHeight: "100%" }}>
+            {username && <p style={{ fontWeight: "700" }}>{username}</p>}
+            {subviewBottom ? subviewBottom : undefined}
           </Flex>
         </Flex>
-        {subview ? subview : ""}
+        {subviewRight ? subviewRight : undefined}
       </Flex>
     </Card>
   );
