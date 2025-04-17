@@ -1,4 +1,4 @@
-import { RoundCard } from "@/types/roundcard";
+import { RoundCard } from "@/types/game/roundcard";
 import { purple } from "@ant-design/colors";
 import Icon from "@ant-design/icons";
 import { Button, Flex, List, Popover } from "antd";
@@ -6,7 +6,7 @@ import React from "react";
 
 const bounce = "150ms cubic-bezier(1, 0, 0.5, 1)";
 
-const RoundCardComponent: React.FC<RoundCard & { style?: React.CSSProperties }> = ({
+const RoundCardComponent: React.FC<RoundCard> = ({
   themeColor = purple,
   icon,
   title,
@@ -14,18 +14,19 @@ const RoundCardComponent: React.FC<RoundCard & { style?: React.CSSProperties }> 
   modifiers,
   selected = false,
   onClick,
-  style = {},
 }) => {
   return (
     <div
       onClick={onClick}
       style={{
+        scrollSnapAlign: "center",
         aspectRatio: "63/88",
-        width: "100%",
-        height: "100%",
+        maxWidth: "100%",
+        maxHeight: "100%",
         color: "#fff",
-        background: "#222",
+        background: "#333",
         border: selected ? "2px solid #fff" : "1px solid #444",
+        boxShadow: selected ? "0 7px 15px rgba(0, 0, 0, 0.3)" : "0 5px 10px rgba(0, 0, 0, 0.2)",
         transform: selected ? "scale(1.05)" : "scale(1)",
         zIndex: selected ? 20 : 10,
         transition: `transform ${bounce}, box-shadow ${bounce}, border ${bounce}, z-index ${bounce}`,
@@ -33,10 +34,9 @@ const RoundCardComponent: React.FC<RoundCard & { style?: React.CSSProperties }> 
         borderRadius: 12,
         cursor: "pointer",
         userSelect: "none",
-        ...style,
       }}
     >
-      <Flex vertical justify="space-between" gap={40} style={{ height: "100%" }}>
+      <Flex vertical justify="space-between" gap={8} style={{ height: "100%" }}>
         <Flex vertical align="flex-start" gap={8} style={{ lineHeight: 1 }}>
           <Icon component={icon} style={{ color: themeColor[1], fontSize: "64px", paddingBottom: "15%" }} />
           <h2

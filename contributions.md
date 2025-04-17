@@ -59,7 +59,7 @@ reason).
 
 ---
 
-## Contributions Week 2 - [Begin Date] to [End Date]
+## Contributions Week 2 - [3.4.2025] to [10.4.2025]
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
@@ -80,68 +80,36 @@ reason).
 
 ---
 
-## Contributions Week 3 - [Begin Date] to [End Date]
-
-| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+## Contributions Week 3 - [10.4.2025] to [17.4.2025]
+| **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
+| ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
+| **@ctfbruce** | 15.04.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/285) | Implement websocket endpoint for sending friend requests | We need a way to receive friend requests in real time as part of our notification system. Additionally, for this I had to write the websocket friend controller which is neccesary for the proceeding friend websocket tasks |
+|  | 15.04.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/285) | Implement websocket endpoint for receving, accepting and rejecting friend requests | Building on the previous task, I implemented the websocket functionality for receiving, and responding to friend requests. Once again, this is necessary for the real time notifications |
+| **@froeoe** | 16.4.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/140)  | Established a working connection to the websockets backend. This is necessary for the lobby logic. Also the user is able to join a lobby via code. | The lobby is essential for the game logic. Also the websockets integration, as several players are involved. |
+|                    | 14.4.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/136) | Added the possiblity to change the user profile | Necessary to for the user, the update the profile |
+|                    | 14.4.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/138) | Added pages or components at every place of the UI s.t. no 404 error occurs. | This is important for the basic implementation that the user is not redirected to a page that doesn't exist. |
+| **@zhenmei** | 17.04.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/286) | 1.Real-time notification of card effects and game status changes to players via WebSocket 2.implement card management:get all the player's action cards, randomly generate and draw new cards and discard cards 3.Key Game Features including turn limit ，card limit, and card type effect | The function and logic of the action card is a vital part of the game. Websocket real-time communication is used to achieve real-time information sharing.| 
 |                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@TongxiHu]** | 17.04.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/141) | Improve the GeoGuessr-style game by enabling users to select and lock in their final guess, calculate the distance between the user's guess and the correct answer, optimize the layout design, and add navigation and feedback features to enhance user-friendliness. | Complete the geoguessr game |
+|        **@DaryaTereshchenko**            | 14.04.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/282) | Configured the web socket, and event listener to be used for other endpoints. Added necessary web socket endpoints for a lobby and invitations to the lobby. Tested the implementation using the JS clients| Relevant for the further game logic and start of the game. |
+| **@julienzb** | 17.04.2025  | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/142) / [C1](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/142/commits/1923de5015f2ca01ac2d0c364ca677833a87ea3c) | Implemented the Action Card Game Screen with everything that was needed for it (PlayerList, ActionCard Component) | The game screens are a crucial part for the user to play the game |
+|                    | 17.04.2025  | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/142) / [C2](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/142/commits/cbb9672d2bc214f8ad99fb5791d0f5924b68623f) | Added a ContextProvider and added a globalUserAttributes context | Lets different components interact with the data and update in real time with a central way of managing and updating the state |
 
 ---
 
 ## Contributions Week 4 - [Begin Date] to [End Date]
 
-| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-
----
-
-## Contributions Week 5 - [Begin Date] to [End Date]
-
-| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-
----
-
-## Contributions Week 6 - [Begin Date] to [End Date]
-
-| **[@githubUser1]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser2]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser3]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser4]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser5]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser6]** | [date]   | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date]   | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
+| ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
+| **[@githubUser1]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser4]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser5]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser6]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |

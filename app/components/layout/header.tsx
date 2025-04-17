@@ -7,6 +7,7 @@ import GameHistory from "@/components/layout/gameHistory";
 import Settings from "@/components/layout/settings";
 import UserProfile from "@/components/layout/user";
 import { useGlobalUser } from "@/contexts/globalUser";
+import { useGlobalUserAttributes } from "@/contexts/globalUserAttributes";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
@@ -14,9 +15,6 @@ import { Button, Card, Flex, Popover, Tag } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-/**
- * Left-side header links remain the same as before.
- */
 const appLinks: MenuItem[] = [
   { label: "Home", link: "/" },
   { label: "Play Casual", link: "/casual" },
@@ -25,10 +23,6 @@ const appLinks: MenuItem[] = [
   { label: "Game Rules", link: "/rules" },
 ];
 
-/**
- * We define the props for Profile to accept a callback onSelectView(viewName).
- * We’ll call it from the “Achievements,” “Game History,” and “Settings” menu items.
- */
 type Screens = "profile" | "achievements" | "history" | "settings";
 
 type ProfileProps = {
@@ -36,20 +30,25 @@ type ProfileProps = {
 };
 
 const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
+  const [loading, setLoading] = useState(true);
+
   const { clear: clearToken } = useLocalStorage<User | null>("user", null);
   const { user } = useGlobalUser();
+  const { userAttributes } = useGlobalUserAttributes();
 
   function handleLogout() {
     clearToken();
   }
 
   useEffect(() => {
-    // Re-renders when the user changes
-  }, [user]);
+    setLoading(false);
+  }, [user, userAttributes]); // Re-renders on change
+
+  if (loading) {
+    return;
+  }
 
   if (user) {
-    // Logged-in: show user card with popover
-    // The popover items now call onSelectView(...) instead of linking to a route
     const userLinks: MenuItem[] = [
       { label: "Profile", onClick: () => onSelectView("profile") },
       { label: "Achievements", onClick: () => onSelectView("achievements") },
@@ -59,14 +58,17 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
     ];
 
     return (
-      <Popover content={<Menu items={userLinks} />} trigger="hover" mouseLeaveDelay={0.3}>
-        <UserCard
-          username={user.username ?? "username"}
-          rank={user.mmr ? `${user.mmr} MMR` : "0 MMR"}
-          showPointer
-          subview={<DownOutlined />}
-        />
-      </Popover>
+      <span style={{ maxWidth: "25vw" }}>
+        <Popover content={<Menu items={userLinks} />} trigger="hover" mouseLeaveDelay={0.3}>
+          <UserCard
+            style={{ borderRadius: 4, height: 72, width: "100%" }}
+            username={user.username ?? "username"}
+            subviewBottom={userAttributes ? `${userAttributes.mmr} MMR` : "0 MMR"}
+            showPointer
+            subviewRight={<DownOutlined />}
+          />
+        </Popover>
+      </span>
     );
   } else {
     // Not logged in: show Register + Login buttons
@@ -88,23 +90,22 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
  */
 const Header: React.FC = () => {
   const { user } = useGlobalUser();
-  // "achievements", "history", "settings", or null
+  const { userAttributes } = useGlobalUserAttributes();
   const [activeView, setActiveView] = useState<Screens | null>(null);
 
-  useEffect(() => {}, [user]);
+  useEffect(() => {}, [user, userAttributes]); // Re-renders on change
 
-  // Called by Profile’s “Achievements,” “Game History,” or “Settings” items
   function handleSelectView(viewName: Screens) {
-    // If user clicks the same item again, close it; otherwise open the newly selected view
     setActiveView((prev) => (prev === viewName ? null : viewName));
   }
 
   return (
-    <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100 }}>
+    <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100, height: 82, overflow: "hidden" }}>
       <Card styles={{ body: { padding: 4 } }} size="small">
         <Flex justify="space-between" align="center">
           {/* Left-hand side: standard routes + store */}
           <Menu
+            style={{ height: 72 }}
             items={[
               ...appLinks,
               {
@@ -112,7 +113,7 @@ const Header: React.FC = () => {
                 link: "/store",
                 subview: user ? (
                   <Tag icon={<DollarOutlined />} color="gold">
-                    {user.points ?? "0"}
+                    {userAttributes ? userAttributes.points : "0"}
                   </Tag>
                 ) : undefined,
               },
@@ -126,7 +127,7 @@ const Header: React.FC = () => {
       </Card>
 
       {/* Conditionally render the chosen view below the header */}
-      <div style={{ marginTop: 80, padding: 16 }}>
+      <div>
         {activeView === "profile" && <UserProfile />}
         {activeView === "achievements" && <Achievements />}
         {activeView === "history" && <GameHistory />}

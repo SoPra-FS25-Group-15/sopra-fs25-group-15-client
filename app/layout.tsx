@@ -1,15 +1,13 @@
-import { GlobalUserProvider } from "@/contexts/globalUser";
-import { WebSocketProvider } from "@/contexts/webSocketProvider";
-import GlobalInvitePopup from "@/components/general/globalPopUp"; // adjust the import path as needed
 import "@/styles/globals.css";
 import { purple, red } from "@ant-design/colors";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import type { Metadata } from "next";
+import ContextProvider from "./contexts/contextProvider";
 
 export const metadata: Metadata = {
-  title: "Student XX-XXX-XXX",
-  description: "sopra-fs25-template-client",
+  title: "ActionGuessr",
+  description: "Find out where you are on the world. Now as a turn based game with friends.",
 };
 
 export default function RootLayout({
@@ -31,34 +29,36 @@ export default function RootLayout({
           backgroundColor: "#111",
         }}
       >
-        <GlobalUserProvider>
-          <WebSocketProvider>
-            <ConfigProvider
-              theme={{
-                token: {
-                  colorPrimary: purple[5],
-                  colorBgBase: "#222",
-                  fontSize: 16,
-                  colorLink: purple[3],
-                  colorTextBase: "#fff",
-                  colorPrimaryBg: "#222",
-                  colorBgElevated: "#333",
-                  colorBgSolid: purple[5],
-                  colorBorder: "#555",
-                  colorBorderSecondary: "#444",
-                  colorErrorBg: red[9],
-                  colorErrorBorder: red[8],
-                  colorErrorText: "#fff",
-                  colorTextPlaceholder: "#aaa",
-                },
-              }}
-            >
-              <AntdRegistry>{children}</AntdRegistry>
-              {/* Render the global invite popup here so it shows on every page */}
-              <GlobalInvitePopup />
-            </ConfigProvider>
-          </WebSocketProvider>
-        </GlobalUserProvider>
+        <ContextProvider>
+          <ConfigProvider
+            theme={{
+              token: {
+                //Seed token
+                colorPrimary: purple[5],
+                colorBgBase: "#222",
+                fontSize: 16,
+                colorLink: purple[3],
+
+                //Map token
+                colorTextBase: "#fff",
+                colorPrimaryBg: "#222",
+                colorBgElevated: "#333",
+                colorBgSolid: purple[5],
+                colorBorder: "#555",
+                colorBorderSecondary: "#444",
+
+                colorErrorBg: red[9],
+                colorErrorBorder: red[8],
+                colorErrorText: "#fff",
+
+                //Alias token
+                colorTextPlaceholder: "#aaa",
+              },
+            }}
+          >
+            <AntdRegistry>{children}</AntdRegistry>
+          </ConfigProvider>
+        </ContextProvider>
       </body>
     </html>
   );
