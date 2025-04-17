@@ -14,7 +14,7 @@ export function GlobalUserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Update the user from local storage when the component mounts
-    const updateUser = () => {
+    const update = () => {
       const stored = window.localStorage.getItem("user");
       if (stored) {
         setGlobalUser(JSON.parse(stored) as User | null);
@@ -26,19 +26,19 @@ export function GlobalUserProvider({ children }: { children: ReactNode }) {
     };
 
     // Initial update
-    updateUser();
+    update();
 
     // Listen for changes from other windows/tabs
     const handleExternal = (event: StorageEvent) => {
       if (event.key === "user") {
-        updateUser();
+        update();
       }
     };
 
     // Listen for changes in the SAME tab via a custom event.
     // Call window.dispatchEvent(new Event("userChanged")) whenever you update localStorage in the same tab.
     const handleInternal = () => {
-      updateUser();
+      update();
     };
 
     window.addEventListener("storage", handleExternal);
@@ -54,13 +54,6 @@ export function GlobalUserProvider({ children }: { children: ReactNode }) {
   return <GlobalUserContext.Provider value={{ user: globalUser }}>{children}</GlobalUserContext.Provider>;
 }
 
-/**
- * Retrieves the global user context.
- *
- * @returns {GlobalStateType} An object containing:
- *  - user: The current user or null.
- *  - setUser: A function to update the global user or set them to null.
- */
 export function useGlobalUser(): GlobalStateType {
   const context = useContext(GlobalUserContext);
   if (!context) {

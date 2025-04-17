@@ -1,13 +1,13 @@
-import { GlobalUserProvider } from "@/contexts/globalUser";
 import "@/styles/globals.css";
 import { purple, red } from "@ant-design/colors";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import type { Metadata } from "next";
+import ContextProvider from "./contexts/contextProvider";
 
 export const metadata: Metadata = {
-  title: "Student XX-XXX-XXX",
-  description: "sopra-fs25-template-client",
+  title: "ActionGuessr",
+  description: "Find out where you are on the world. Now as a turn based game with friends.",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
           backgroundColor: "#111",
         }}
       >
-        <GlobalUserProvider>
+        <ContextProvider>
           <ConfigProvider
             theme={{
               token: {
@@ -58,7 +58,7 @@ export default function RootLayout({
           >
             <AntdRegistry>{children}</AntdRegistry>
           </ConfigProvider>
-        </GlobalUserProvider>
+        </ContextProvider>
       </body>
     </html>
   );
