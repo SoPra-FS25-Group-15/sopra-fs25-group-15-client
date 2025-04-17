@@ -1,15 +1,19 @@
-//
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import axios from "axios";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 
 // Define type for Leaflet's Icon Default prototype
 interface IconDefaultPrototype {
   _getIconUrl?: string;
+}
+
+// Google Maps Event listener type
+interface MapsEventListener {
+  remove: () => void;
 }
 
 // Fix Leaflet icon issues in Next.js
@@ -17,21 +21,21 @@ const fixLeafletIcons = () => {
   delete (L.Icon.Default.prototype as IconDefaultPrototype)._getIconUrl;
 
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   });
 };
 
 // Create custom marker icons
-const createCustomIcon = (color: string = "blue") => {
+const createCustomIcon = (color: string = 'blue') => {
   return new L.Icon({
     iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
-    shadowSize: [41, 41],
+    shadowSize: [41, 41]
   });
 };
 
@@ -70,6 +74,11 @@ declare global {
           [key: string]: string;
         };
         LatLng: new (lat: number, lng: number) => GoogleMapsLatLng;
+        event: {
+          addListenerOnce: (instance: object, eventName: string, handler: () => void) => MapsEventListener;
+          addListener: (instance: object, eventName: string, handler: () => void) => MapsEventListener;
+          removeListener: (listener: MapsEventListener) => void;
+        };
       };
     };
     initGoogleMaps?: () => void;
@@ -90,10 +99,7 @@ interface GoogleMapsStreetViewPanoramaData {
 }
 
 interface StreetViewService {
-  getPanorama(
-    request: StreetViewPanoramaRequest,
-    callback: (data: GoogleMapsStreetViewPanoramaData, status: string) => void
-  ): void;
+  getPanorama(request: StreetViewPanoramaRequest, callback: (data: GoogleMapsStreetViewPanoramaData, status: string) => void): void;
 }
 
 interface StreetViewPanoramaRequest {
@@ -115,12 +121,14 @@ interface StreetViewPanoramaOptions {
   enableCloseButton: boolean;
   addressControl: boolean;
   fullscreenControl: boolean;
+  motionTracking?: boolean;
+  motionTrackingControl?: boolean;
 }
 
 interface StreetViewPanorama {
   setPano(panoId: string): void;
   setVisible(visible: boolean): void;
-  setPov(pov: { heading: number; pitch: number }): void;
+  setPov(pov: { heading: number, pitch: number }): void;
   setZoom(zoom: number): void;
 }
 
@@ -140,76 +148,195 @@ const worldRegions: Region[] = [
   { minLat: -35, maxLat: -25, minLng: 15, maxLng: 32 },
 ];
 
-// Map Click Handler Component
-function MapClickHandler({ setUserGuess }: { setUserGuess: (guess: Guess) => void }) {
+// Map Click Handler Component - Only allows clicks when guess is not submitted
+function MapClickHandler({ setUserGuess, guessSubmitted }: { setUserGuess: (guess: Guess | null) => void, guessSubmitted: boolean }) {
   useMapEvents({
     click: (e) => {
+      // Ignore clicks if guess is already submitted
+      if (guessSubmitted) {
+        console.log("Map click ignored - guess already submitted");
+        return;
+      }
+      
       console.log("Map clicked at:", e.latlng);
-      setUserGuess({
+      
+      // Ensure the longitude is within bounds (-180 to 180)
+      let lng = e.latlng.lng;
+      if (lng < -180) lng = -180;
+      if (lng > 180) lng = 180;
+      
+      // Update user guess
+      const newGuess = {
         latitude: e.latlng.lat,
-        longitude: e.latlng.lng,
-      });
-    },
+        longitude: lng
+      };
+      console.log("Setting new user guess:", newGuess);
+      
+      setUserGuess(newGuess);
+    }
   });
 
   return null;
 }
 
-// Map Controls Component
-function MapControls() {
+// Map Bounds Handler
+function MapBoundsHandler() {
   const map = useMap();
+  
+  useEffect(() => {
+    // Add event listener for dragend to ensure map stays within bounds
+    const handleDragEnd = () => {
+      const center = map.getCenter();
+      let lng = center.lng;
+      let lat = center.lat;
+      
+      // Restrict longitude to -180 to 180
+      if (lng < -180) lng = -180;
+      if (lng > 180) lng = 180;
+      
+      // Restrict latitude to -90 to 90
+      if (lat < -90) lat = -90;
+      if (lat > 90) lat = 90;
+      
+      // If the center has been modified, pan to the corrected position
+      if (lng !== center.lng || lat !== center.lat) {
+        map.panTo([lat, lng], { animate: false });
+      }
+    };
+    
+    map.on('dragend', handleDragEnd);
+    
+    return () => {
+      map.off('dragend', handleDragEnd);
+    };
+  }, [map]);
+  
+  return null;
+}
 
-  return (
-    <div className="absolute top-2 right-2 z-[400] flex flex-col space-y-2">
-      <button
-        onClick={() => map.zoomIn()}
-        className="w-10 h-10 bg-white flex items-center justify-center rounded shadow hover:bg-gray-100 focus:outline-none"
-        title="Zoom in"
-      >
-        <span className="text-xl">+</span>
-      </button>
-      <button
-        onClick={() => map.zoomOut()}
-        className="w-10 h-10 bg-white flex items-center justify-center rounded shadow hover:bg-gray-100 focus:outline-none"
-        title="Zoom out"
-      >
-        <span className="text-xl">−</span>
-      </button>
-      <button
-        onClick={() => map.setView([20, 0], 2)}
-        className="w-10 h-10 bg-white flex items-center justify-center rounded shadow hover:bg-gray-100 focus:outline-none"
-        title="Reset view"
-      >
-        <span className="text-xl">⟲</span>
-      </button>
-    </div>
-  );
+// Map Resize Handler Component
+function MapResizeHandler() {
+  const map = useMap();
+  
+  useEffect(() => {
+    // Initial resize
+    map.invalidateSize(true);
+    
+    // Handle window resize events
+    const handleResize = () => {
+      map.invalidateSize(true);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Schedule multiple resizes
+    const resizeTimeouts = [100, 500, 1000].map(delay => 
+      setTimeout(() => map.invalidateSize(true), delay)
+    );
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      resizeTimeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [map]);
+  
+  return null;
 }
 
 // Component to draw line between guess and actual location
-function DistanceLine({ userGuess, actualLocation }: { userGuess: Guess; actualLocation: Location }) {
+function DistanceLine({ userGuess, actualLocation }: { userGuess: Guess, actualLocation: Location }) {
   const map = useMap();
+  const lineRef = useRef<L.Polyline | null>(null);
 
   useEffect(() => {
     if (!userGuess || !actualLocation) return;
-
+    
     const linePoints: [number, number][] = [
       [userGuess.latitude, userGuess.longitude],
-      [actualLocation.latitude, actualLocation.longitude],
+      [actualLocation.latitude, actualLocation.longitude]
     ];
-
-    const polyline = L.polyline(linePoints, {
-      color: "red",
+    
+    // Remove existing line if it exists
+    if (lineRef.current) {
+      map.removeLayer(lineRef.current);
+    }
+    
+    // Create new line
+    lineRef.current = L.polyline(linePoints, {
+      color: 'red',
       weight: 2,
       opacity: 0.7,
-      dashArray: "5, 10",
+      dashArray: '5, 10'
     }).addTo(map);
-
+    
+    // Clean up function
     return () => {
-      map.removeLayer(polyline);
+      if (lineRef.current) {
+        map.removeLayer(lineRef.current);
+        lineRef.current = null;
+      }
     };
   }, [map, userGuess, actualLocation]);
 
+  return null;
+}
+
+// Component to manage map interactivity based on game state
+function MapInteractivityManager({ guessSubmitted }: { guessSubmitted: boolean }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (guessSubmitted) {
+      // Disable all interactions after guess is submitted
+      map.dragging.disable();
+      map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+      map.boxZoom.disable();
+      map.keyboard.disable();
+      
+      // Handle tap with type safety
+      // @ts-expect-error - Leaflet types don't include tap, but it exists at runtime for touch devices
+      if (map.tap) {
+        // @ts-expect-error - Accessing tap property which exists at runtime
+        map.tap.disable();
+      }
+      
+      // Add a class to indicate map is locked
+      const mapContainer = map.getContainer();
+      if (mapContainer) {
+        mapContainer.classList.add('map-locked');
+        mapContainer.style.cursor = 'default';
+      }
+      
+      console.log("Map interactions disabled after guess submission");
+    } else {
+      // Re-enable all interactions for a new round
+      map.dragging.enable();
+      map.touchZoom.enable();
+      map.doubleClickZoom.enable();
+      map.scrollWheelZoom.enable();
+      map.boxZoom.enable();
+      map.keyboard.enable();
+      
+      // Handle tap with type safety
+      // @ts-expect-error - Leaflet types don't include tap, but it exists at runtime for touch devices
+      if (map.tap) {
+        // @ts-expect-error - Accessing tap property which exists at runtime
+        map.tap.enable();
+      }
+      
+      // Remove the locked class
+      const mapContainer = map.getContainer();
+      if (mapContainer) {
+        mapContainer.classList.remove('map-locked');
+        mapContainer.style.cursor = '';
+      }
+      
+      console.log("Map interactions enabled for new round");
+    }
+  }, [map, guessSubmitted]);
+  
   return null;
 }
 
@@ -219,6 +346,8 @@ export default function GameComponent() {
   const streetViewContainerRef = useRef<HTMLDivElement | null>(null);
   const [googleMapsLoaded, setGoogleMapsLoaded] = useState<boolean>(false);
   const [mapsScriptLoading, setMapsScriptLoading] = useState<boolean>(false);
+  // State to track panorama loading
+  const [panoramaLoaded, setPanoramaLoaded] = useState<boolean>(false);
 
   const [location, setLocation] = useState<Location | null>(null);
   const [userGuess, setUserGuess] = useState<Guess | null>(null);
@@ -226,7 +355,10 @@ export default function GameComponent() {
   const [distance, setDistance] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMap] = useState<boolean>(true);
   const mapRef = useRef<L.Map | null>(null);
+  // Add a ref for the button to check rendering
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   // Google Maps API key
   const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -234,52 +366,91 @@ export default function GameComponent() {
   // Calculate distance using Haversine formula
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371; // Earth radius in km
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
     return R * c;
   };
 
   // Initialize Street View panorama
   const initializeStreetView = useCallback(() => {
+    console.log("initializeStreetView called - location:", !!location, "streetViewContainer:", !!streetViewContainerRef.current, "googleMaps:", !!(window.google && window.google.maps));
+    
     if (!location || !streetViewContainerRef.current || !window.google || !window.google.maps) {
       console.log("Cannot initialize Street View:", {
         location: !!location,
         container: !!streetViewContainerRef.current,
-        googleMaps: !!(window.google && window.google.maps),
+        googleMaps: !!(window.google && window.google.maps)
       });
       return;
     }
-
+    
+    // Reset panorama loaded state when initializing a new panorama
+    setPanoramaLoaded(false);
+    console.log("Setting panoramaLoaded to FALSE before initializing new panorama");
+    
     try {
       console.log("Initializing Street View with panoId:", location.panoId);
-
+      
+      // Make sure container is visible and properly sized
+      if (streetViewContainerRef.current) {
+        streetViewContainerRef.current.style.width = '100%';
+        streetViewContainerRef.current.style.height = '100%';
+      }
+      
       if (!panoramaRef.current) {
-        panoramaRef.current = new window.google.maps.StreetViewPanorama(streetViewContainerRef.current, {
+        // Try to get a fresh container element
+        const container = document.getElementById('street-view-container') || streetViewContainerRef.current;
+        
+        console.log("Creating new panorama instance");
+        panoramaRef.current = new window.google.maps.StreetViewPanorama(container, {
           pano: location.panoId,
           visible: true,
           pov: {
             heading: Math.floor(Math.random() * 360),
-            pitch: 0,
+            pitch: 0
           },
           zoom: 0,
           linksControl: false,
           panControl: true,
           enableCloseButton: false,
           addressControl: false,
-          fullscreenControl: false,
+          fullscreenControl: false
         });
-        console.log("Street View panorama created");
+        
+        // Add event listener for when panorama is fully loaded
+        if (panoramaRef.current) {
+          console.log("Adding status_changed listener to new panorama");
+          // Using status_changed event to detect when panorama is ready
+          window.google.maps.event.addListenerOnce(panoramaRef.current, 'status_changed', () => {
+            console.log("Street View panorama tiles loaded");
+            setPanoramaLoaded(true);
+            console.log("DEBUG: Panorama loaded state set to TRUE");
+          });
+        }
+        
+        console.log("Street View panorama created", panoramaRef.current);
       } else {
+        console.log("Updating existing panorama");
         panoramaRef.current.setPano(location.panoId);
         panoramaRef.current.setPov({
           heading: Math.floor(Math.random() * 360),
-          pitch: 0,
+          pitch: 0
         });
         panoramaRef.current.setVisible(true);
+        
+        // Add event listener for when the new panorama is loaded
+        console.log("Adding status_changed listener to existing panorama");
+        window.google.maps.event.addListenerOnce(panoramaRef.current, 'status_changed', () => {
+          console.log("Existing panorama tiles loaded");
+          setPanoramaLoaded(true);
+          console.log("DEBUG: Panorama loaded state set to TRUE");
+        });
+        
         console.log("Existing panorama updated");
       }
     } catch (error) {
@@ -289,192 +460,215 @@ export default function GameComponent() {
   }, [location]);
 
   // Fetch random Street View location
-  const fetchRandomStreetViewLocation = useCallback(
-    async (retryCount = 0, tier = 0): Promise<boolean> => {
-      if (!window.google || !window.google.maps) {
-        console.log("Google Maps not loaded, delaying location fetch");
-        setTimeout(() => fetchRandomStreetViewLocation(retryCount, tier), 2000);
-        return false;
-      }
+  const fetchRandomStreetViewLocation = useCallback(async (retryCount = 0, tier = 0): Promise<boolean> => {
+    if (!window.google || !window.google.maps) {
+      console.log("Google Maps not loaded, delaying location fetch");
+      setTimeout(() => fetchRandomStreetViewLocation(retryCount, tier), 2000);
+      return false;
+    }
 
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log(`Fetching random location (retry: ${retryCount}, tier: ${tier})`);
+      
+      // Select a random region and generate coordinates
+      const region = worldRegions[Math.floor(Math.random() * worldRegions.length)];
+      const lat = Math.random() * (region.maxLat - region.minLat) + region.minLat;
+      const lng = Math.random() * (region.maxLng - region.minLng) + region.minLng;
+      
+      // Define search radius based on tier (increasing with each retry)
+      const searchRadius = 1000 * Math.pow(5, tier); // 1km, 5km, 25km, 125km, etc.
+      
+      console.log(`Search parameters: lat=${lat.toFixed(4)}, lng=${lng.toFixed(4)}, radius=${searchRadius}m`);
+      
+      // Create a new Street View service instance
+      const streetViewService = new window.google.maps.StreetViewService();
+      
       try {
-        setLoading(true);
-        setError(null);
-
-        console.log(`Fetching random location (retry: ${retryCount}, tier: ${tier})`);
-
-        // Select a random region and generate coordinates
-        const region = worldRegions[Math.floor(Math.random() * worldRegions.length)];
-        const lat = Math.random() * (region.maxLat - region.minLat) + region.minLat;
-        const lng = Math.random() * (region.maxLng - region.minLng) + region.minLng;
-
-        // Define search radius based on tier (increasing with each retry)
-        const searchRadius = 1000 * Math.pow(5, tier); // 1km, 5km, 25km, 125km, etc.
-
-        console.log(`Search parameters: lat=${lat.toFixed(4)}, lng=${lng.toFixed(4)}, radius=${searchRadius}m`);
-
-        // Create a new Street View service instance
-        const streetViewService = new window.google.maps.StreetViewService();
-
-        try {
-          // Find a panorama
-          const panoramaData = await new Promise<GoogleMapsStreetViewPanoramaData>((resolve, reject) => {
-            const location = new window.google.maps.LatLng(lat, lng);
-            streetViewService.getPanorama(
-              {
-                location: location,
-                radius: searchRadius,
-                source: "outdoor",
-              },
-              (data: GoogleMapsStreetViewPanoramaData, status: string) => {
-                if (status === window.google.maps.StreetViewStatus.OK) {
-                  resolve(data);
-                } else {
-                  reject(status);
-                }
-              }
-            );
+        // Find a panorama
+        const panoramaData = await new Promise<GoogleMapsStreetViewPanoramaData>((resolve, reject) => {
+          const location = new window.google.maps.LatLng(lat, lng);
+          streetViewService.getPanorama({
+            location: location,
+            radius: searchRadius,
+            source: 'outdoor'
+          }, (data: GoogleMapsStreetViewPanoramaData, status: string) => {
+            if (status === window.google.maps.StreetViewStatus.OK) {
+              resolve(data);
+            } else {
+              reject(status);
+            }
           });
-
-          const panoLocation = panoramaData.location;
-          const finalLat = panoLocation.latLng.lat();
-          const finalLng = panoLocation.latLng.lng();
-          const panoId = panoLocation.pano;
-
-          console.log(`Found panorama at ${finalLat.toFixed(4)}, ${finalLng.toFixed(4)}, ID: ${panoId}`);
-
-          try {
-            // Use reverse geocoding to get country and city
-            const geoResponse = await axios.get(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${finalLat}&lon=${finalLng}&zoom=10`
-            );
-
-            const newLocation = {
-              id: panoId,
-              latitude: finalLat,
-              longitude: finalLng,
-              panoId: panoId,
-              country: geoResponse.data.address.country || "Unknown",
-              city:
-                geoResponse.data.address.city ||
-                geoResponse.data.address.town ||
-                geoResponse.data.address.village ||
-                geoResponse.data.address.county ||
-                "Unknown",
-            };
-
-            console.log("Location data:", newLocation);
-            setLocation(newLocation);
-
-            setTimeout(initializeStreetView, 300);
-            setLoading(false);
-            return true;
-          } catch (geoErr) {
-            console.warn("Geocoding failed:", geoErr);
-            // Continue with limited location info
-            const newLocation = {
-              id: panoId,
-              latitude: finalLat,
-              longitude: finalLng,
-              panoId: panoId,
-              country: "Unknown",
-              city: "Unknown",
-            };
-
-            setLocation(newLocation);
-            setTimeout(initializeStreetView, 300);
-            setLoading(false);
-            return true;
-          }
-        } catch (svError) {
-          console.warn("Failed to find panorama:", svError);
-
-          // Move to the next tier if current tier failed
-          if (tier < 4) {
-            return await fetchRandomStreetViewLocation(retryCount, tier + 1);
-          }
-
-          // If we've exhausted all tiers, try a completely fresh attempt
-          if (retryCount < 3) {
-            return await fetchRandomStreetViewLocation(retryCount + 1, 0);
-          }
-
-          // If all retries with all tiers failed
-          setError("Could not find a valid Street View location after multiple attempts. Please try again.");
+        });
+        
+        const panoLocation = panoramaData.location;
+        const finalLat = panoLocation.latLng.lat();
+        const finalLng = panoLocation.latLng.lng();
+        const panoId = panoLocation.pano;
+        
+        console.log(`Found panorama at ${finalLat.toFixed(4)}, ${finalLng.toFixed(4)}, ID: ${panoId}`);
+        
+        try {
+          // Use reverse geocoding to get country and city
+          const geoResponse = await axios.get(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${finalLat}&lon=${finalLng}&zoom=10`
+          );
+          
+          const newLocation = {
+            id: panoId,
+            latitude: finalLat,
+            longitude: finalLng,
+            panoId: panoId,
+            country: geoResponse.data.address.country || 'Unknown',
+            city: geoResponse.data.address.city || 
+                  geoResponse.data.address.town || 
+                  geoResponse.data.address.village || 
+                  geoResponse.data.address.county ||
+                  'Unknown'
+          };
+          
+          console.log("Location data:", newLocation);
+          setLocation(newLocation);
+          
+          setTimeout(initializeStreetView, 300);
           setLoading(false);
-          return false;
+          return true;
+        } catch (geoErr) {
+          console.warn("Geocoding failed:", geoErr);
+          // Continue with limited location info
+          const newLocation = {
+            id: panoId,
+            latitude: finalLat,
+            longitude: finalLng,
+            panoId: panoId,
+            country: 'Unknown',
+            city: 'Unknown'
+          };
+          
+          setLocation(newLocation);
+          setTimeout(initializeStreetView, 300);
+          setLoading(false);
+          return true;
         }
-      } catch (err) {
-        console.error("General error in fetchRandomStreetViewLocation:", err);
-
-        if (tier < 4 && retryCount < 3) {
+      } catch (svError) {
+        console.warn("Failed to find panorama:", svError);
+        
+        // Move to the next tier if current tier failed
+        if (tier < 4) {
           return await fetchRandomStreetViewLocation(retryCount, tier + 1);
+        } 
+        
+        // If we've exhausted all tiers, try a completely fresh attempt
+        if (retryCount < 3) {
+          return await fetchRandomStreetViewLocation(retryCount + 1, 0);
         }
-
-        setError("Error finding a location. Please try again.");
+        
+        // If all retries with all tiers failed
+        setError("Could not find a valid Street View location after multiple attempts. Please try again.");
         setLoading(false);
         return false;
       }
-    },
-    [initializeStreetView]
-  );
+      
+    } catch (err) {
+      console.error("General error in fetchRandomStreetViewLocation:", err);
+      
+      if (tier < 4 && retryCount < 3) {
+        return await fetchRandomStreetViewLocation(retryCount, tier + 1);
+      }
+      
+      setError("Error finding a location. Please try again.");
+      setLoading(false);
+      return false;
+    }
+  }, [initializeStreetView]);
 
   // Load Google Maps API script
   const loadGoogleMapsScript = useCallback(() => {
     if (mapsScriptLoading || googleMapsLoaded) return;
-
+    
     setMapsScriptLoading(true);
     console.log("Attempting to load Google Maps script");
-
+    
     // Create script element
-    const script = document.createElement("script");
-    script.id = "google-maps-script";
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
     script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
-
+    
     window.initGoogleMaps = () => {
       console.log("Google Maps API loaded successfully");
       setGoogleMapsLoaded(true);
       setMapsScriptLoading(false);
-
+      
       if (location) {
         setTimeout(initializeStreetView, 300);
       } else {
         fetchRandomStreetViewLocation();
       }
     };
-
+    
     script.onerror = (error) => {
       console.error("Error loading Google Maps script:", error);
       setMapsScriptLoading(false);
       setError("Failed to load Google Maps. Please check your API key and internet connection.");
     };
-
+    
     document.head.appendChild(script);
-  }, [
-    googleApiKey,
-    location,
-    initializeStreetView,
-    fetchRandomStreetViewLocation,
-    googleMapsLoaded,
-    mapsScriptLoading,
-  ]);
+  }, [googleApiKey, location, initializeStreetView, fetchRandomStreetViewLocation, googleMapsLoaded, mapsScriptLoading]);
 
-  // Fix Leaflet icon issues
+  // Fix Leaflet icon issues and add styles
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
+    if (typeof window === 'undefined') return;
+    
     // Fix icon issues
     fixLeafletIcons();
-
+    
     // Load the necessary CSS
     if (!document.querySelector('link[href*="leaflet.css"]')) {
-      const linkEl = document.createElement("link");
-      linkEl.rel = "stylesheet";
-      linkEl.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css";
+      const linkEl = document.createElement('link');
+      linkEl.rel = 'stylesheet';
+      linkEl.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css';
       document.head.appendChild(linkEl);
     }
+    
+    // Add custom CSS for the locked map state
+    const style = document.createElement('style');
+    style.textContent = `
+      .map-locked {
+        pointer-events: none !important;
+      }
+      .map-locked .leaflet-marker-icon {
+        pointer-events: none !important;
+      }
+      .locked-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.05);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .locked-icon {
+        font-size: 24px;
+        color: rgba(0,0,0,0.5);
+        background: rgba(255,255,255,0.7);
+        border-radius: 50%;
+        padding: 10px;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+      }
+    `;
+    document.head.appendChild(style);
   }, []);
 
   // Load Google Maps API
@@ -485,7 +679,7 @@ export default function GameComponent() {
       return;
     }
 
-    if (typeof window !== "undefined" && !googleMapsLoaded && !mapsScriptLoading) {
+    if (typeof window !== 'undefined' && !googleMapsLoaded && !mapsScriptLoading) {
       loadGoogleMapsScript();
     }
   }, [googleApiKey, googleMapsLoaded, mapsScriptLoading, loadGoogleMapsScript]);
@@ -494,57 +688,106 @@ export default function GameComponent() {
   useEffect(() => {
     if (location && googleMapsLoaded && streetViewContainerRef.current) {
       console.log("Location updated, initializing Street View");
-      initializeStreetView();
+      // Add a small delay to ensure DOM is ready
+      setTimeout(() => {
+        initializeStreetView();
+        // Force resize event to help panorama render correctly
+        if (window.google && window.google.maps) {
+          const resizeEvent = window.document.createEvent('UIEvents');
+          resizeEvent.initUIEvent('resize', true, false, window, 0);
+          window.dispatchEvent(resizeEvent);
+        }
+      }, 500);
     }
   }, [location, googleMapsLoaded, initializeStreetView]);
 
-  // Handle submit guess
-  const handleSubmitGuess = async () => {
-    if (!userGuess || !location) return;
+  // Handle proper map resizing when panorama loads
+  useEffect(() => {
+    if (panoramaLoaded && mapRef.current) {
+      console.log("Panorama loaded, forcing map refresh");
+      
+      // Initial resize
+      mapRef.current.invalidateSize(true);
+      
+      // Multiple scheduled resizes with increasing delays to ensure map tiles load
+      const delays = [100, 300, 500, 1000, 2000];
+      delays.forEach(delay => {
+        setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.invalidateSize(true);
+            console.log(`Map size invalidated after ${delay}ms`);
+          }
+        }, delay);
+      });
 
+      // One final resize after everything should be stable
+      setTimeout(() => {
+        if (mapRef.current) {
+          // Force bounds update to ensure all tiles are properly loaded
+          const currentCenter = mapRef.current.getCenter();
+          mapRef.current.setView(currentCenter, mapRef.current.getZoom());
+          console.log("Map view reset to refresh tiles");
+        }
+      }, 2500);
+    }
+  }, [panoramaLoaded]);
+
+  // Handle submit guess
+  const handleSubmitGuess = useCallback(() => {
+    if (!userGuess || !location) return;
+    
+    console.log("Submitting guess:", userGuess);
+    
     const calculatedDistance = calculateDistance(
-      userGuess.latitude,
-      userGuess.longitude,
-      location.latitude,
+      userGuess.latitude, 
+      userGuess.longitude, 
+      location.latitude, 
       location.longitude
     );
-
+    
     setDistance(calculatedDistance);
     setGuessSubmitted(true);
-
+    console.log("DEBUG: Guess submitted set to TRUE");
+    
     // Adjust map to show both markers
     if (mapRef.current) {
       console.log("Fitting map to bounds");
-      const bounds = L.latLngBounds([userGuess.latitude, userGuess.longitude], [location.latitude, location.longitude]);
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+      const bounds = L.latLngBounds(
+        [userGuess.latitude, userGuess.longitude],
+        [location.latitude, location.longitude]
+      );
+      mapRef.current.fitBounds(bounds, { padding: [30, 30] });
     }
-
+    
     try {
       // Submit guess to API
-      await axios.post("/api/guesses", {
+      axios.post('/api/guesses', {
         locationId: location.id,
         guessLatitude: userGuess.latitude,
         guessLongitude: userGuess.longitude,
-        distance: calculatedDistance,
+        distance: calculatedDistance
       });
     } catch (err) {
-      console.error("Error submitting guess:", err);
+      console.error('Error submitting guess:', err);
     }
-  };
+  }, [userGuess, location, calculateDistance]);
 
   // Handle new location
-  const handleNewLocation = () => {
+  const handleNewLocation = useCallback(() => {
     setUserGuess(null);
     setGuessSubmitted(false);
+    console.log("DEBUG: Guess submitted reset to FALSE");
     setDistance(null);
-
-    // Reset map view
+    
+    // Reset map view and panorama loaded state
+    setPanoramaLoaded(false);
+    console.log("DEBUG: Panorama loaded reset to FALSE");
     if (mapRef.current) {
       mapRef.current.setView([20, 0], 2);
     }
-
+    
     fetchRandomStreetViewLocation();
-  };
+  }, [fetchRandomStreetViewLocation]);
 
   // Calculate score based on distance
   const calculateScore = (distanceKm: number): number => {
@@ -560,6 +803,24 @@ export default function GameComponent() {
     return 0;
   };
 
+  // Effect to log debug info about button visibility
+  useEffect(() => {
+    if (!guessSubmitted && panoramaLoaded) {
+      console.log("Button should be visible - checking...");
+      
+      // Small delay to allow React to render
+      setTimeout(() => {
+        const button = document.getElementById('main-lock-button');
+        if (!button) {
+          console.error("Button expected but not found in DOM!");
+        } else {
+          console.log("Button is present as expected");
+        }
+      }, 100);
+    }
+  }, [guessSubmitted, panoramaLoaded, userGuess]);
+
+
   if (loading && !location) {
     return (
       <div className="flex justify-center items-center h-screen flex-col">
@@ -574,7 +835,7 @@ export default function GameComponent() {
       <div className="flex justify-center items-center h-screen">
         <div className="text-center max-w-xl">
           <p className="text-red-500 mb-3 font-bold text-lg">{error}</p>
-          <button
+          <button 
             onClick={() => {
               setError(null);
               if (!googleMapsLoaded) {
@@ -593,168 +854,223 @@ export default function GameComponent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">GeoGuessor - Google Street View Edition</h1>
+    <div className="relative h-screen w-full overflow-hidden">
+      {/* Debug overlay */}
+      {panoramaLoaded && (
+        <div className="absolute top-0 left-0 bg-black bg-opacity-50 text-white p-2 z-[1005] text-xs" style={{ maxWidth: '300px' }}>
+          <p>panoramaLoaded: {panoramaLoaded ? 'true' : 'false'}</p>
+          <p>guessSubmitted: {guessSubmitted ? 'true' : 'false'}</p>
+          <p>userGuess: {userGuess ? 'set' : 'not set'}</p>
+          <p>showMap: {showMap ? 'true' : 'false'}</p>
+          <p>buttonRef exists: {buttonRef.current ? 'yes' : 'no'}</p>
+          <p>Button should be visible: {(!guessSubmitted && panoramaLoaded) ? 'yes' : 'no'}</p>
+        </div>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Google Street View */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="h-96 relative">
-              {loading ? (
-                <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                </div>
-              ) : (
-                <div
-                  ref={streetViewContainerRef}
-                  className="w-full h-full"
-                  style={{ width: "100%", height: "100%", minHeight: "384px" }}
-                />
-              )}
-
-              {/* Location info overlay - correctly positioned here */}
-              {guessSubmitted && location && (
-                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-3 z-10">
-                  <p>
-                    <span className="font-bold">Actual location:</span> {location.city || "Unknown"},{" "}
-                    {location.country || "Unknown"}
-                  </p>
-                  {distance !== null && (
-                    <div>
-                      <p>
-                        <span className="font-bold">Distance:</span> {distance.toFixed(2)} kilometers away
-                      </p>
-                      <p>
-                        <span className="font-bold">Score:</span> {calculateScore(distance)} points
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="p-4">
-              {!guessSubmitted ? (
-                <button
-                  onClick={handleSubmitGuess}
-                  disabled={!userGuess}
-                  className={`w-full py-2 rounded text-white ${
-                    userGuess ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300"
-                  }`}
-                >
-                  {userGuess ? "Submit Guess" : "Select a location on the map"}
-                </button>
-              ) : (
-                <button
-                  onClick={handleNewLocation}
-                  className="w-full py-2 bg-green-500 hover:bg-green-600 rounded text-white"
-                >
-                  Try Another Location
-                </button>
-              )}
-            </div>
+      {/* Google Street View - Takes up entire screen */}
+      <div className="w-full h-full">
+        {loading ? (
+          <div className="w-full h-full flex items-center justify-center bg-gray-200">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
-
-          {/* World Map - Fixed to ensure proper display */}
-          <div className="bg-white rounded-lg shadow overflow-hidden" style={{ height: "400px", position: "relative" }}>
-            {/* Essential inline styles to ensure map displays */}
-            <style jsx>{`
-              .map-container {
-                height: 100%;
-                width: 100%;
-                position: relative;
-                z-index: 0;
-              }
-              .leaflet-container {
-                height: 100%;
-                width: 100%;
-                z-index: 0;
-              }
-            `}</style>
-
-            <div className="map-container">
-              <MapContainer
-                center={[20, 0]}
-                zoom={2}
-                style={{ height: "100%", width: "100%" }}
-                worldCopyJump={true}
-                attributionControl={true}
-                ref={(map) => {
-                  if (map) {
-                    console.log("Map reference set");
-                    mapRef.current = map;
-
-                    // Force map to recalculate its size after mounting
-                    setTimeout(() => {
-                      if (mapRef.current) {
-                        mapRef.current.invalidateSize(true);
-                      }
-                    }, 200);
-                  }
-                }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        ) : (
+          <div 
+            ref={streetViewContainerRef} 
+            id="street-view-container"
+            className="w-full h-full"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}
+          />
+        )}
+      </div>
+      
+      {/* Location info overlay - displays after guess is submitted */}
+      {guessSubmitted && location && (
+        <div className="absolute top-14 left-0 right-0 mx-auto w-max bg-black bg-opacity-70 text-white p-3 z-[1004] rounded-lg shadow-lg">
+          <p>
+            <span className="font-bold">Actual location:</span> {location.city || 'Unknown'}, {location.country || 'Unknown'}
+          </p>
+          {distance !== null && (
+            <div>
+              <p>
+                <span className="font-bold">Distance:</span> {distance.toFixed(2)} kilometers away
+              </p>
+              <p>
+                <span className="font-bold">Score:</span> {calculateScore(distance)} points
+              </p>
+            </div>
+          )}
+          <button
+            onClick={handleNewLocation}
+            className="w-full mt-2 py-1 bg-green-500 hover:bg-green-600 rounded text-white"
+          >
+            New Location
+          </button>
+        </div>
+      )}
+      
+      {/* Map overlay */}
+      {showMap && panoramaLoaded && (
+        <div 
+          className="absolute rounded-lg shadow-lg overflow-hidden"
+          style={{
+            width: '300px',
+            height: '225px',
+            right: '20px',
+            bottom: '100px',
+            zIndex: 1001,
+            position: 'absolute'
+          }}
+          id="map-container"
+        >
+          {/* Map container with full height */}
+          <div className="h-full w-full relative" id="map-inner-container">
+            <MapContainer
+              center={[20, 0]}
+              zoom={2}
+              style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0 }}
+              worldCopyJump={false}
+              attributionControl={false}
+              zoomControl={false}
+              maxBounds={[[-90, -180], [90, 180]]}
+              maxBoundsViscosity={1.0}
+              minZoom={2}
+              ref={(map) => {
+                if (map) {
+                  mapRef.current = map;
+                  // Force immediate resize
+                  map.invalidateSize(true);
+                  
+                  // Add additional resize calls with increasing delays
+                  setTimeout(() => map.invalidateSize(true), 100);
+                  setTimeout(() => map.invalidateSize(true), 500);
+                  setTimeout(() => map.invalidateSize(true), 1000);
+                }
+              }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                bounds={[[-90, -180], [90, 180]]}
+                noWrap={true}
+              />
+              
+              <MapClickHandler setUserGuess={setUserGuess} guessSubmitted={guessSubmitted} />
+              <MapResizeHandler />
+              <MapBoundsHandler />
+              <MapInteractivityManager guessSubmitted={guessSubmitted} />
+              
+              {/* User guess marker */}
+              {userGuess && (
+                <Marker 
+                  position={[userGuess.latitude, userGuess.longitude]}
+                  icon={createCustomIcon('blue')}
+                >
+                  <Popup>Your guess</Popup>
+                </Marker>
+              )}
+              
+              {/* Actual location marker when submitted */}
+              {guessSubmitted && location && (
+                <Marker
+                  position={[location.latitude, location.longitude]}
+                  icon={createCustomIcon('red')}
+                >
+                  <Popup>
+                    Actual location: {location.city || 'Unknown'}, {location.country || 'Unknown'}
+                  </Popup>
+                </Marker>
+              )}
+              
+              {/* Draw line between points if guessed */}
+              {guessSubmitted && userGuess && location && (
+                <DistanceLine 
+                  userGuess={userGuess} 
+                  actualLocation={location} 
                 />
-
-                <MapClickHandler setUserGuess={setUserGuess} />
-                <MapControls />
-
-                {/* User guess marker */}
-                {userGuess && (
-                  <Marker position={[userGuess.latitude, userGuess.longitude]} icon={createCustomIcon("blue")}>
-                    <Popup>Your guess</Popup>
-                  </Marker>
-                )}
-
-                {/* Actual location marker when submitted */}
-                {guessSubmitted && location && (
-                  <Marker position={[location.latitude, location.longitude]} icon={createCustomIcon("red")}>
-                    <Popup>
-                      Actual location: {location.city || "Unknown"}, {location.country || "Unknown"}
-                    </Popup>
-                  </Marker>
-                )}
-
-                {/* Draw line between points if guessed */}
-                {guessSubmitted && userGuess && location && (
-                  <DistanceLine userGuess={userGuess} actualLocation={location} />
-                )}
-              </MapContainer>
-            </div>
-
-            {/* Map instructions */}
-            <div className="absolute bottom-2 left-2 bg-white bg-opacity-75 p-2 rounded shadow z-50 text-sm">
-              <p>Click anywhere on the map to make your guess</p>
-            </div>
-
-            {/* Current guess info */}
-            {userGuess && !guessSubmitted && (
-              <div className="absolute top-2 left-2 bg-white bg-opacity-75 p-2 rounded shadow z-50">
-                <p className="text-sm font-semibold">Your guess:</p>
-                <p className="text-xs">Lat: {userGuess.latitude.toFixed(4)}</p>
-                <p className="text-xs">Lng: {userGuess.longitude.toFixed(4)}</p>
+              )}
+            </MapContainer>
+            
+            {/* Add a visual locked overlay when the guess is submitted */}
+            {guessSubmitted && (
+              <div className="locked-overlay">
+                <div className="locked-icon">🔒</div>
               </div>
             )}
           </div>
+          
+          {/* Map controls - positioned as overlay in the upper left corner */}
+          <div className="absolute top-2 left-2 z-[1002] flex flex-col space-y-2">
+            <button 
+              onClick={() => !guessSubmitted && mapRef.current?.zoomIn()} 
+              className={`w-8 h-8 bg-white flex items-center justify-center rounded shadow hover:bg-gray-100 focus:outline-none ${guessSubmitted ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Zoom in"
+              disabled={guessSubmitted}
+            >
+              <span className="text-lg">+</span>
+            </button>
+            <button 
+              onClick={() => !guessSubmitted && mapRef.current?.zoomOut()} 
+              className={`w-8 h-8 bg-white flex items-center justify-center rounded shadow hover:bg-gray-100 focus:outline-none ${guessSubmitted ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Zoom out"
+              disabled={guessSubmitted}
+            >
+              <span className="text-lg">−</span>
+            </button>
+            <button 
+              onClick={() => !guessSubmitted && mapRef.current?.setView([20, 0], 2)} 
+              className={`w-8 h-8 bg-white flex items-center justify-center rounded shadow hover:bg-gray-100 focus:outline-none ${guessSubmitted ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Reset view"
+              disabled={guessSubmitted}
+            >
+              <span className="text-lg">⟲</span>
+            </button>
+          </div>
+          
+          {/* Current guess info */}
+          {userGuess && !guessSubmitted && (
+            <div className="absolute top-1 right-1 bg-white bg-opacity-75 p-1 rounded text-xs" style={{ zIndex: 1002 }}>
+              <p className="font-semibold">Your guess:</p>
+              <p>Lat: {userGuess.latitude.toFixed(4)}</p>
+              <p>Lng: {userGuess.longitude.toFixed(4)}</p>
+            </div>
+          )}
         </div>
-
-        {/* Game instructions */}
-        <div className="mt-4 bg-white rounded-lg shadow p-4">
-          <h2 className="text-xl font-semibold mb-2">How to Play</h2>
-          <ol className="list-decimal pl-5">
-            <li>Look around in Google Street View to figure out where you are</li>
-            <li>Click anywhere on the world map to place your guess</li>
-            <li>Click &ldquo;Submit Guess&rdquo; to see how close you were</li>
-            <li>The closer your guess, the higher your score!</li>
-          </ol>
-          <p className="mt-2 text-sm text-gray-600">
-            Tip: Use landmarks, road signs, architecture, and other clues to determine your location.
-          </p>
-        </div>
+      )}
+    
+      {/* Main Lock In Button - Centered at bottom */}
+      <div
+        id="main-lock-button-container"
+        style={{
+          position: 'fixed',
+          bottom: '3rem',
+          right: '1rem',
+          display: 'flex',
+          zIndex: 9999,
+          pointerEvents: 'auto'
+        }}
+      >
+        <button
+          id="main-lock-button"
+          ref={buttonRef}
+          onClick={handleSubmitGuess}
+          disabled={!userGuess || guessSubmitted}
+          className={`
+            py-3 rounded-lg 
+            font-bold text-white text-lg
+            shadow-lg border-2 border-white
+            transition-colors duration-200
+            ${userGuess && !guessSubmitted ? 'bg-red-600 hover:bg-red-700 cursor-pointer' : 'bg-gray-500 cursor-not-allowed'}
+          `}
+          style={{
+            position: 'relative',
+            display: (!guessSubmitted && panoramaLoaded) ? 'block' : 'none',
+            opacity: 1,
+            visibility: (!guessSubmitted && panoramaLoaded) ? 'visible' : 'hidden',
+            width: '300px'
+          }}
+        >
+          {'LOCK IN'}
+        </button>
       </div>
     </div>
-  );
-}
+  );}
