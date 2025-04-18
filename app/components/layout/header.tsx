@@ -11,9 +11,11 @@ import { useGlobalUserAttributes } from "@/contexts/globalUserAttributes";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
-import { Button, Card, Flex, Popover, Tag } from "antd";
+import "@ant-design/v5-patch-for-react-19";
+import { Button, Card, Popover, Tag } from "antd";  // removed Flex
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
 
 const appLinks: MenuItem[] = [
   { label: "Home", link: "/" },
@@ -31,7 +33,6 @@ type ProfileProps = {
 
 const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
   const [loading, setLoading] = useState(true);
-
   const { clear: clearToken } = useLocalStorage<User | null>("user", null);
   const { user } = useGlobalUser();
   const { userAttributes } = useGlobalUserAttributes();
@@ -42,11 +43,9 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
 
   useEffect(() => {
     setLoading(false);
-  }, [user, userAttributes]); // Re-renders on change
+  }, [user, userAttributes]);
 
-  if (loading) {
-    return;
-  }
+  if (loading) return null;
 
   if (user) {
     const userLinks: MenuItem[] = [
@@ -59,7 +58,12 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
 
     return (
       <span style={{ maxWidth: "25vw" }}>
-        <Popover content={<Menu items={userLinks} />} trigger="click" placement="bottomRight" mouseLeaveDelay={0.3}>
+        <Popover
+          content={<Menu items={userLinks} />}
+          trigger="click"
+          placement="bottomRight"
+          mouseLeaveDelay={0.3}
+        >
           <UserCard
             style={{ borderRadius: 4, height: 72, width: "100%" }}
             username={user.username ?? "username"}
@@ -71,29 +75,23 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
       </span>
     );
   } else {
-    // Not logged in: show Register + Login buttons
     return (
-      <Flex align="center" justify="center" gap={8} style={{ height: 72, paddingRight: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, height: 72, paddingRight: 16 }}>
         <Link href="/register">
           <Button type="primary">Register</Button>
         </Link>
         <Link href="/login">
-          <Button type="default">Login</Button>
+          <Button>Login</Button>
         </Link>
-      </Flex>
+      </div>
     );
   }
 };
 
-/**
- * Header: keeps track of the active view in state, shows the corresponding component below.
- */
 const Header: React.FC = () => {
   const { user } = useGlobalUser();
   const { userAttributes } = useGlobalUserAttributes();
   const [activeView, setActiveView] = useState<Screens | null>(null);
-
-  useEffect(() => {}, [user, userAttributes]); // Re-renders on change
 
   function handleSelectView(viewName: Screens) {
     setActiveView((prev) => (prev === viewName ? null : viewName));
@@ -101,36 +99,46 @@ const Header: React.FC = () => {
 
   return (
     <>
-      {/* Header: fixed to the top of the screen */}
-    <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100, height: 82, overflow: "hidden" }}>
-      <Card styles={{ body: { padding: 4 } }} size="small">
-        <Flex justify="space-between" align="center">
-          {/* Left-hand side: standard routes + store */}
-          <Menu
-            style={{ height: 72 }}
-            items={[
-              ...appLinks,
-              {
-                label: "Store",
-                link: "/store",
-                subview: user ? (
-                  <Tag icon={<DollarOutlined />} color="gold">
-                    {userAttributes ? userAttributes.points : "0"}
-                  </Tag>
-                ) : undefined,
-              },
-            ]}
-            horizontal
-          />
+      {/* Fixed header bar */}
+      <nav
+        style={{
+          position: "fixed",
+          top: 8,
+          left: 8,
+          right: 8,
+          height: 82,
+          zIndex: 100,
+          overflow: "hidden",
+        }}
+      >
+        <Card size="small" bodyStyle={{ padding: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {/* Left: main nav */}
+            <Menu
+              style={{ height: 72 }}
+              items={[
+                ...appLinks,
+                {
+                  label: "Store",
+                  link: "/store",
+                  subview: user ? (
+                    <Tag icon={<DollarOutlined />} color="gold">
+                      {userAttributes ? userAttributes.points : "0"}
+                    </Tag>
+                  ) : undefined,
+                },
+              ]}
+              horizontal
+            />
 
-          {/* Right-hand side: Profile w/ popover */}
-          <Profile onSelectView={handleSelectView} />
-        </Flex>
-      </Card>
-    </nav>
+            {/* Right: profile/login */}
+            <Profile onSelectView={handleSelectView} />
+          </div>
+        </Card>
+      </nav>
 
-      {/* Conditionally render the chosen view below the header */}
-      <div style={{ padding: 8 + 82 }}>
+      {/* Push everything down by header height + margin */}
+      <div style={{ paddingTop:  50, paddingLeft: 8, paddingRight: 8 }}>
         {activeView === "profile" && <UserProfile />}
         {activeView === "achievements" && <Achievements />}
         {activeView === "history" && <GameHistory />}
