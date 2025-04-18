@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -5,8 +7,6 @@ import {
   Form,
   Input,
   message,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Descriptions,
   Avatar,
   Spin,
   Typography,
@@ -17,7 +17,8 @@ import {
   EditOutlined,
   SaveOutlined,
   RollbackOutlined,
-  UserOutlined
+  UserOutlined,
+  CloseOutlined
 } from "@ant-design/icons";
 import { useApi } from "@/hooks/useApi";
 
@@ -32,7 +33,7 @@ interface UserProfileDTO {
   mmr?: number;
   points?: number;
   achievements?: string[];
-  avatar?: string; // Avatar URL from the backend (if available)
+  avatar?: string;
   rank?: string;
 }
 
@@ -41,39 +42,32 @@ const UserProfile: React.FC = () => {
   const [profile, setProfile] = useState<UserProfileDTO | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [editMode, setEditMode] = useState<boolean>(false);
+  const [visible, setVisible] = useState<boolean>(true);
   const [form] = Form.useForm();
 
-  // Retrieve token from localStorage (or your global context)
+  // Load token from localStorage
   const storedUserStr = localStorage.getItem("user");
   let token: string | null = null;
   if (storedUserStr) {
     try {
-      const storedUser = JSON.parse(storedUserStr);
-      token = storedUser.token;
-    } catch (e) {
-      console.error("Error parsing user from localStorage", e);
+      token = JSON.parse(storedUserStr).token;
+    } catch {
+      console.error("Error parsing user token");
     }
   }
 
-  // Load profile data using the authenticated endpoint /auth/me
+  // Fetch profile
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    const headers = {
-      Authorization: token,
-      "Content-Type": "application/json"
-    };
     apiService
-      .get<UserProfileDTO>("/auth/me", { headers })
+      .get<UserProfileDTO>("/auth/me", {
+        headers: { Authorization: token, "Content-Type": "application/json" }
+      })
       .then((data) => {
-        // Force statsPublic to true by default
         data.statsPublic = true;
         setProfile(data);
-        // Prepopulate form fields (avatar remains display-only)
-        form.setFieldsValue({
-          username: data.username,
-          email: data.email
-        });
+        form.setFieldsValue({ username: data.username, email: data.email });
       })
       .catch((err) => {
         console.error("Failed to load profile:", err);
@@ -82,49 +76,38 @@ const UserProfile: React.FC = () => {
       .finally(() => setLoading(false));
   }, [token, apiService, form]);
 
-  // Enter edit mode
-  const handleEdit = () => {
-    setEditMode(true);
-  };
-
-  // Cancel edit mode and reset form values
+  const handleEdit = () => setEditMode(true);
   const handleCancelEdit = () => {
     setEditMode(false);
     if (profile) {
-      form.setFieldsValue({
-        username: profile.username,
-        email: profile.email
-      });
+      form.setFieldsValue({ username: profile.username, email: profile.email });
     }
   };
-
-  // Save updates using PUT /users/me (updating only username and email)
   const handleSave = () => {
     form
       .validateFields()
       .then((values) => {
         if (!token) {
-          message.error("User is not authenticated.");
+          message.error("User not authenticated.");
           return;
         }
         setLoading(true);
-        const headers = {
-          Authorization: token,
-          "Content-Type": "application/json"
-        };
-        const updatedValues = { ...values, statsPublic: true };
         apiService
-          .put<UserProfileDTO>("/users/me", updatedValues, { headers })
+          .put<UserProfileDTO>(
+            "/users/me",
+            { ...values, statsPublic: true },
+            { headers: { Authorization: token, "Content-Type": "application/json" } }
+          )
           .then((data) => {
             message.success("Profile updated successfully.");
             data.statsPublic = true;
             setProfile(data);
             setEditMode(false);
-            // Update the user record in localStorage
-            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-            currentUser.username = data.username;
-            currentUser.email = data.email;
-            localStorage.setItem("user", JSON.stringify(currentUser));
+            // Sync localStorage
+            const current = JSON.parse(localStorage.getItem("user") || "{}");
+            current.username = data.username;
+            current.email = data.email;
+            localStorage.setItem("user", JSON.stringify(current));
           })
           .catch((err) => {
             console.error("Update failed:", err);
@@ -132,10 +115,11 @@ const UserProfile: React.FC = () => {
           })
           .finally(() => setLoading(false));
       })
-      .catch((info) => {
-        console.log("Validation Failed:", info);
-      });
+      .catch((info) => console.log("Validation failed:", info));
   };
+  const handleClose = () => setVisible(false);
+
+  if (!visible) return null;
 
   if (!token) {
     return (
@@ -144,7 +128,6 @@ const UserProfile: React.FC = () => {
       </div>
     );
   }
-
   if (loading || !profile) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
@@ -156,25 +139,46 @@ const UserProfile: React.FC = () => {
   return (
     <div
       style={{
+        position: "relative",          // make this container the positioning context
         maxWidth: 600,
         margin: "40px auto",
         padding: 24,
-        background: "#1f1f1f", // dark background
+        background: "#1f1f1f",
         borderRadius: 12,
         boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
         color: "#fff"
       }}
     >
-      <Card style={{ background: "transparent", border: "none", color: "#fff" }} bodyStyle={{ padding: 0 }}>
+      {/* absolutely positioned close button with larger hit area */}
+      <Button
+        type="text"
+        shape="circle"
+        size="small"
+        onClick={handleClose}
+        icon={<CloseOutlined style={{ color: "#fff", fontSize: 16 }} />}
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          padding: 4,
+        }}
+        aria-label="Close"
+      />
+
+      <Card
+        style={{ background: "transparent", border: "none", color: "#fff" }}
+        styles={{ body: { padding: 0 } }}
+      >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
           <Avatar
             size={72}
             src={profile.avatar || undefined}
-            icon={!profile.avatar ? <UserOutlined /> : undefined}
+            icon={!profile.avatar && <UserOutlined />}
             style={{ marginRight: 24 }}
           >
             {profile.username.charAt(0).toUpperCase()}
           </Avatar>
+
           <div>
             <Title level={4} style={{ margin: 0, color: "#fff" }}>
               {profile.username}
@@ -182,6 +186,7 @@ const UserProfile: React.FC = () => {
             {profile.rank && <Tag color="purple">{profile.rank}</Tag>}
           </div>
         </div>
+
         {editMode ? (
           <Form form={form} layout="vertical" onFinish={handleSave}>
             <Form.Item
@@ -213,31 +218,25 @@ const UserProfile: React.FC = () => {
         ) : (
           <>
             <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ color: "#fff" }}>Email:</Text>
+              <Text strong>Email:</Text>
               <br />
-              <Text style={{ color: "#fff" }}>
-                {profile.email || "Not available"}
-              </Text>
+              <Text>{profile.email || "Not available"}</Text>
             </div>
             <Divider style={{ borderColor: "#444" }} />
             <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ color: "#fff" }}>MMR:</Text>
+              <Text strong>MMR:</Text>
               <br />
-              <Text style={{ color: "#fff" }}>
-                {profile.mmr !== undefined ? profile.mmr : "N/A"}
-              </Text>
+              <Text>{profile.mmr ?? "N/A"}</Text>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ color: "#fff" }}>Points:</Text>
+              <Text strong>Points:</Text>
               <br />
-              <Text style={{ color: "#fff" }}>
-                {profile.points !== undefined ? profile.points : "N/A"}
-              </Text>
+              <Text>{profile.points ?? "N/A"}</Text>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ color: "#fff" }}>Achievements:</Text>
+              <Text strong>Achievements:</Text>
               <br />
-              <Text style={{ color: "#fff" }}>
+              <Text>
                 {profile.achievements && profile.achievements.length > 0
                   ? profile.achievements.join(", ")
                   : "None"}
@@ -245,9 +244,9 @@ const UserProfile: React.FC = () => {
             </div>
             <Divider style={{ borderColor: "#444" }} />
             <div style={{ marginBottom: 24 }}>
-              <Text strong style={{ color: "#fff" }}>Stats Public:</Text>
+              <Text strong>Stats Public:</Text>
               <br />
-              <Text style={{ color: "#fff" }}>Yes</Text>
+              <Text>Yes</Text>
             </div>
             <Button type="primary" onClick={handleEdit} icon={<EditOutlined />}>
               Edit Profile

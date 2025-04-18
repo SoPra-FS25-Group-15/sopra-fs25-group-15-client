@@ -59,7 +59,7 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
 
     return (
       <span style={{ maxWidth: "25vw" }}>
-        <Popover content={<Menu items={userLinks} />} trigger="hover" mouseLeaveDelay={0.3}>
+        <Popover content={<Menu items={userLinks} />} trigger="click" placement="bottomRight" mouseLeaveDelay={0.3}>
           <UserCard
             style={{ borderRadius: 4, height: 72, width: "100%" }}
             username={user.username ?? "username"}
@@ -100,6 +100,8 @@ const Header: React.FC = () => {
   }
 
   return (
+    <>
+      {/* Header: fixed to the top of the screen */}
     <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100, height: 82, overflow: "hidden" }}>
       <Card styles={{ body: { padding: 4 } }} size="small">
         <Flex justify="space-between" align="center">
@@ -125,15 +127,16 @@ const Header: React.FC = () => {
           <Profile onSelectView={handleSelectView} />
         </Flex>
       </Card>
+    </nav>
 
       {/* Conditionally render the chosen view below the header */}
-      <div>
+      <div style={{ padding: 8 + 82 }}>
         {activeView === "profile" && <UserProfile />}
         {activeView === "achievements" && <Achievements />}
         {activeView === "history" && <GameHistory />}
         {activeView === "settings" && <Settings />}
       </div>
-    </nav>
+    </>
   );
 };
 
