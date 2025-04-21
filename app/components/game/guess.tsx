@@ -5,7 +5,9 @@ import axios from 'axios';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-
+import { Client } from '@stomp/stompjs';
+import { useGlobalUser } from "@/contexts/globalUser";
+import SockJS from 'sockjs-client';
 // Define type for Leaflet's Icon Default prototype
 interface IconDefaultPrototype {
   _getIconUrl?: string;
@@ -130,6 +132,25 @@ interface StreetViewPanorama {
   setVisible(visible: boolean): void;
   setPov(pov: { heading: number, pitch: number }): void;
   setZoom(zoom: number): void;
+}
+
+// WebSocket message interfaces
+interface GuessMessage {
+  latitude: number;
+  longitude: number;
+  guess?: number; // For backward compatibility
+}
+
+interface WebSocketGameState {
+  roundNumber: number;
+  timeRemaining: number;
+  correctLocation?: {
+    latitude: number;
+    longitude: number;
+    country: string;
+    city?: string;
+  };
+  playerGuesses?: Record<string, number>;
 }
 
 // Define regions around the world with good Street View coverage
@@ -340,7 +361,7 @@ function MapInteractivityManager({ guessSubmitted }: { guessSubmitted: boolean }
   return null;
 }
 
-export default function GameComponent() {
+export default function GameComponent({ lobbyId = 1, userId = 1 }: { lobbyId?: number; userId?: number }) {
   // Google Street View references
   const panoramaRef = useRef<StreetViewPanorama | null>(null);
   const streetViewContainerRef = useRef<HTMLDivElement | null>(null);
@@ -359,22 +380,104 @@ export default function GameComponent() {
   const mapRef = useRef<L.Map | null>(null);
   // Add a ref for the button to check rendering
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-
+  const { user } = useGlobalUser();
+  // WebSocket client
+  const stompClientRef = useRef<Client | null>(null);
+  const [gameState, setGameState] = useState<WebSocketGameState | null>(null);
+  
   // Google Maps API key
   const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
-  // Calculate distance using Haversine formula
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; // Earth radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    return R * c;
-  };
+  // Initialize WebSocket connection
+  useEffect(() => {
+    if (!lobbyId || !userId || !user) return;
+    
+    // The key difference: pass token as URL parameter instead of only in headers
+    const socketUrl = `http://localhost:8080/ws/lobby?token=${user.token}`;
+    
+    if (!user.token) {
+      console.error("Token is missing");
+      return;
+    }
+    
+    const stompClient = new Client({
+      // Use SockJS with token in the URL
+      webSocketFactory: () => new SockJS(socketUrl),
+      // Still include token in connect headers for subsequent STOMP frames
+      connectHeaders: {
+        'Authorization': `Bearer ${user.token}`,
+      },
+      debug: function (str) {
+        console.log(`STOMP: ${str}`);
+      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+    });
+    
+    stompClient.onConnect = () => {
+      console.log('Connected to WebSocket');
+      
+      // Subscribe to lobby game state updates
+      stompClient.subscribe(`/topic/lobby/${lobbyId}/game/state`, (message) => {
+        try {
+          const gameState = JSON.parse(message.body);
+          setGameState(gameState);
+          
+          if (gameState.correctLocation) {
+            const serverLocation = {
+              id: `server-location-${gameState.roundNumber}`,
+              latitude: gameState.correctLocation.latitude,
+              longitude: gameState.correctLocation.longitude,
+              panoId: '',
+              country: gameState.correctLocation.country,
+              city: gameState.correctLocation.city
+            };
+            setLocation(serverLocation);
+            
+            if (gameState.playerGuesses && gameState.playerGuesses[userId.toString()]) {
+              setDistance(gameState.playerGuesses[userId.toString()]);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing game state message:', error);
+        }
+      });
+      
+      // Subscribe to personal game result
+      stompClient.subscribe(`/user/queue/lobby/${lobbyId}/game/result`, (message) => {
+        try {
+          const result = JSON.parse(message.body);
+          console.log('Received personal result:', result);
+        } catch (error) {
+          console.error('Error parsing result message:', error);
+        }
+      });
+    };
+    
+    stompClient.onStompError = (frame) => {
+      console.error('STOMP error:', frame.headers.message);
+      setError(`WebSocket error: ${frame.headers.message}`);
+    };
+    
+    try {
+      stompClient.activate();
+      stompClientRef.current = stompClient;
+    } catch (error) {
+      console.error('Error activating STOMP client:', error);
+    }
+    
+    return () => {
+      if (stompClientRef.current && stompClientRef.current.connected) {
+        try {
+          stompClientRef.current.deactivate();
+        } catch (error) {
+          console.error('Error deactivating STOMP client:', error);
+        }
+      }
+    };
+  }, [lobbyId, userId, user]);
+  
 
   // Initialize Street View panorama
   const initializeStreetView = useCallback(() => {
@@ -582,7 +685,7 @@ export default function GameComponent() {
       setLoading(false);
       return false;
     }
-  }, [initializeStreetView]);
+  }, [initializeStreetView, lobbyId]);
 
   // Load Google Maps API script
   const loadGoogleMapsScript = useCallback(() => {
@@ -732,20 +835,13 @@ export default function GameComponent() {
     }
   }, [panoramaLoaded]);
 
-  // Handle submit guess
+  // Handle submit guess using WebSocket
   const handleSubmitGuess = useCallback(() => {
-    if (!userGuess || !location) return;
+    if (!userGuess || !location || !stompClientRef.current || !stompClientRef.current.connected) return;
     
     console.log("Submitting guess:", userGuess);
     
-    const calculatedDistance = calculateDistance(
-      userGuess.latitude, 
-      userGuess.longitude, 
-      location.latitude, 
-      location.longitude
-    );
-    
-    setDistance(calculatedDistance);
+    // Set local state for UI feedback
     setGuessSubmitted(true);
     console.log("DEBUG: Guess submitted set to TRUE");
     
@@ -760,19 +856,26 @@ export default function GameComponent() {
     }
     
     try {
-      // Submit guess to API
-      axios.post('/api/guesses', {
-        locationId: location.id,
-        guessLatitude: userGuess.latitude,
-        guessLongitude: userGuess.longitude,
-        distance: calculatedDistance
+      // Send guess to backend via WebSocket
+      // Modified to send coordinates instead of pre-calculating distance
+      const guessMessage: GuessMessage = {
+        latitude: userGuess.latitude,
+        longitude: userGuess.longitude
+      };
+      
+      stompClientRef.current.publish({
+        destination: `/app/lobby/${lobbyId}/game/guess`,
+        body: JSON.stringify(guessMessage)
       });
+      
+      console.log("Guess sent to server:", guessMessage);
+      
     } catch (err) {
       console.error('Error submitting guess:', err);
     }
-  }, [userGuess, location, calculateDistance]);
+  }, [userGuess, location, lobbyId, userId]);
 
-  // Handle new location
+  // Handle new location - this could be triggered by server in a multiplayer context
   const handleNewLocation = useCallback(() => {
     setUserGuess(null);
     setGuessSubmitted(false);
@@ -786,22 +889,33 @@ export default function GameComponent() {
       mapRef.current.setView([20, 0], 2);
     }
     
-    fetchRandomStreetViewLocation();
-  }, [fetchRandomStreetViewLocation]);
+    // In a multiplayer game, the host would call this method to start a new round
+    if (stompClientRef.current && stompClientRef.current.connected) {
+      // Notify server we want to start a new round
+      stompClientRef.current.publish({
+        destination: `/app/lobby/${lobbyId}/game/nextRound`,
+        body: JSON.stringify({})
+      });
+    } else {
+      // For single player mode or testing
+      fetchRandomStreetViewLocation();
+    }
+  }, [fetchRandomStreetViewLocation, lobbyId]);
 
-  // Calculate score based on distance
-  const calculateScore = (distanceKm: number): number => {
-    if (distanceKm < 1) return 5000;
-    if (distanceKm < 5) return 4500;
-    if (distanceKm < 10) return 4000;
-    if (distanceKm < 50) return 3000;
-    if (distanceKm < 100) return 2000;
-    if (distanceKm < 500) return 1000;
-    if (distanceKm < 1000) return 500;
-    if (distanceKm < 5000) return 250;
-    if (distanceKm < 10000) return 100;
-    return 0;
-  };
+  // Start the game - only called by the host
+  const startGame = useCallback((roundCount: number = 5, roundTime: number = 60) => {
+    if (!stompClientRef.current || !stompClientRef.current.connected) return;
+    
+    stompClientRef.current.publish({
+      destination: `/app/lobby/${lobbyId}/game/start`,
+      body: JSON.stringify({
+        roundCount: roundCount,
+        roundTime: roundTime
+      })
+    });
+    
+    console.log(`Game started with ${roundCount} rounds, ${roundTime} seconds per round`);
+  }, [lobbyId]);
 
   // Effect to log debug info about button visibility
   useEffect(() => {
@@ -820,6 +934,35 @@ export default function GameComponent() {
     }
   }, [guessSubmitted, panoramaLoaded, userGuess]);
 
+  // Handle game state updates from the server
+  useEffect(() => {
+    if (!gameState) return;
+    
+    console.log("Game state updated:", gameState);
+    
+    // If the server provides the correct location and round is over
+    if (gameState.correctLocation && gameState.timeRemaining === 0) {
+      // Show the correct location on the map
+      const serverLocation: Location = {
+        id: `server-location-${gameState.roundNumber}`,
+        latitude: gameState.correctLocation.latitude,
+        longitude: gameState.correctLocation.longitude,
+        panoId: location?.panoId || '', // Keep the current panoId if available
+        country: gameState.correctLocation.country,
+        city: gameState.correctLocation.city
+      };
+      
+      setLocation(serverLocation);
+      setGuessSubmitted(true);
+    }
+    
+    // Update distance if provided by the server
+    if (gameState.playerGuesses && gameState.playerGuesses[userId.toString()]) {
+      const serverDistance = gameState.playerGuesses[userId.toString()];
+      setDistance(serverDistance);
+    }
+    
+  }, [gameState, location, userId]);
 
   if (loading && !location) {
     return (
@@ -864,6 +1007,25 @@ export default function GameComponent() {
           <p>showMap: {showMap ? 'true' : 'false'}</p>
           <p>buttonRef exists: {buttonRef.current ? 'yes' : 'no'}</p>
           <p>Button should be visible: {(!guessSubmitted && panoramaLoaded) ? 'yes' : 'no'}</p>
+          <p>WebSocket: {stompClientRef.current?.connected ? 'connected' : 'disconnected'}</p>
+          {gameState && (
+            <>
+              <p>Round: {gameState.roundNumber}</p>
+              <p>Time: {gameState.timeRemaining}s</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Game timer display */}
+      {gameState && (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg z-[1004]">
+          <p className="text-center">
+            <span className="font-bold">Round {gameState.roundNumber}</span> • 
+            <span className={gameState.timeRemaining < 10 ? 'text-red-500 font-bold ml-2' : 'ml-2'}>
+              {gameState.timeRemaining}s
+            </span>
+          </p>
         </div>
       )}
 
@@ -894,16 +1056,14 @@ export default function GameComponent() {
               <p>
                 <span className="font-bold">Distance:</span> {distance.toFixed(2)} kilometers away
               </p>
-              <p>
-                <span className="font-bold">Score:</span> {calculateScore(distance)} points
-              </p>
             </div>
           )}
+          {/* Only show new location button for the host or in single player mode */}
           <button
             onClick={handleNewLocation}
             className="w-full mt-2 py-1 bg-green-500 hover:bg-green-600 rounded text-white"
           >
-            New Location
+            {gameState ? 'Next Round' : 'New Location'}
           </button>
         </div>
       )}
@@ -1053,7 +1213,7 @@ export default function GameComponent() {
           id="main-lock-button"
           ref={buttonRef}
           onClick={handleSubmitGuess}
-          disabled={!userGuess || guessSubmitted}
+          disabled={!userGuess || guessSubmitted || (gameState ? gameState.timeRemaining <= 0 : false)}
           className={`
             py-3 rounded-lg 
             font-bold text-white text-lg
@@ -1072,5 +1232,19 @@ export default function GameComponent() {
           {'LOCK IN'}
         </button>
       </div>
+      
+      {/* Game controls - for host only */}
+      {!gameState && (
+        <div 
+          className="absolute top-4 left-4 z-[1004] bg-black bg-opacity-70 p-3 rounded-lg shadow-lg"
+        >
+          <button
+            onClick={() => startGame(5, 60)}
+            className="py-2 px-4 bg-green-500 hover:bg-green-600 text-white rounded-lg"
+          >
+            Start Game (5 rounds)
+          </button>
+        </div>
+      )}
     </div>
   );}
