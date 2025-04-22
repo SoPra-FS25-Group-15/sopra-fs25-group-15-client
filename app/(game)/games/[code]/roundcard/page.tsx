@@ -26,73 +26,66 @@ const RoundCardPageComponent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lobbyIdNumber, setLobbyIdNumber] = useState<number | null>(null);
 
-  // WHO is allowed to choose this round card?
+  // Who gets to choose
   const [currentChooserToken, setCurrentChooserToken] = useState<string | null>(null);
 
-  // STOMP refs
+  // STOMP ref
+  const gameSub = useRef<StompSubscription | null>(null);
   const stompClient = useRef<Client | null>(null);
-  const statusSub = useRef<StompSubscription | null>(null);
-  const gameSub   = useRef<StompSubscription | null>(null);
-
-  // Load the chooser token that was saved in the lobby page
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const chooser = localStorage.getItem("roundChooser");
-      if (chooser) {
-        setCurrentChooserToken(chooser);
-        localStorage.removeItem("roundChooser");
-      }
-    }
-  }, []);
 
   useEffect(() => {
-    // 1) Redirect if no user
+    // Redirect if no user
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user");
-      if (!stored) {
+      if (!localStorage.getItem("user")) {
         router.push("/login");
         return;
       }
-      if (stored && !user) {
-        return; // wait for context to load
+      if (!user) {
+        return; // wait for context
       }
     }
 
-    // 2) Initialize with static game state until real one arrives
+    // 1) seed placeholder state
     setGame(gameState);
     setSelectedId(gameState.inventory.roundCards[0]);
+
+    // 2) load and clear the chooser token
+    const chooser = localStorage.getItem("roundChooser");
+    if (chooser) {
+      setCurrentChooserToken(chooser);
+      localStorage.removeItem("roundChooser");
+    }
+
+    // 3) load numeric lobbyId
+    const storedId = localStorage.getItem("lobbyId");
+    if (!storedId) {
+      setNotification({
+        type: "error",
+        message: "Lobby ID missing, please re‑join.",
+        onClose: () => setNotification(null),
+      });
+      return;
+    }
+    const lobbyId = parseInt(storedId, 10);
+    setLobbyIdNumber(lobbyId);
     setLoading(false);
 
-    // 3) STOMP setup
-    if (user?.token && code) {
-      const apiDomain = getApiDomain();
+    // 4) STOMP: subscribe to game topic directly
+    if (user?.token) {
       const client = new Client({
-        webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby-manager?token=${user.token}`),
+        webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
         connectHeaders: { Authorization: `Bearer ${user.token}` },
         heartbeatIncoming: 0,
         heartbeatOutgoing: 0,
         reconnectDelay: 5000,
         onConnect: () => {
-          // a) get lobbyId
-          statusSub.current = client.subscribe(
-            `/app/lobby-manager/lobby/${code}`,
+          gameSub.current = client.subscribe(
+            `/topic/lobby/${lobbyId}/game`,
             (msg) => {
-              const { type, payload } = JSON.parse(msg.body);
-              if (type === "LOBBY_STATUS") {
-                setLobbyIdNumber(payload.lobbyId);
-
-                // b) subscribe to game events
-                gameSub.current = client.subscribe(
-                  `/topic/lobby/${payload.lobbyId}/game`,
-                  (gameMsg) => {
-                    const { type: gType, payload: gPayload } = JSON.parse(gameMsg.body);
-
-                    // When backend tells us “go to action card”, navigate
-                    if (gType === "SCREEN_CHANGE" && gPayload.screen === "ACTIONCARD") {
-                      router.push(`/games/${code}/actioncard`);
-                    }
-                  }
-                );
+              const { type: gType, payload: gPayload } = JSON.parse(msg.body);
+              // when it's time to go to action card:
+              if (gType === "SCREEN_CHANGE" && gPayload.screen === "ACTIONCARD") {
+                router.push(`/games/${code}/actioncard`);
               }
             }
           );
@@ -104,55 +97,33 @@ const RoundCardPageComponent: React.FC = () => {
             onClose: () => setNotification(null),
           });
         },
-        onDisconnect: () => {
-          // nothing
-        },
       });
 
       stompClient.current = client;
       client.activate();
     }
 
-    // cleanup
     return () => {
       stompClient.current?.deactivate();
-      statusSub.current?.unsubscribe();
       gameSub.current?.unsubscribe();
     };
   }, [code, user, router]);
 
-  // Publish the chosen round card
   async function handleSubmit() {
     if (!user) {
-      setNotification({
-        type: "error",
-        message: "Please log in first",
-        onClose: () => setNotification(null),
-      });
+      setNotification({ type: "error", message: "Please log in first", onClose: () => setNotification(null) });
       return;
     }
     if (!game) {
-      setNotification({
-        type: "error",
-        message: "Game data unavailable",
-        onClose: () => setNotification(null),
-      });
+      setNotification({ type: "error", message: "Game data unavailable", onClose: () => setNotification(null) });
       return;
     }
     if (!selectedId) {
-      setNotification({
-        type: "error",
-        message: "Select a round card",
-        onClose: () => setNotification(null),
-      });
+      setNotification({ type: "error", message: "Select a round card", onClose: () => setNotification(null) });
       return;
     }
-    if (!lobbyIdNumber) {
-      setNotification({
-        type: "error",
-        message: "Lobby ID not ready",
-        onClose: () => setNotification(null),
-      });
+    if (lobbyIdNumber === null) {
+      setNotification({ type: "error", message: "Lobby ID not ready", onClose: () => setNotification(null) });
       return;
     }
 
@@ -162,8 +133,6 @@ const RoundCardPageComponent: React.FC = () => {
     });
   }
 
-  //–– RENDER ––
-
   if (loading) {
     return (
       <Flex justify="center" align="center" style={{ width: "100%", height: "100%", padding: 30 }}>
@@ -172,7 +141,7 @@ const RoundCardPageComponent: React.FC = () => {
     );
   }
 
-  // If it’s *your* turn, show the selector
+  // chooser’s view
   if (game && user?.token === currentChooserToken) {
     return (
       <GameContainer>
@@ -194,14 +163,14 @@ const RoundCardPageComponent: React.FC = () => {
             gap: 20,
           }}
         >
-          {getRoundCards(game.inventory.roundCards).map((card, index) => (
+          {getRoundCards(game.inventory.roundCards).map((card, idx) => (
             <RoundCardComponent
-              key={index}
-              selected={index === selectedState}
+              key={idx}
+              selected={idx === selectedState}
               {...card}
               onClick={() => {
                 setSelectedId(card.identifier);
-                setSelectedState(index);
+                setSelectedState(idx);
               }}
             />
           ))}
@@ -215,7 +184,7 @@ const RoundCardPageComponent: React.FC = () => {
     );
   }
 
-  // Otherwise, just show a “waiting” screen (sidebar still lists players & round)
+  // everyone else
   return (
     <GameContainer>
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>

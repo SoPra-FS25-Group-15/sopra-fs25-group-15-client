@@ -37,10 +37,10 @@ const LobbyPage: React.FC = () => {
 
   const stompClient = useRef<Client | null>(null);
   const joinResultSub = useRef<StompSubscription | null>(null);
-  const statusSub = useRef<StompSubscription | null>(null);
-  const updateSub = useRef<StompSubscription | null>(null);
-  const usersSub = useRef<StompSubscription | null>(null);
-  const gameSub = useRef<StompSubscription | null>(null);
+  const statusSub     = useRef<StompSubscription | null>(null);
+  const updateSub     = useRef<StompSubscription | null>(null);
+  const usersSub      = useRef<StompSubscription | null>(null);
+  const gameSub       = useRef<StompSubscription | null>(null);
 
   // Pull code from URL
   useEffect(() => {
@@ -107,6 +107,9 @@ const LobbyPage: React.FC = () => {
 
             console.log("[statusSub] LOBBY_STATUS received:", p);
             setLobbyIdNumber(p.lobbyId);
+            // ← NEW: persist numeric lobbyId for RoundCard page
+            localStorage.setItem("lobbyId", String(p.lobbyId));
+
             setJoinedUsers(
               p.players.map((u: UserPublicDTO) => ({
                 username: u.username,
@@ -210,7 +213,7 @@ const LobbyPage: React.FC = () => {
         const { type, payload } = JSON.parse(msg.body) as { type: string; payload: any };
         if (type === "GAME_START") {
           console.log("[gameSub] GAME_START → routing to roundcard");
-          // Persist the token of the player who will choose the round‑card
+          // persist chooser token
           localStorage.setItem("roundChooser", payload.startingPlayerToken);
           router.push(`/games/${lobbyCode}/roundcard`);
         }
@@ -245,7 +248,7 @@ const LobbyPage: React.FC = () => {
           payload: { code: lobbyCode },
         }),
       });
-      // removed router.push here; wait for GAME_START broadcast
+      // wait for GAME_START broadcast; no immediate router.push
     }
   };
 
