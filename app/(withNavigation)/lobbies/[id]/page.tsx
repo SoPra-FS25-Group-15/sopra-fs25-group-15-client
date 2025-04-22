@@ -207,9 +207,11 @@ const LobbyPage: React.FC = () => {
       `/topic/lobby/${lobbyId}/game`,
       (msg) => {
         console.log("[gameSub] msg:", msg.body);
-        const { type } = JSON.parse(msg.body) as { type: string; payload: any };
+        const { type, payload } = JSON.parse(msg.body) as { type: string; payload: any };
         if (type === "GAME_START") {
           console.log("[gameSub] GAME_START → routing to roundcard");
+          // Persist the token of the player who will choose the round‑card
+          localStorage.setItem("roundChooser", payload.startingPlayerToken);
           router.push(`/games/${lobbyCode}/roundcard`);
         }
       }
