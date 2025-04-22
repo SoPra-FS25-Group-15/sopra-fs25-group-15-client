@@ -14,6 +14,7 @@ import { Button, Typography, message, Divider, Progress } from "antd";
 import { useRouter, useParams } from "next/navigation";
 import Confetti from "react-confetti";
 import { motion } from "framer-motion";
+import { getApiDomain } from "@/utils/domain";
 
 const { Title, Text } = Typography;
 
@@ -120,8 +121,9 @@ const ResultsPage: React.FC = () => {
     }
     if (!user?.token || !lobbyCode) return;
 
+    const apiDomain = getApiDomain()
     const client = new Client({
-      webSocketFactory: () => new SockJS(`http://localhost:8080/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       heartbeatIncoming: 0,
       heartbeatOutgoing: 0,

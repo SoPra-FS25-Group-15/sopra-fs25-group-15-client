@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Client, IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { message } from 'antd';
+import { getApiDomain } from '@/utils/domain';
 
 export interface WebSocketMessage<T = unknown> {
   type: string;
@@ -63,8 +64,9 @@ export const useLobbyWebSocket = ({
     try {
       console.log("Initializing STOMP connection with token");
       
+      const apiDomain = getApiDomain();
       stompClient.current = new Client({
-        webSocketFactory: () => new SockJS(`http://localhost:8080/ws/lobby-manager?token=${token}`),
+        webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby-manager?token=${token}`),
         connectHeaders: {
           Authorization: `Bearer ${token}`,
         },

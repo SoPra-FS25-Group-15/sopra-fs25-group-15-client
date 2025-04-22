@@ -5,6 +5,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { message } from 'antd';
 import { useGlobalUser } from '@/contexts/globalUser';
+import { getApiDomain } from '@/utils/domain';
 
 interface IWebSocketContext {
   stompConnected: boolean;
@@ -23,9 +24,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     if (user?.token) {
       console.log("Initializing global STOMP connection for token:", user.token);
+      const apiDomain = getApiDomain()
       stompClient.current = new Client({
         webSocketFactory: () =>
-          new SockJS(`http://localhost:8080/ws/lobby-manager?token=${user.token}`),
+          new SockJS(`${apiDomain}/ws/lobby-manager?token=${user.token}`),
         connectHeaders: {
           Authorization: `Bearer ${user.token}`,
         },

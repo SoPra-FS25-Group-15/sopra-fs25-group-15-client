@@ -11,7 +11,7 @@ import { useGlobalUser } from "@/contexts/globalUser";
 import UserCard from "@/components/general/usercard";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import type { LobbyStatusPayload, UserPublicDTO } from "@/types/websocket"; // :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}
-
+import { getApiDomain } from "@/utils/domain";
 const { Title, Text } = Typography;
 
 interface JoinedUser {
@@ -63,9 +63,10 @@ const LobbyPage: React.FC = () => {
       return;
     }
 
+    const apiDomain = getApiDomain();
     const client = new Client({
       webSocketFactory: () =>
-        new SockJS(`http://localhost:8080/ws/lobby-manager?token=${user.token}`),
+        new SockJS(`${apiDomain}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       heartbeatIncoming: 0,
       heartbeatOutgoing: 0,
