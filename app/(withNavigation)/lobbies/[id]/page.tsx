@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// src/app/lobby/[id]/page.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -12,6 +13,7 @@ import UserCard from "@/components/general/usercard";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import type { LobbyStatusPayload, UserPublicDTO } from "@/types/websocket";
 import { getApiDomain } from "@/utils/domain";
+
 const { Title, Text } = Typography;
 
 interface JoinedUser {
@@ -21,7 +23,7 @@ interface JoinedUser {
 
 const LobbyPage: React.FC = () => {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const { user } = useGlobalUser();
 
   const [lobbyCode, setLobbyCode] = useState<string>("");
@@ -43,19 +45,13 @@ const LobbyPage: React.FC = () => {
   // Pull code from URL
   useEffect(() => {
     if (params.id) {
-      setLobbyCode(Array.isArray(params.id) ? params.id[0] : params.id);
+      setLobbyCode(params.id);
     }
   }, [params.id]);
 
   // When we have a token & code, connect
   useEffect(() => {
     if (!lobbyCode) return;
-
-    // wait for user context
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user");
-      if (stored && !user) return;
-    }
 
     if (!user?.token) {
       setNotification({ type: "error", message: "Please log in to access the lobby." });
@@ -76,15 +72,12 @@ const LobbyPage: React.FC = () => {
         console.log("[STOMP] connected");
         setLoading(false);
 
-        // 1. Subscribe to JOIN result
+        // Subscribe to JOIN result
         joinResultSub.current = client.subscribe(
           "/user/topic/lobby/join/result",
           (msg) => {
             console.log("[joinResultSub] message:", msg.body);
-            const { type, payload } = JSON.parse(msg.body) as {
-              type: string;
-              payload: any;
-            };
+            const { type, payload } = JSON.parse(msg.body);
             if (type === "JOIN_ERROR") {
               console.error("[joinResultSub] JOIN_ERROR:", payload);
               message.error(payload || "Unable to join lobby.");
@@ -98,7 +91,7 @@ const LobbyPage: React.FC = () => {
         );
         console.log("[STOMP] subscribed to /user/topic/lobby/join/result");
 
-        // 2. Subscribe to lobby status (one‑time) and, in that callback, set up all live topics and THEN publish join
+        // Subscribe to lobby status (one‑time)
         statusSub.current = client.subscribe(
           `/app/lobby-manager/lobby/${lobbyCode}`,
           (msg) => {
@@ -113,12 +106,10 @@ const LobbyPage: React.FC = () => {
             }
 
             console.log("[statusSub] LOBBY_STATUS received:", p);
-            // Initialize UI state
             setLobbyIdNumber(p.lobbyId);
             setJoinedUsers(
               p.players.map((u: UserPublicDTO) => ({
                 username: u.username,
-                // fall back to `id` if `userid` isn’t defined
                 userid: (u as any).userid ?? (u as any).id,
               }))
             );
@@ -126,10 +117,10 @@ const LobbyPage: React.FC = () => {
             setPlayersPerTeam(p.playersPerTeam);
             setIsHost(p.host.username === user.username);
 
-            // 3a. Wire up live‑topic subscriptions (including user‑join)
+            // Wire up live‑topic subscriptions
             subscribeToLobbyTopics(p.lobbyId);
 
-            // 3b. Now that we’re listening, publish the JOIN request
+            // Now publish the JOIN request
             console.log("[STOMP] publishing JOIN to /app/lobby/join/" + lobbyCode);
             client.publish({
               destination: `/app/lobby/join/${lobbyCode}`,
@@ -174,10 +165,7 @@ const LobbyPage: React.FC = () => {
       `/topic/lobby/${lobbyId}`,
       (msg) => {
         console.log("[updateSub] msg:", msg.body);
-        const { type, payload } = JSON.parse(msg.body) as {
-          type: string;
-          payload: any;
-        };
+        const { type, payload } = JSON.parse(msg.body);
         if (type === "UPDATE_SUCCESS") {
           if (payload.maxPlayers) setMaxPlayers(Number(payload.maxPlayers));
           if (payload.playersPerTeam !== undefined)
@@ -196,10 +184,7 @@ const LobbyPage: React.FC = () => {
       `/topic/lobby/${lobbyId}/users`,
       (msg) => {
         console.log("[usersSub] msg:", msg.body);
-        const { type, payload } = JSON.parse(msg.body) as {
-          type: string;
-          payload: any;
-        };
+        const { type, payload } = JSON.parse(msg.body);
         if (type === "USER_JOINED") {
           const { username, userid, id } = payload;
           const newId = userid ?? id;
@@ -222,10 +207,7 @@ const LobbyPage: React.FC = () => {
       `/topic/lobby/${lobbyId}/game`,
       (msg) => {
         console.log("[gameSub] msg:", msg.body);
-        const { type } = JSON.parse(msg.body) as {
-          type: string;
-          payload: any;
-        };
+        const { type } = JSON.parse(msg.body) as { type: string; payload: any };
         if (type === "GAME_START") {
           console.log("[gameSub] GAME_START → routing to roundcard");
           router.push(`/games/${lobbyCode}/roundcard`);
@@ -235,7 +217,6 @@ const LobbyPage: React.FC = () => {
     console.log("[STOMP] subscribed to /topic/lobby/" + lobbyId + "/game");
   };
 
-  // unchanged handlers…
   const handleMaxPlayersChange = (val: number | null) => {
     if (
       val !== null &&
@@ -262,7 +243,7 @@ const LobbyPage: React.FC = () => {
           payload: { code: lobbyCode },
         }),
       });
-      router.push(`/games/${lobbyCode}/roundcard`);
+      // removed router.push here; wait for GAME_START broadcast
     }
   };
 
@@ -284,14 +265,7 @@ const LobbyPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <div style={{ textAlign: "center" }}>
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4" />
           <div>Loading lobby…</div>
