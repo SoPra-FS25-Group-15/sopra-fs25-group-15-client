@@ -118,7 +118,8 @@ const LobbyPage: React.FC = () => {
             setJoinedUsers(
               p.players.map((u: UserPublicDTO) => ({
                 username: u.username,
-                userid: u.userid,
+                // fall back to `id` if `userid` isn’t defined
+                userid: (u as any).userid ?? (u as any).id,
               }))
             );
             setMaxPlayers(Number(p.maxPlayers));

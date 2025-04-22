@@ -32,8 +32,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           Authorization: `Bearer ${user.token}`,
         },
         // Disable heartbeats to avoid malformed frame errors.
-        heartbeatIncoming: 0,
-        heartbeatOutgoing: 0,
+        heartbeatIncoming: 1000,
+        heartbeatOutgoing: 1000,
         reconnectDelay: 5000,
         onConnect: () => {
           console.log("Global STOMP connected");

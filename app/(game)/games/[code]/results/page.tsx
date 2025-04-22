@@ -166,8 +166,8 @@ const ResultsPage: React.FC = () => {
     const client = new Client({
       webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
-      heartbeatIncoming: 0,
-      heartbeatOutgoing: 0,
+      heartbeatIncoming: 1000,
+      heartbeatOutgoing: 1000,
       reconnectDelay: 5000,
       onConnect: () => {
         gameSub.current = client.subscribe(
