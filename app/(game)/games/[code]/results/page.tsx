@@ -161,8 +161,10 @@ const ResultsPage: React.FC = () => {
       return;
     }
     if (!user?.token || lobbyId === null) return;
+
+    const apiDomain = getApiDomain()
     const client = new Client({
-      webSocketFactory: () => new SockJS(`http://localhost:8080/ws/lobby?token=${user.token}`),
+      webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       heartbeatIncoming: 0,
       heartbeatOutgoing: 0,

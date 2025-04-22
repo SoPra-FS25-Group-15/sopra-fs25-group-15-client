@@ -190,30 +190,32 @@ const LobbyPage: React.FC = () => {
 
   const handleMaxPlayersChange = (val: number | null) => {
     if (
-      val !== null &&
-      lobbyIdNumber !== null &&
-      stompClient.current &&
-      val >= playersPerTeam
+    val !== null &&
+    lobbyIdNumber !== null &&
+    stompClient.current &&
+    val >= playersPerTeam
     ) {
-      stompClient.current.publish({
-        destination: `/app/lobby/${lobbyIdNumber}/update`,
-        body: JSON.stringify({ type: "UPDATE", payload: { maxPlayers: val } }),
-      });
+    stompClient.current.publish({
+    destination: `/app/lobby/${lobbyIdNumber}/update`,
+    body: JSON.stringify({ type: "UPDATE", payload: { maxPlayers: val } }),
+    });
+    setMaxPlayers(val);
     }
   };
 
   const handleStartGame = () => {
     if (lobbyIdNumber !== null && stompClient.current && user) {
-      stompClient.current.publish({
-        destination: `/app/game/start`,
-        body: JSON.stringify({
-          type: "START_GAME",
-          token: user.token,
-          code: lobbyCode,
-        }),
-      });
+    stompClient.current.publish({
+      destination: "/app/game/start",
+      body: JSON.stringify({
+        type: "START_GAME",
+        token: user.token,
+        code: lobbyCode,
+      }),
+    });
+    router.push(`/games/${lobbyCode}/roundcard`);
     }
-  };
+    };
 
   const handleLeaveLobby = () => {
     if (lobbyIdNumber !== null && stompClient.current) {
