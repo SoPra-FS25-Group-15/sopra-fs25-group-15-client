@@ -110,7 +110,16 @@ const ResultsPage: React.FC = () => {
 
   // Fetch numeric lobbyId
   useEffect(() => {
+    // Wait if context hasn't yet loaded the user from localStorage
+    if (
+      typeof window !== "undefined" &&
+      localStorage.getItem("user") &&
+      !user
+    ) {
+      return;
+    }
     if (!user?.token || !lobbyCode) return;
+
     const client = new Client({
       webSocketFactory: () => new SockJS(`http://localhost:8080/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
@@ -141,6 +150,14 @@ const ResultsPage: React.FC = () => {
 
   // Subscribe to game events
   useEffect(() => {
+    // Wait if context hasn't yet loaded the user from localStorage
+    if (
+      typeof window !== "undefined" &&
+      localStorage.getItem("user") &&
+      !user
+    ) {
+      return;
+    }
     if (!user?.token || lobbyId === null) return;
     const client = new Client({
       webSocketFactory: () => new SockJS(`http://localhost:8080/ws/lobby?token=${user.token}`),

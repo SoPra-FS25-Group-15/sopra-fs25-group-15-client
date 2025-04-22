@@ -26,9 +26,17 @@ const RoundCardPageComponent: React.FC = () => {
   const { user } = useGlobalUser();
 
   useEffect(() => {
-    if (localStorage.getItem("user") === null) {
-      router.push("/login");
-      return;
+    // 1) Redirect if truly no user in localStorage
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user");
+      if (!stored) {
+        router.push("/login");
+        return;
+      }
+      // 2) Wait until context has loaded the stored user
+      if (stored && !user) {
+        return;
+      }
     }
 
     setGame(gameState);

@@ -24,16 +24,22 @@ const RoundCardPageComponent: React.FC = () => {
   const { user } = useGlobalUser();
 
   useEffect(() => {
-    if (localStorage.getItem("user") === null) {
-      router.push("/login");
-      return;
+    // 1) Redirect if truly no user in localStorage
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user");
+      if (!stored) {
+        router.push("/login");
+        return;
+      }
+      // 2) Wait until context has loaded the stored user
+      if (stored && !user) {
+        return;
+      }
     }
 
-    //TODO: Fetching the game state from the server
+    // Safe to initialize once user is loaded
     setGame(gameState);
     setSelectedId(gameState.inventory.roundCards[0]);
-
-    //TODO: Remove and handle after fetching from websocket
     setLoading(false);
   }, [code, user, router]);
 
@@ -115,6 +121,8 @@ const RoundCardPageComponent: React.FC = () => {
       </GameContainer>
     );
   }
+
+  return null;
 };
 
 export default RoundCardPageComponent;

@@ -46,7 +46,17 @@ const LobbyPage: React.FC = () => {
     }
   }, [params.id]);
 
+  // Connect once user.token is available
   useEffect(() => {
+    // Wait for context to initialize user from localStorage
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user");
+      if (stored && !user) {
+        // still loading user
+        return;
+      }
+    }
+
     if (!user?.token) {
       setNotification({ type: "error", message: "Please log in to access the lobby." });
       setLoading(false);
@@ -240,7 +250,7 @@ const LobbyPage: React.FC = () => {
   const canStartGame = joinedUsers.length >= 2 && isHost;
 
   return (
-    <div style={{ padding: 24, backgroundColor: "#282c34", minHeight: "100vh" }}>
+    <div style={{ padding: 24, minHeight: "100vh" }}>
       {notification && <Notification {...notification} />}
 
       <div style={{ textAlign: "center", marginBottom: 24 }}>
