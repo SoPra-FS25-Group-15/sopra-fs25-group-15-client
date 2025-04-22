@@ -4,6 +4,7 @@ import React from "react";
 
 interface UserCardProps {
   borderless?: boolean;
+  iconOnly?: boolean;
   iconsize?: "large" | "small";
   username?: string;
   showPointer?: boolean;
@@ -14,9 +15,10 @@ interface UserCardProps {
 }
 
 const UserCard: React.FC<
-  UserCardProps & React.HTMLAttributes<HTMLSpanElement> // Extend the props for the component to work with antd <Popover>
+  UserCardProps & React.HTMLAttributes<HTMLSpanElement> // Extend the props for the component to work with antd <Popover> and other components
 > = ({
   borderless = false,
+  iconOnly = false,
   iconsize = "large",
   username,
   showPointer,
@@ -26,6 +28,32 @@ const UserCard: React.FC<
   style,
   ...props
 }): React.ReactElement => {
+  if (iconOnly) {
+    return (
+      <Flex
+        onClick={onClick ? onClick : undefined}
+        style={{ width: "100%", height: "100%" }}
+        align="center"
+        justify="center"
+      >
+        <Avatar
+          size={iconsize == "large" ? 48 : 28}
+          style={{
+            flexShrink: 0,
+            verticalAlign: "middle",
+            backgroundColor: purple[2],
+            color: purple[5],
+            fontWeight: 500,
+            fontSize: iconsize == "large" ? 20 : 14,
+            cursor: showPointer ? "pointer" : "default",
+            userSelect: "none",
+          }}
+        >
+          {username ? username.charAt(0).toUpperCase() : "?"}
+        </Avatar>
+      </Flex>
+    );
+  }
   return (
     <Card
       {...props}
@@ -58,6 +86,7 @@ const UserCard: React.FC<
               color: purple[5],
               fontWeight: 500,
               fontSize: iconsize == "large" ? 20 : 14,
+              userSelect: "none",
             }}
           >
             {username ? username.charAt(0).toUpperCase() : "?"}
