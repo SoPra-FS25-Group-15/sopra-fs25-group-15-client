@@ -1,9 +1,12 @@
-import { PublicUser } from "./user";
+export interface FriendRequest {
+  id: number;
+  status: string;
+  incoming: boolean;
+  senderUsername: string;
+  recipientUsername: string;
+}
 
-export interface FriendManagement {
-  friends: [PublicUser][];
-  requests: {
-    out: [PublicUser][];
-    in: [PublicUser][];
-  };
+export interface Friend {
+  id: number;
+  username: string;
 }

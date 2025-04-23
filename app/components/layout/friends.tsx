@@ -5,30 +5,12 @@ import PublicUserProfile from "@/components/general/publicProfile";
 import UserCard from "@/components/general/usercard";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { useApi } from "@/hooks/useApi";
+import { Friend, FriendRequest } from "@/types/friends";
 import { green, red } from "@ant-design/colors";
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import "@ant-design/v5-patch-for-react-19";
 import { Button, Card, Flex, Form, Input, List, Modal, Segmented, Tabs, TabsProps, Tooltip } from "antd";
-import React, { useEffect, useState, useCallback } from "react";
-
-interface Friend {
-  userId: string;
-  username: string;
-  profilePicture: string;
-}
-
-interface FriendRequest {
-  requestId: string;
-  senderUsername: string;
-  recipientUsername: string;
-  email?: string;
-  profilePicture: string;
-  incoming: boolean;
-}
-
-interface PublicProfile {
-  username: string;
-}
+import React, { useCallback, useEffect, useState } from "react";
 
 const FriendManagement: React.FC = () => {
   const apiService = useApi();
@@ -38,11 +20,10 @@ const FriendManagement: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>("Friends");
   const [showInviteForm, setShowInviteForm] = useState<boolean>(false);
-  const [selectedProfile, setSelectedProfile] = useState<PublicProfile | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<Friend | null>(null);
 
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
-  const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
 
   const [notification, setNotification] = useState<NotificationProps | null>(null);
 
@@ -94,32 +75,17 @@ const FriendManagement: React.FC = () => {
     }
   }, [apiService, getAuthHeaders]);
 
-  const fetchIncomingRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await apiService.get<FriendRequest[]>("/friends/requests", { headers });
-      console.log("Friend requests:", response);
-      setFriendRequests(response);
+      const allRequests = await apiService.get<FriendRequest[]>("/friends/all-requests", { headers });
+      const requests = await apiService.get<FriendRequest[]>("/friends/requests", { headers });
+      console.log("Requests:", allRequests, requests);
+      setFriendRequests(allRequests);
     } catch (error: unknown) {
       setNotification({
         type: "error",
         message: error instanceof Error ? error.message : "Failed to load friend requests.",
-        onClose: () => setNotification(null),
-      });
-    }
-  }, [apiService, getAuthHeaders]);
-
-  const fetchSentRequests = useCallback(async () => {
-    try {
-      const headers = getAuthHeaders();
-      const allRequests = await apiService.get<FriendRequest[]>("/friends/all-requests", { headers });
-      console.log("All requests:", allRequests);
-      const sent = allRequests.filter((request) => !request.incoming);
-      setSentRequests(sent);
-    } catch (error: unknown) {
-      setNotification({
-        type: "error",
-        message: error instanceof Error ? error.message : "Failed to load sent friend requests.",
         onClose: () => setNotification(null),
       });
     }
@@ -139,7 +105,7 @@ const FriendManagement: React.FC = () => {
         onClose: () => setNotification(null),
       });
       fetchFriends();
-      fetchIncomingRequests();
+      fetchRequests();
     } catch (error: unknown) {
       setNotification({
         type: "error",
@@ -158,7 +124,7 @@ const FriendManagement: React.FC = () => {
         message: response.message,
         onClose: () => setNotification(null),
       });
-      fetchIncomingRequests();
+      fetchRequests();
     } catch (error: unknown) {
       setNotification({
         type: "error",
@@ -179,7 +145,7 @@ const FriendManagement: React.FC = () => {
         message: (response && response.message) || "Friend request canceled successfully.",
         onClose: () => setNotification(null),
       });
-      fetchSentRequests();
+      fetchRequests();
     } catch (error: unknown) {
       setNotification({
         type: "error",
@@ -189,10 +155,10 @@ const FriendManagement: React.FC = () => {
     }
   };
 
-  const handleRemoveFriend = async (friendId: string) => {
+  const handleRemoveFriend = async (friend: Friend) => {
     try {
       const headers = getAuthHeaders();
-      const response = await apiService.delete<{ message: string }>(`/friends/${friendId}`, { headers });
+      const response = await apiService.delete<{ message: string }>(`/friends/${friend.id}`, { headers });
       setNotification({
         type: "success",
         message: (response && response.message) || "Friend removed successfully.",
@@ -219,10 +185,9 @@ const FriendManagement: React.FC = () => {
   useEffect(() => {
     if (user) {
       fetchFriends();
-      fetchIncomingRequests();
-      fetchSentRequests();
+      fetchRequests();
     }
-  }, [fetchIncomingRequests, fetchFriends, fetchSentRequests, user]);
+  }, [fetchRequests, fetchFriends, user]);
 
   if (!user) {
     return null;
@@ -297,16 +262,6 @@ const FriendManagement: React.FC = () => {
     );
   }
 
-  // Public profile view
-  if (selectedProfile) {
-    return (
-      <div style={containerStyle}>
-        {notification && <Notification {...notification} />}
-        <PublicUserProfile userId={selectedProfile.username} onBack={() => setSelectedProfile(null)} />
-      </div>
-    );
-  }
-
   // Expanded main view
   const friendTabs: TabsProps["items"] = [
     {
@@ -327,21 +282,17 @@ const FriendManagement: React.FC = () => {
           <List
             dataSource={friends}
             locale={{ emptyText: "No friends found." }}
-            renderItem={(item) => (
+            renderItem={(friend) => (
               <List.Item>
                 <UserCard
-                  username={item.username}
+                  username={friend.username}
                   showPointer
-                  onClick={() =>
-                    setSelectedProfile({
-                      username: item.username,
-                    })
-                  }
+                  onClick={() => setSelectedProfile(friend)}
                   subviewRight={
                     <Button
                       key="remove"
                       type="text"
-                      onClick={() => handleRemoveFriend(item.userId)}
+                      onClick={() => handleRemoveFriend(friend)}
                       icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
                     />
                   }
@@ -358,34 +309,30 @@ const FriendManagement: React.FC = () => {
       children: (
         <Card
           title="Incoming Friend Requests"
-          extra={<Button type="text" icon={<ReloadOutlined />} onClick={() => fetchIncomingRequests()}></Button>}
+          extra={<Button type="text" icon={<ReloadOutlined />} onClick={() => fetchRequests()}></Button>}
         >
           <List
             dataSource={friendRequests}
             locale={{ emptyText: "No friend requests in your inbox." }}
-            renderItem={(item) => (
+            renderItem={(request) => (
               <List.Item>
                 <UserCard
-                  username={item.senderUsername}
+                  username={request.senderUsername}
                   showPointer
-                  onClick={() =>
-                    setSelectedProfile({
-                      username: item.senderUsername,
-                    })
-                  }
+                  onClick={() => setSelectedProfile({request.senderUsername})}
                   subviewRight={
                     <Flex gap={8} align="center">
                       <Button
                         key="accept"
                         type="text"
-                        onClick={() => handleAcceptRequest(item.requestId)}
+                        onClick={() => handleAcceptRequest(request.id)}
                         icon={<CheckOutlined style={{ color: green[5], fontSize: "16px" }} />}
                       />
 
                       <Button
                         key="decline"
                         type="text"
-                        onClick={() => handleDeclineRequest(item.requestId)}
+                        onClick={() => handleDeclineRequest(request.id)}
                         icon={<CloseOutlined style={{ color: red[5], fontSize: "16px" }} />}
                       />
                     </Flex>
@@ -403,28 +350,23 @@ const FriendManagement: React.FC = () => {
       children: (
         <Card
           title="Sent Friend Requests"
-          extra={<Button type="text" icon={<ReloadOutlined />} onClick={() => fetchSentRequests()}></Button>}
+          extra={<Button type="text" icon={<ReloadOutlined />} onClick={() => fetchRequests()}></Button>}
         >
           <List
-            dataSource={sentRequests}
+            dataSource={friendRequests.filter((request) => request.status === "PENDING")}
             locale={{ emptyText: "No pending outgoing friend requests." }}
-            renderItem={(item) => (
+            renderItem={(request) => (
               <List.Item>
                 <UserCard
-                  username={item.recipientUsername}
-                  subviewBottom={item.email}
+                  username={request.recipientUsername}
                   showPointer
-                  onClick={() =>
-                    setSelectedProfile({
-                      username: item.recipientUsername,
-                    })
-                  }
+                  onClick={() => setSelectedProfile(request.recipientUsername)}
                   subviewRight={
                     <Flex gap={8} align="center">
                       <Button
                         key="cancel"
                         type="text"
-                        onClick={() => handleCancelRequest(item.requestId)}
+                        onClick={() => handleCancelRequest(request.id)}
                         icon={<CloseOutlined style={{ color: "grey", fontSize: "16px" }} />}
                       />
                     </Flex>
@@ -440,6 +382,15 @@ const FriendManagement: React.FC = () => {
 
   return (
     <>
+      <PublicUserProfileModal
+        open={!!selectedProfile}
+        setOpen={(open) => {
+          if (!open) {
+            setSelectedProfile(null);
+          }
+        }}
+        username={selectedProfile?.username || ""}
+      />
       <AddFriendModal open={showInviteForm} setOpen={setShowInviteForm} headers={getAuthHeaders()} />
       <Flex gap={8} align="center" justify="flex-end" style={{ ...containerStyle, bottom: 8 }}>
         <Button
@@ -472,8 +423,25 @@ const FriendManagement: React.FC = () => {
     </>
   );
 };
-
 export default FriendManagement;
+
+// PublicUserProfileModal component
+// This component displays a modal to view a public user profile
+const PublicUserProfileModal: React.FC<{
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  username: string;
+}> = ({ open, setOpen, username }) => {
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  return (
+    <Modal title="Profile" open={open} onOk={handleClose} onCancel={handleClose} okText="Close" maskClosable>
+      <PublicUserProfile username={username} />
+    </Modal>
+  );
+};
 
 // AddFriendModal component
 // This component displays a modal for adding a friend

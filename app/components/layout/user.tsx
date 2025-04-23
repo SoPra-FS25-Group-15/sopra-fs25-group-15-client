@@ -1,25 +1,8 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  Button,
-  Form,
-  Input,
-  message,
-  Avatar,
-  Spin,
-  Typography,
-  Divider,
-  Tag
-} from "antd";
-import {
-  EditOutlined,
-  SaveOutlined,
-  RollbackOutlined,
-  UserOutlined,
-  CloseOutlined
-} from "@ant-design/icons";
+import { Card, Button, Form, Input, message, Avatar, Spin, Typography, Divider, Tag } from "antd";
+import { EditOutlined, SaveOutlined, RollbackOutlined, UserOutlined, CloseOutlined } from "@ant-design/icons";
 import { useApi } from "@/hooks/useApi";
 
 const { Title, Text } = Typography;
@@ -62,7 +45,7 @@ const UserProfile: React.FC = () => {
     setLoading(true);
     apiService
       .get<UserProfileDTO>("/auth/me", {
-        headers: { Authorization: token, "Content-Type": "application/json" }
+        headers: { Authorization: token, "Content-Type": "application/json" },
       })
       .then((data) => {
         data.statsPublic = true;
@@ -139,14 +122,14 @@ const UserProfile: React.FC = () => {
   return (
     <div
       style={{
-        position: "relative",          // make this container the positioning context
+        position: "relative", // make this container the positioning context
         maxWidth: 600,
         margin: "40px auto",
         padding: 24,
         background: "#1f1f1f",
         borderRadius: 12,
         boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-        color: "#fff"
+        color: "#fff",
       }}
     >
       {/* absolutely positioned close button with larger hit area */}
@@ -165,10 +148,7 @@ const UserProfile: React.FC = () => {
         aria-label="Close"
       />
 
-      <Card
-        style={{ background: "transparent", border: "none", color: "#fff" }}
-        styles={{ body: { padding: 0 } }}
-      >
+      <Card style={{ background: "transparent", border: "none", color: "#fff" }} styles={{ body: { padding: 0 } }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
           <Avatar
             size={72}
@@ -201,7 +181,7 @@ const UserProfile: React.FC = () => {
               name="email"
               rules={[
                 { required: true, message: "Please input your email!" },
-                { type: "email", message: "Please enter a valid email!" }
+                { type: "email", message: "Please enter a valid email!" },
               ]}
             >
               <Input style={{ backgroundColor: "#333", color: "#fff", borderColor: "#444" }} />
@@ -237,9 +217,7 @@ const UserProfile: React.FC = () => {
               <Text strong>Achievements:</Text>
               <br />
               <Text>
-                {profile.achievements && profile.achievements.length > 0
-                  ? profile.achievements.join(", ")
-                  : "None"}
+                {profile.achievements && profile.achievements.length > 0 ? profile.achievements.join(", ") : "None"}
               </Text>
             </div>
             <Divider style={{ borderColor: "#444" }} />
