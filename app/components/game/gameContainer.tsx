@@ -20,9 +20,9 @@ export const gameState: GameState = {
   currentRound: 3,
   currentScreen: "ACTIONCARD",
   roundCardSubmitter: "Player1",
-  activeRoundCard: "standard",
+  activeRoundCard: "world",
   inventory: {
-    roundCards: ["standard", "radio", "blitz"],
+    roundCards: ["world", "flash", ],
     actionCards: ["7choices", "badsight"],
   },
   players: [
