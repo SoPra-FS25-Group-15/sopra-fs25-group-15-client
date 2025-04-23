@@ -6,7 +6,6 @@ export interface User {
 }
 export interface PublicUser {
   username: string;
-  online: boolean;
 }
 
 export interface UserAttributes {
@@ -31,7 +30,8 @@ export interface PublicUserAttributes {
     competitive: Stats;
   };
   achievementProgress: {
-    id: number;
+    id: string;
+    progress: number;
   }[];
 }
 

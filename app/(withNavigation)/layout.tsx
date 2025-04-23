@@ -1,5 +1,5 @@
 import GlobalInvitePopup from "@/components/general/globalPopUp";
-import FriendManagement from "@/components/layout/friends";
+import FriendManager from "@/components/layout/friends";
 import Header from "@/components/layout/header";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 
