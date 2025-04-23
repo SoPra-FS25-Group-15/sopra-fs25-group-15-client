@@ -5,15 +5,15 @@ import { Client, StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { useRouter, useParams } from "next/navigation";
 import { LoadingOutlined } from "@ant-design/icons";
-import { Button, Spin, Flex, SelectProps } from "antd";
+import { Button, Spin, Flex } from "antd";
 
 import GameContainer, { gameState } from "@/components/game/gameContainer";
 import ActionCardComponent from "@/components/game/actionCard";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import { useGlobalUser } from "@/contexts/globalUser";
+import { getApiDomain } from "@/utils/domain";
 import { ActionCard, getActionCards } from "@/types/game/actioncard";
 import { GameState } from "@/types/game/game";
-import { getApiDomain } from "@/utils/domain";
 
 export default function ActionCardPage() {
   const { code } = useParams() as { code: string };
@@ -24,7 +24,6 @@ export default function ActionCardPage() {
   const [game, setGame] = useState<GameState | null>(null);
   const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
   const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
-  const [selectedState, setSelectedState] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [stompConnected, setStompConnected] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
@@ -45,7 +44,7 @@ export default function ActionCardPage() {
     setLoading(false);
   }, [code, user, router]);
 
-  // 2) Wire up STOMP subscriptions
+  // 2) STOMP setup — now only navigating on ROUND_START, after storing coords
   useEffect(() => {
     if (loading || !user?.token) return;
 
@@ -68,29 +67,34 @@ export default function ActionCardPage() {
       heartbeatOutgoing: 0,
       reconnectDelay: 5000,
       onConnect: () => {
+        console.log("[ActionCardPage] STOMP connected");
         setStompConnected(true);
 
-        // broadcast channel
+        // Broadcast channel: wait for ROUND_START
         gameSub.current = client.subscribe(
           `/topic/lobby/${lobbyId}/game`,
           (msg) => {
-            const { type: gType, payload } = JSON.parse(msg.body);
-            // when all have submitted, server sends SCREEN_CHANGE → GUESS
-            if (
-              gType === "SCREEN_CHANGE" &&
-              payload.screen === "GUESS" &&
-              payload.actionCardsComplete
-            ) {
+            const { type: gType, payload } = JSON.parse(msg.body as string);
+            console.log("[ActionCardPage] Received", gType, payload);
+            if (gType === "ROUND_START") {
+              // Persist the coordinates + time before navigating
+              const dto = payload.roundData;
+              console.log("[ActionCardPage] Storing round data:", dto);
+              localStorage.setItem("roundLatitude", dto.latitude.toString());
+              localStorage.setItem("roundLongitude", dto.longitude.toString());
+              localStorage.setItem("roundTime", dto.roundTime.toString());
+
+              console.log("[ActionCardPage] Routing to /guess");
               router.push(`/games/${code}/guess`);
             }
           }
         );
 
-        // personal queue for errors & replacements
+        // Personal queue for ERRORs & replacements
         errorSub.current = client.subscribe(
           `/user/queue/lobby/${lobbyId}/game`,
           (msg) => {
-            const { type: t, payload: pl } = JSON.parse(msg.body);
+            const { type: t, payload: pl } = JSON.parse(msg.body as string);
             if (t === "ERROR") {
               setNotification({
                 type: "error",
@@ -98,12 +102,11 @@ export default function ActionCardPage() {
                 onClose: () => setNotification(null),
               });
             }
-            // Optionally handle ACTION_CARD_REPLACEMENT here if you
-            // want to update game.inventory dynamically.
           }
         );
       },
       onStompError: (frame) => {
+        console.error("[ActionCardPage] STOMP error:", frame.headers["message"]);
         setNotification({
           type: "error",
           message: frame.headers["message"] as string,
@@ -111,17 +114,19 @@ export default function ActionCardPage() {
         });
       },
       onDisconnect: () => {
+        console.log("[ActionCardPage] STOMP disconnected");
         setStompConnected(false);
       },
     });
 
-    stompClient.current = client;
     client.activate();
+    stompClient.current = client;
 
     return () => {
-      stompClient.current?.deactivate();
+      console.log("[ActionCardPage] Cleaning up STOMP subscriptions");
       gameSub.current?.unsubscribe();
       errorSub.current?.unsubscribe();
+      client.deactivate();
     };
   }, [loading, user?.token, code, router]);
 
@@ -136,11 +141,11 @@ export default function ActionCardPage() {
       return;
     }
     if (!stompConnected) return;
-
     const stored = localStorage.getItem("lobbyId");
     if (!stored) return;
     const lobbyId = parseInt(stored, 10);
 
+    console.log("[ActionCardPage] Publishing play-action-card", selectedCard.identifier, selectedUsername);
     stompClient.current?.publish({
       destination: `/app/lobby/${lobbyId}/game/play-action-card`,
       body: JSON.stringify({
@@ -158,6 +163,7 @@ export default function ActionCardPage() {
     if (!stored) return;
     const lobbyId = parseInt(stored, 10);
 
+    console.log("[ActionCardPage] Publishing action-cards-complete");
     stompClient.current?.publish({
       destination: `/app/lobby/${lobbyId}/game/action-cards-complete`,
       body: "",
@@ -166,7 +172,7 @@ export default function ActionCardPage() {
     setSubmitted(true);
   };
 
-  // Loading state
+  // Render
   if (loading || !game) {
     return (
       <Flex justify="center" align="center" style={{ width: "100%", height: "100%", padding: 30 }}>
@@ -174,8 +180,6 @@ export default function ActionCardPage() {
       </Flex>
     );
   }
-
-  // After submit, show waiting screen
   if (submitted) {
     return (
       <GameContainer>
@@ -186,8 +190,6 @@ export default function ActionCardPage() {
       </GameContainer>
     );
   }
-
-  // 4) UI for selecting an action card
   return (
     <GameContainer>
       {notification && <Notification {...notification} />}
@@ -198,45 +200,23 @@ export default function ActionCardPage() {
       </Flex>
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
-        <section
-          style={{
-            scrollSnapAlign: "center",
-            scrollSnapType: "x mandatory",
-            overflow: "scroll visible",
-            maxWidth: "100%",
-            height: "40vh",
-            padding: "30px 10px",
-            display: "flex",
-            justifyContent: "space-around",
-            flexWrap: "nowrap",
-            gap: 20,
-          }}
-        >
+        <section style={{ overflowX: "auto", display: "flex", gap: 20, padding: "30px 10px", height: "40vh" }}>
           {getActionCards(game.inventory.actionCards).map((card, idx) => (
             <ActionCardComponent
               key={idx}
-              selected={idx === selectedState}
+              selected={idx === idx}
               {...card}
-              playerList={game.players.map(p => ({ label: p.username, value: p.username })) as SelectProps["options"]}
-              onClick={() => {
-                setSelectedCard(card);
-                setSelectedState(idx);
-              }}
-              onChange={(username: string) => {
-                setSelectedUsername(username);
-              }}
+              playerList={game.players.map(p => ({ label: p.username, value: p.username }))}
+              onClick={() => setSelectedCard(card)}
+              onChange={(username: string) => setSelectedUsername(username)}
             />
           ))}
         </section>
       </Flex>
 
       <Flex align="center" justify="center" gap={8} style={{ width: "100%" }}>
-        <Button onClick={handleSubmit} type="primary" size="large">
-          Select card
-        </Button>
-        <Button onClick={handleSkip} type="default" size="large">
-          Skip
-        </Button>
+        <Button onClick={handleSubmit} type="primary" size="large">Select card</Button>
+        <Button onClick={handleSkip} type="default" size="large">Skip</Button>
       </Flex>
     </GameContainer>
   );
