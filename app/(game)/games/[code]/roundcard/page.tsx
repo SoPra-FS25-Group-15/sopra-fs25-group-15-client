@@ -1,19 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Button, Flex, Spin } from "antd";
+import { Button, Spin } from "antd";
 import LoadingOutlined from "@ant-design/icons/LoadingOutlined";
+import { Client, StompSubscription } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { useRouter, useParams } from "next/navigation";
+import { useGlobalUser } from "@/contexts/globalUser";
 import GameContainer from "@/components/game/gameContainer";
 import RoundCardComponent from "@/components/game/roundCard";
 import Notification, { NotificationProps } from "@/components/general/notification";
-import { useGlobalUser } from "@/contexts/globalUser";
-import { useRouter, useParams } from "next/navigation";
-import { Client, StompSubscription } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
-import { getRoundCards, RoundCardIdentifier } from "@/types/game/roundcard";
 import { getApiDomain } from "@/utils/domain";
+import { getRoundCards, RoundCardIdentifier } from "@/types/game/roundcard";
 
-interface RoundCardDTO {
+interface ServerRoundCardDTO {
   id: string;
   name: string;
   description: string;
@@ -25,47 +25,38 @@ interface RoundCardDTO {
 }
 
 export default function RoundCardPageComponent() {
-  const { code } = useParams() as { code: string };
   const router = useRouter();
+  const { code } = useParams() as { code: string };
   const { user } = useGlobalUser();
 
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-  const [roundCards, setRoundCards] = useState<RoundCardIdentifier[]>([]);
-  const [selectedId, setSelectedId] = useState<RoundCardIdentifier | null>(null);
+  const [roundCardIds, setRoundCardIds] = useState<RoundCardIdentifier[]>([]);
   const [selectedState, setSelectedState] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [lobbyIdNumber, setLobbyIdNumber] = useState<number | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-
   const [currentChooserToken, setCurrentChooserToken] = useState<string | null>(null);
+
   const gameSub = useRef<StompSubscription | null>(null);
   const stompClient = useRef<Client | null>(null);
 
-  // 1) On mount: load chooser token, lobbyId, then fetch real round cards
+  // 1) Load the chooser token & lobbyId, then fetch the round cards
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (!localStorage.getItem("user")) {
-        router.push("/login");
-        return;
-      }
-      if (!user) {
-        return; // wait for context
-      }
-    }
+    if (typeof window === "undefined") return;
+    if (!user) return; // wait for globalUser to hydrate
 
-    // load & clear chooser token
+    // Only set it if we haven't already
     const chooser = localStorage.getItem("roundChooser");
-    if (chooser) {
+    if (chooser && currentChooserToken === null) {
       setCurrentChooserToken(chooser);
-      localStorage.removeItem("roundChooser");
+      // <-- we no longer remove it here (avoids Strict Mode race)
     }
 
-    // load numeric lobbyId
     const stored = localStorage.getItem("lobbyId");
     if (!stored) {
       setNotification({
         type: "error",
-        message: "Lobby ID missing, please re‑join.",
+        message: "Lobby ID missing, please re-join.",
         onClose: () => setNotification(null),
       });
       setLoading(false);
@@ -74,44 +65,42 @@ export default function RoundCardPageComponent() {
     const lobbyId = parseInt(stored, 10);
     setLobbyIdNumber(lobbyId);
 
-    // fetch actual round cards
-    if (user?.token) {
-      const url = `${getApiDomain()}/games/data?lobbyId=${lobbyId}`;
-      console.log("[RoundCardPage] fetching", url, "with token", user.token);
-      fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: user.token,
-        },
+    const url = `${getApiDomain()}/games/data?lobbyId=${lobbyId}`;
+    console.log("[RoundCardPage] fetching", url, "with token", user.token);
+    fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: user.token,
+      },
+    })
+      .then(async (res) => {
+        const text = await res.text();
+        console.log("[RoundCardPage] raw response:", res.status, text);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+        return JSON.parse(text) as { roundCards: ServerRoundCardDTO[] };
       })
-        .then(async (res) => {
-          const text = await res.text();
-          console.log("[RoundCardPage] raw response:", res.status, text);
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${text}`);
-          }
-          return JSON.parse(text) as { roundCards: RoundCardDTO[] };
-        })
-        .then((data) => {
-          console.log("[RoundCardPage] parsed data:", data);
-          const ids = data.roundCards.map((c) => c.id as RoundCardIdentifier);
-          setRoundCards(ids);
-          setSelectedId(ids[0] ?? null);
-        })
-        .catch((err) => {
-          console.error("[RoundCardPage] error fetching game data", err);
-          setFetchError(err.message);
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [user, router]);
+      .then((data) => {
+        console.log("[RoundCardPage] parsed data:", data);
+        const ids = data.roundCards.map((c) => c.id as RoundCardIdentifier);
+        setRoundCardIds(ids);
+        setSelectedState(0);
+      })
+      .catch((err) => {
+        console.error("[RoundCardPage] error fetching game data", err);
+        setFetchError(err.message);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [user]);
 
-  // 2) STOMP subscription for SCREEN_CHANGE → ACTIONCARD
+  // 2) Listen for the server SCREEN_CHANGE → ACTIONCARD to route onwards
   useEffect(() => {
     if (loading || !user?.token || lobbyIdNumber === null) return;
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () =>
+        new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       heartbeatIncoming: 0,
       heartbeatOutgoing: 0,
@@ -141,47 +130,62 @@ export default function RoundCardPageComponent() {
       stompClient.current?.deactivate();
       gameSub.current?.unsubscribe();
     };
-  }, [loading, user, lobbyIdNumber, code, router]);
+  }, [loading, user?.token, lobbyIdNumber, code, router]);
 
-  // 3) Handle “Select card”
+  // 3) When the chooser hits “Select”, send their pick to the server
   function handleSubmit() {
     if (!user) {
-      setNotification({ type: "error", message: "Please log in first", onClose: () => setNotification(null) });
+      setNotification({
+        type: "error",
+        message: "Please log in first",
+        onClose: () => setNotification(null),
+      });
       return;
     }
     if (lobbyIdNumber === null) {
-      setNotification({ type: "error", message: "Lobby ID not ready", onClose: () => setNotification(null) });
+      setNotification({
+        type: "error",
+        message: "Lobby ID not ready",
+        onClose: () => setNotification(null),
+      });
       return;
     }
-    if (!selectedId) {
-      setNotification({ type: "error", message: "Select a round card", onClose: () => setNotification(null) });
+    if (roundCardIds.length === 0) {
+      setNotification({
+        type: "error",
+        message: "No round cards available",
+        onClose: () => setNotification(null),
+      });
       return;
     }
 
+    const chosenId = roundCardIds[selectedState];
     stompClient.current?.publish({
       destination: `/app/lobby/${lobbyIdNumber}/game/select-round-card`,
-      body: JSON.stringify({ roundCardId: selectedId }),
+      body: JSON.stringify({ roundCardId: chosenId }),
     });
   }
 
   // 4) Render
   if (loading) {
     return (
-      <Flex justify="center" align="center" style={{ width: "100%", height: "100%", padding: 30 }}>
-        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
-      </Flex>
-    );
-  }
-
-  // Show fetch‐error or empty‐array message
-  if (fetchError) {
-    return (
       <GameContainer>
-        <p style={{ color: "red", textAlign: "center" }}>Error loading round cards: {fetchError}</p>
+        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
       </GameContainer>
     );
   }
-  if (roundCards.length === 0) {
+
+  if (fetchError) {
+    return (
+      <GameContainer>
+        <p style={{ color: "red", textAlign: "center" }}>
+          Error loading round cards: {fetchError}
+        </p>
+      </GameContainer>
+    );
+  }
+
+  if (roundCardIds.length === 0) {
     return (
       <GameContainer>
         <p style={{ color: "#fff", textAlign: "center" }}>
@@ -191,55 +195,51 @@ export default function RoundCardPageComponent() {
     );
   }
 
-  // chooser’s view
+  // only the chooser sees the card-picker UI
   if (user?.token === currentChooserToken) {
     return (
       <GameContainer>
         {notification && <Notification {...notification} />}
-        <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
           <h1>It’s on you to set the rules</h1>
           <h2>Play one of your round cards</h2>
-        </Flex>
+        </div>
         <section
           style={{
             scrollSnapType: "x mandatory",
-            overflow: "auto",
-            maxWidth: "100%",
-            height: "50vh",
-            padding: "30px 10px",
+            overflowX: "auto",
             display: "flex",
             justifyContent: "space-around",
             flexWrap: "nowrap",
             gap: 20,
+            padding: "30px 10px",
+            height: "50vh",
           }}
         >
-          {getRoundCards(roundCards).map((card, idx) => (
+          {getRoundCards(roundCardIds).map((card, idx) => (
             <RoundCardComponent
               key={idx}
               selected={idx === selectedState}
               {...card}
-              onClick={() => {
-                setSelectedId(card.identifier);
-                setSelectedState(idx);
-              }}
+              onClick={() => setSelectedState(idx)}
             />
           ))}
         </section>
-        <Flex align="center" justify="center" style={{ width: "100%" }}>
+        <div style={{ textAlign: "center", marginTop: 20 }}>
           <Button onClick={handleSubmit} type="primary" size="large">
             Select card
           </Button>
-        </Flex>
+        </div>
       </GameContainer>
     );
   }
 
-  // everyone else
+  // everyone else just waits
   return (
     <GameContainer>
-      <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
+      <div style={{ textAlign: "center", padding: 30 }}>
         <h1>Waiting for the round card to be chosen…</h1>
-      </Flex>
+      </div>
     </GameContainer>
   );
 }
