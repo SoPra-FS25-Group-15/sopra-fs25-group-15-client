@@ -27,6 +27,7 @@ export default function ActionCardPage() {
   const [selectedState, setSelectedState] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [stompConnected, setStompConnected] = useState<boolean>(false);
+  const [submitted, setSubmitted] = useState<boolean>(false);
 
   const stompClient = useRef<Client | null>(null);
   const gameSub = useRef<StompSubscription | null>(null);
@@ -38,7 +39,6 @@ export default function ActionCardPage() {
       router.push("/login");
       return;
     }
-    // grab from the shared gameState context
     setGame(gameState);
     const available = getActionCards(gameState.inventory.actionCards);
     setSelectedCard(available[0] || null);
@@ -76,9 +76,11 @@ export default function ActionCardPage() {
           (msg) => {
             const { type: gType, payload } = JSON.parse(msg.body);
             // when all have submitted, server sends SCREEN_CHANGE → GUESS
-            if (gType === "SCREEN_CHANGE" &&
-                payload.screen === "GUESS" &&
-                payload.actionCardsComplete) {
+            if (
+              gType === "SCREEN_CHANGE" &&
+              payload.screen === "GUESS" &&
+              payload.actionCardsComplete
+            ) {
               router.push(`/games/${code}/guess`);
             }
           }
@@ -146,10 +148,11 @@ export default function ActionCardPage() {
         targetPlayerToken: selectedUsername,
       }),
     });
+
+    setSubmitted(true);
   };
 
   const handleSkip = () => {
-    // if you want to let players skip, notify server that they're done
     if (!stompConnected) return;
     const stored = localStorage.getItem("lobbyId");
     if (!stored) return;
@@ -157,11 +160,13 @@ export default function ActionCardPage() {
 
     stompClient.current?.publish({
       destination: `/app/lobby/${lobbyId}/game/action-cards-complete`,
-      body: "", // server just needs the frame to advance
+      body: "",
     });
+
+    setSubmitted(true);
   };
 
-  // 4) UI
+  // Loading state
   if (loading || !game) {
     return (
       <Flex justify="center" align="center" style={{ width: "100%", height: "100%", padding: 30 }}>
@@ -170,6 +175,19 @@ export default function ActionCardPage() {
     );
   }
 
+  // After submit, show waiting screen
+  if (submitted) {
+    return (
+      <GameContainer>
+        {notification && <Notification {...notification} />}
+        <div style={{ textAlign: "center", padding: 30 }}>
+          <h1>Waiting for other players to submit…</h1>
+        </div>
+      </GameContainer>
+    );
+  }
+
+  // 4) UI for selecting an action card
   return (
     <GameContainer>
       {notification && <Notification {...notification} />}
