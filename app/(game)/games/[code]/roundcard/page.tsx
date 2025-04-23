@@ -11,7 +11,7 @@ import GameContainer from "@/components/game/gameContainer";
 import RoundCardComponent from "@/components/game/roundCard";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import { getApiDomain } from "@/utils/domain";
-import { getRoundCards, RoundCardIdentifier } from "@/types/game/roundcard";
+import { getRoundCards, RoundCardIdentifier, RoundCard } from "@/types/game/roundcard";
 
 interface ServerRoundCardDTO {
   id: string;
@@ -19,8 +19,8 @@ interface ServerRoundCardDTO {
   description: string;
   modifiers: {
     time: number;
-    guessType?: string;
-    streetView?: string;
+    guessType?: string | null;
+    streetView?: string | null;
   };
 }
 
@@ -30,27 +30,22 @@ export default function RoundCardPageComponent() {
   const { user } = useGlobalUser();
 
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-  const [roundCardIds, setRoundCardIds] = useState<RoundCardIdentifier[]>([]);
+  const [serverRoundCards, setServerRoundCards] = useState<ServerRoundCardDTO[]>([]);
   const [selectedState, setSelectedState] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [lobbyIdNumber, setLobbyIdNumber] = useState<number | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [currentChooserToken, setCurrentChooserToken] = useState<string | null>(null);
 
-  const gameSub = useRef<StompSubscription | null>(null);
   const stompClient = useRef<Client | null>(null);
+  const gameSub     = useRef<StompSubscription | null>(null);
 
-  // 1) Load the chooser token & lobbyId, then fetch the round cards
+  // 1) Read chooser & lobbyId, then have *only* the chooser fetch the data
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!user) return; // wait for globalUser to hydrate
+    if (typeof window === "undefined" || !user) return;
 
-    // Only set it if we haven't already
     const chooser = localStorage.getItem("roundChooser");
-    if (chooser && currentChooserToken === null) {
-      setCurrentChooserToken(chooser);
-      // <-- we no longer remove it here (avoids Strict Mode race)
-    }
+    setCurrentChooserToken(chooser);
 
     const stored = localStorage.getItem("lobbyId");
     if (!stored) {
@@ -65,6 +60,12 @@ export default function RoundCardPageComponent() {
     const lobbyId = parseInt(stored, 10);
     setLobbyIdNumber(lobbyId);
 
+    // Only the chooser actually fetches the card-list
+    if (user.token !== chooser) {
+      setLoading(false);
+      return;
+    }
+
     const url = `${getApiDomain()}/games/data?lobbyId=${lobbyId}`;
     console.log("[RoundCardPage] fetching", url, "with token", user.token);
     fetch(url, {
@@ -77,12 +78,11 @@ export default function RoundCardPageComponent() {
         const text = await res.text();
         console.log("[RoundCardPage] raw response:", res.status, text);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-        return JSON.parse(text) as { roundCards: ServerRoundCardDTO[] };
+        return JSON.parse(text);
       })
-      .then((data) => {
+      .then((data: { roundCards: ServerRoundCardDTO[] }) => {
         console.log("[RoundCardPage] parsed data:", data);
-        const ids = data.roundCards.map((c) => c.id as RoundCardIdentifier);
-        setRoundCardIds(ids);
+        setServerRoundCards(data.roundCards);
         setSelectedState(0);
       })
       .catch((err) => {
@@ -94,7 +94,7 @@ export default function RoundCardPageComponent() {
       });
   }, [user]);
 
-  // 2) Listen for the server SCREEN_CHANGE → ACTIONCARD to route onwards
+  // 2) STOMP → listen for SCREEN_CHANGE → ACTIONCARD
   useEffect(() => {
     if (loading || !user?.token || lobbyIdNumber === null) return;
 
@@ -132,7 +132,7 @@ export default function RoundCardPageComponent() {
     };
   }, [loading, user?.token, lobbyIdNumber, code, router]);
 
-  // 3) When the chooser hits “Select”, send their pick to the server
+  // 3) Submit the chosen card
   function handleSubmit() {
     if (!user) {
       setNotification({
@@ -150,7 +150,7 @@ export default function RoundCardPageComponent() {
       });
       return;
     }
-    if (roundCardIds.length === 0) {
+    if (serverRoundCards.length === 0) {
       setNotification({
         type: "error",
         message: "No round cards available",
@@ -159,18 +159,29 @@ export default function RoundCardPageComponent() {
       return;
     }
 
-    const chosenId = roundCardIds[selectedState];
+    const chosenId = serverRoundCards[selectedState].id;
     stompClient.current?.publish({
       destination: `/app/lobby/${lobbyIdNumber}/game/select-round-card`,
       body: JSON.stringify({ roundCardId: chosenId }),
     });
   }
 
-  // 4) Render
+  // 4) Render phases
   if (loading) {
     return (
       <GameContainer>
         <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+      </GameContainer>
+    );
+  }
+
+  // non-choosers just wait
+  if (user?.token !== currentChooserToken) {
+    return (
+      <GameContainer>
+        <div style={{ textAlign: "center", padding: 30 }}>
+          <h1>Waiting for the round card to be chosen…</h1>
+        </div>
       </GameContainer>
     );
   }
@@ -185,7 +196,7 @@ export default function RoundCardPageComponent() {
     );
   }
 
-  if (roundCardIds.length === 0) {
+  if (serverRoundCards.length === 0) {
     return (
       <GameContainer>
         <p style={{ color: "#fff", textAlign: "center" }}>
@@ -195,50 +206,58 @@ export default function RoundCardPageComponent() {
     );
   }
 
-  // only the chooser sees the card-picker UI
-  if (user?.token === currentChooserToken) {
-    return (
-      <GameContainer>
-        {notification && <Notification {...notification} />}
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <h1>It’s on you to set the rules</h1>
-          <h2>Play one of your round cards</h2>
-        </div>
-        <section
-          style={{
-            scrollSnapType: "x mandatory",
-            overflowX: "auto",
-            display: "flex",
-            justifyContent: "space-around",
-            flexWrap: "nowrap",
-            gap: 20,
-            padding: "30px 10px",
-            height: "50vh",
-          }}
-        >
-          {getRoundCards(roundCardIds).map((card, idx) => (
-            <RoundCardComponent
-              key={idx}
-              selected={idx === selectedState}
-              {...card}
-              onClick={() => setSelectedState(idx)}
-            />
-          ))}
-        </section>
-        <div style={{ textAlign: "center", marginTop: 20 }}>
-          <Button onClick={handleSubmit} type="primary" size="large">
-            Select card
-          </Button>
-        </div>
-      </GameContainer>
-    );
-  }
+  // Merge server data (name/description/time) with your static mapping (for icons, guesses/map defaults)
+  const staticCards = getRoundCards(
+    serverRoundCards.map((c) => c.id as RoundCardIdentifier)
+  );
+  const combinedCards: RoundCard[] = staticCards.map((staticCard) => {
+    const serverCard = serverRoundCards.find((c) => c.id === staticCard.identifier);
+    return serverCard
+      ? {
+          ...staticCard,
+          title: serverCard.name,
+          description: serverCard.description,
+          modifiers: {
+            ...staticCard.modifiers,
+            time: serverCard.modifiers.time,
+            streetview:
+              serverCard.modifiers.streetView ?? staticCard.modifiers.streetview,
+          },
+        }
+      : staticCard;
+  });
 
-  // everyone else just waits
   return (
     <GameContainer>
-      <div style={{ textAlign: "center", padding: 30 }}>
-        <h1>Waiting for the round card to be chosen…</h1>
+      {notification && <Notification {...notification} />}
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <h1>It’s on you to set the rules</h1>
+        <h2>Play one of your round cards</h2>
+      </div>
+      <section
+        style={{
+          scrollSnapType: "x mandatory",
+          overflowX: "auto",
+          display: "flex",
+          justifyContent: "space-around",
+          gap: 20,
+          padding: "30px 10px",
+          height: "50vh",
+        }}
+      >
+        {combinedCards.map((card, idx) => (
+          <RoundCardComponent
+            key={card.identifier}
+            selected={idx === selectedState}
+            {...card}
+            onClick={() => setSelectedState(idx)}
+          />
+        ))}
+      </section>
+      <div style={{ textAlign: "center", marginTop: 20 }}>
+        <Button onClick={handleSubmit} type="primary" size="large">
+          Select card
+        </Button>
       </div>
     </GameContainer>
   );
