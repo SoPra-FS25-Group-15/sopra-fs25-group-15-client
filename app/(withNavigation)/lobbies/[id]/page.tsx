@@ -149,7 +149,7 @@ const LobbyPage: React.FC = () => {
 
     return () => {
       console.log("[STOMP] tearing down");
-      client.deactivate();
+      // client.deactivate();
       joinResultSub.current?.unsubscribe();
       statusSub.current?.unsubscribe();
       updateSub.current?.unsubscribe();

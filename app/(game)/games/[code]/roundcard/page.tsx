@@ -157,7 +157,7 @@ export default function RoundCardPageComponent() {
     client.activate();
 
     return () => {
-      stompClient.current?.deactivate();
+      // stompClient.current?.deactivate();
       gameSub.current?.unsubscribe();
       errorSub.current?.unsubscribe();
     };
