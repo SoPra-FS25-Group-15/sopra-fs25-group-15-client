@@ -99,7 +99,6 @@ export default function GameComponent() {
       return;
     }
 
-    // If we have cached panoId, reuse immediately
     if (panoCache.current.has(key)) {
       const panoId = panoCache.current.get(key)!;
       console.log('[GameComponent] Cache hit, updating existing panorama to', panoId);
@@ -110,7 +109,6 @@ export default function GameComponent() {
       return;
     }
 
-    // Debounce rapid calls
     if (fetchDebounce.current) {
       clearTimeout(fetchDebounce.current);
     }
@@ -192,8 +190,14 @@ export default function GameComponent() {
             fetchPanoramaAt(dto.latitude, dto.longitude);
             localStorage.setItem('roundLatitude', dto.latitude.toString());
             localStorage.setItem('roundLongitude', dto.longitude.toString());
-          } else if (evt.type === 'ROUND_WINNER') {
+          }
+          else if (evt.type === 'ROUND_WINNER') {
             localStorage.setItem('roundWinnerEvent', JSON.stringify(evt));
+            router.push(`/games/${code}/results`);
+          }
+          else if (evt.type === 'GAME_WINNER') {
+            // NEW: Handle game over
+            localStorage.setItem('gameWinnerEvent', JSON.stringify(evt));
             router.push(`/games/${code}/results`);
           }
         });
@@ -255,7 +259,6 @@ export default function GameComponent() {
     }
   };
 
-  // ————————— Debug render state —————————
   console.log(
     '[GameComponent] render:',
     'locationCoords=', locationCoords,

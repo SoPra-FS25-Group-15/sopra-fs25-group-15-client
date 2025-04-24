@@ -70,6 +70,24 @@ export default function ResultsPage() {
     }
   }, [user]);
 
+  // 0b) Hydrate any stored GAME_WINNER event after user is ready
+  useEffect(() => {
+    if (!user) return;
+    const stored = localStorage.getItem("gameWinnerEvent");
+    console.log("[ResultsPage] 🔄 hydrating gameWinnerEvent:", stored);
+    if (stored) {
+      try {
+        const payload: GameWinnerEvent = JSON.parse(stored);
+        console.log("[ResultsPage] ✅ parsed gameWinner payload:", payload);
+        setGameWinner(payload.winnerUsername);
+      } catch (err) {
+        console.error("[ResultsPage] ❌ parse error for gameWinnerEvent:", err);
+      } finally {
+        localStorage.removeItem("gameWinnerEvent");
+      }
+    }
+  }, [user]);
+
   // 1) Pull lobbyId out of localStorage so we can subscribe to game-events
   useEffect(() => {
     const stored = localStorage.getItem("lobbyId");
@@ -159,7 +177,7 @@ export default function ResultsPage() {
     };
   }, [user?.token, lobbyId]);
 
-  // 3) Countdown & auto-redirect
+  // 3) Countdown & auto-redirect for next round (only if roundWinner)
   useEffect(() => {
     if (!roundWinner) return;
     setCount(30);
