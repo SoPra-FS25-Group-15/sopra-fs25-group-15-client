@@ -40,6 +40,13 @@ export default function GameComponent() {
   const stompClientRef = useRef<Client | null>(null);
   const mapRef = useRef<L.Map | null>(null);
 
+  // Cache pano IDs: key "lat,lng" -> panoId
+  const panoCache = useRef<Map<string, string>>(new Map());
+  // Single StreetViewPanorama instance
+  const panoInstance = useRef<any>(null);
+  // Debounce timeout handle
+  const fetchDebounce = useRef<any>(null);
+
   // 1) Fix Leaflet icons
   useEffect(() => {
     delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -82,10 +89,9 @@ export default function GameComponent() {
     }
   }, []);
 
-  // 4) Fetch Street View — gate *after* API is ready
-  const hasRequestedPanorama = useRef(false);
+  // 4) Fetch Street View — with cache, reuse, and debounce
   const fetchPanoramaAt = useCallback((lat: number, lng: number) => {
-    console.log('[GameComponent] fetchPanoramaAt →', lat, lng);
+    const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
 
     if (!window.google?.maps) {
       console.warn('[GameComponent] Google Maps not ready, retrying in 200ms');
@@ -93,61 +99,70 @@ export default function GameComponent() {
       return;
     }
 
-    if (hasRequestedPanorama.current) {
-      console.log('[GameComponent] Panorama already requested, skipping');
+    // If we have cached panoId, reuse immediately
+    if (panoCache.current.has(key)) {
+      const panoId = panoCache.current.get(key)!;
+      console.log('[GameComponent] Cache hit, updating existing panorama to', panoId);
+      if (panoInstance.current) {
+        panoInstance.current.setPano(panoId);
+      }
+      setPanoramaLoaded(true);
       return;
     }
-    hasRequestedPanorama.current = true;
-    console.log('[GameComponent] Issuing StreetViewService request');
 
-    const timeout = setTimeout(() => {
-      console.warn('[GameComponent] Street View load timed out—falling back');
-      setStreetViewFailed(true);
-      setPanoramaLoaded(true);
-    }, 5000);
+    // Debounce rapid calls
+    if (fetchDebounce.current) {
+      clearTimeout(fetchDebounce.current);
+    }
+    fetchDebounce.current = setTimeout(() => {
+      console.log('[GameComponent] Issuing StreetViewService.getPanorama for', key);
+      setPanoramaLoaded(false);
+      setStreetViewFailed(false);
 
-    try {
-      const sv = new window.google.maps.StreetViewService();
-      sv.getPanorama(
-        { location: new window.google.maps.LatLng(lat, lng), radius: 5000 },
-        (data: any, status: string) => {
-          clearTimeout(timeout);
-          console.log('[GameComponent] StreetViewService callback status:', status);
-          try {
+      const timeout = setTimeout(() => {
+        console.warn('[GameComponent] Street View load timed out—falling back');
+        setStreetViewFailed(true);
+        setPanoramaLoaded(true);
+      }, 7000);
+
+      try {
+        const sv = new window.google.maps.StreetViewService();
+        sv.getPanorama(
+          { location: new window.google.maps.LatLng(lat, lng), radius: 5000 },
+          (data: any, status: string) => {
+            clearTimeout(timeout);
+            setPanoramaLoaded(true);
+
             if (status === window.google.maps.StreetViewStatus.OK && data.location?.pano) {
+              const panoId = data.location.pano;
+              panoCache.current.set(key, panoId);
+
               const container = document.getElementById('street-view-container')!;
-              let pano = (container as any).__panoInstance as typeof window.google.maps.StreetViewPanorama;
-              if (!pano) {
+              if (!panoInstance.current) {
                 console.log('[GameComponent] Creating new panorama instance');
-                pano = new window.google.maps.StreetViewPanorama(container, {
-                  pano: data.location.pano,
+                panoInstance.current = new window.google.maps.StreetViewPanorama(container, {
+                  pano: panoId,
                   visible: true,
                   disableDefaultUI: true,
                   pov: { heading: 0, pitch: 0 },
                 });
-                (container as any).__panoInstance = pano;
               } else {
-                console.log('[GameComponent] Updating existing panorama');
-                pano.setPano(data.location.pano);
+                console.log('[GameComponent] Reusing panorama instance with', panoId);
+                panoInstance.current.setPano(panoId);
               }
             } else {
               console.warn('[GameComponent] No SV imagery at this location:', status);
               setStreetViewFailed(true);
             }
-          } catch (e) {
-            console.error('[GameComponent] Error in SV callback:', e);
-            setStreetViewFailed(true);
-          } finally {
-            setPanoramaLoaded(true);
           }
-        }
-      );
-    } catch (e) {
-      clearTimeout(timeout);
-      console.error('[GameComponent] Failed to call getPanorama:', e);
-      setStreetViewFailed(true);
-      setPanoramaLoaded(true);
-    }
+        );
+      } catch (e) {
+        clearTimeout(timeout);
+        console.error('[GameComponent] Failed to call getPanorama:', e);
+        setStreetViewFailed(true);
+        setPanoramaLoaded(true);
+      }
+    }, 300);
   }, []);
 
   // 5) STOMP subscription
@@ -174,9 +189,6 @@ export default function GameComponent() {
             setGuessSubmitted(false);
             setUserGuess(null);
             setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
-            setPanoramaLoaded(false);
-            setStreetViewFailed(false);
-            hasRequestedPanorama.current = false;     // reset for the new round
             fetchPanoramaAt(dto.latitude, dto.longitude);
             localStorage.setItem('roundLatitude', dto.latitude.toString());
             localStorage.setItem('roundLongitude', dto.longitude.toString());
@@ -329,13 +341,10 @@ export default function GameComponent() {
         </div>
       )}
 
-      {/* DEBUG: always render the LOCK IN button */}
+      {/* LOCK IN button */}
       {locationCoords && (
         <button
-          onClick={() => {
-            console.log('LOCK IN clicked:', 'userGuess=', userGuess, 'guessSubmitted=', guessSubmitted);
-            handleSubmit();
-          }}
+          onClick={handleSubmit}
           style={{
             position: 'fixed',
             bottom: '2rem',
