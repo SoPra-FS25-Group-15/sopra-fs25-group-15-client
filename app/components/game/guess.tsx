@@ -37,6 +37,9 @@ export default function GameComponent() {
   const [userGuess, setUserGuess] = useState<{ lat: number; lng: number } | null>(null);
   const [guessSubmitted, setGuessSubmitted] = useState(false);
 
+  // NEW: remaining time ticker
+  const [remainingTime, setRemainingTime] = useState<number>(0);
+
   const stompClientRef = useRef<Client | null>(null);
   const mapRef = useRef<L.Map | null>(null);
 
@@ -60,51 +63,48 @@ export default function GameComponent() {
     });
   }, []);
 
-  // 2) Hydrate coords from storage
+  // 2) Hydrate coords & time from storage
   useEffect(() => {
     const lat = localStorage.getItem('roundLatitude');
     const lng = localStorage.getItem('roundLongitude');
+    const rt = localStorage.getItem('roundTime');
     if (lat && lng) {
       const latitude = parseFloat(lat);
       const longitude = parseFloat(lng);
-      console.log('[GameComponent] Hydrating coords:', { latitude, longitude });
       setLocationCoords({ lat: latitude, lng: longitude });
       setPanoramaLoaded(false);
       setStreetViewFailed(false);
       fetchPanoramaAt(latitude, longitude);
+    }
+    if (rt) {
+      setRemainingTime(parseInt(rt, 10));
     }
   }, []);
 
   // 3) Inject Google Maps API
   useEffect(() => {
     if (!(window as any).google?.maps && !document.getElementById('gmaps-script')) {
-      console.log('[GameComponent] Injecting Google Maps API script');
       const script = document.createElement('script');
       script.id = 'gmaps-script';
       script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=streetview`;
       script.async = true;
       script.defer = true;
-      script.onload = () => console.log('[GameComponent] Google Maps API loaded');
       document.head.appendChild(script);
     }
   }, []);
 
-  // 4) Fetch Street View — with cache, reuse, and debounce
+  // 4) Fetch Street View — with cache, reuse, debounce
   const fetchPanoramaAt = useCallback((lat: number, lng: number) => {
     const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
 
     if (!window.google?.maps) {
-      console.warn('[GameComponent] Google Maps not ready, retrying in 200ms');
       setTimeout(() => fetchPanoramaAt(lat, lng), 200);
       return;
     }
 
     if (panoCache.current.has(key)) {
       const panoId = panoCache.current.get(key)!;
-      console.log('[GameComponent] Cache hit, updating existing panorama to', panoId);
-      if (panoInstance.current) {
-        panoInstance.current.setPano(panoId);
-      }
+      panoInstance.current?.setPano(panoId);
       setPanoramaLoaded(true);
       return;
     }
@@ -113,12 +113,10 @@ export default function GameComponent() {
       clearTimeout(fetchDebounce.current);
     }
     fetchDebounce.current = setTimeout(() => {
-      console.log('[GameComponent] Issuing StreetViewService.getPanorama for', key);
       setPanoramaLoaded(false);
       setStreetViewFailed(false);
 
       const timeout = setTimeout(() => {
-        console.warn('[GameComponent] Street View load timed out—falling back');
         setStreetViewFailed(true);
         setPanoramaLoaded(true);
       }, 7000);
@@ -130,14 +128,11 @@ export default function GameComponent() {
           (data: any, status: string) => {
             clearTimeout(timeout);
             setPanoramaLoaded(true);
-
             if (status === window.google.maps.StreetViewStatus.OK && data.location?.pano) {
               const panoId = data.location.pano;
               panoCache.current.set(key, panoId);
-
               const container = document.getElementById('street-view-container')!;
               if (!panoInstance.current) {
-                console.log('[GameComponent] Creating new panorama instance');
                 panoInstance.current = new window.google.maps.StreetViewPanorama(container, {
                   pano: panoId,
                   visible: true,
@@ -145,18 +140,15 @@ export default function GameComponent() {
                   pov: { heading: 0, pitch: 0 },
                 });
               } else {
-                console.log('[GameComponent] Reusing panorama instance with', panoId);
                 panoInstance.current.setPano(panoId);
               }
             } else {
-              console.warn('[GameComponent] No SV imagery at this location:', status);
               setStreetViewFailed(true);
             }
           }
         );
-      } catch (e) {
+      } catch {
         clearTimeout(timeout);
-        console.error('[GameComponent] Failed to call getPanorama:', e);
         setStreetViewFailed(true);
         setPanoramaLoaded(true);
       }
@@ -165,55 +157,64 @@ export default function GameComponent() {
 
   // 5) STOMP subscription
   useEffect(() => {
-    if (!user?.token || !lobbyId) {
-      console.warn('[GameComponent] Skipping STOMP (no token or lobbyId)');
-      return;
-    }
-    console.log('[GameComponent] STOMP → setting up for lobby', lobbyId);
+    if (!user?.token || !lobbyId) return;
     const client = new Client({
       webSocketFactory: () =>
         new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log('[GameComponent] STOMP connected, subscribing /topic/lobby/' + lobbyId + '/game');
         client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
           const evt = JSON.parse(msg.body);
-          console.log('[GameComponent] ← event:', evt);
 
           if (evt.type === 'ROUND_START') {
             const dto = evt.payload.roundData;
-            console.log('[GameComponent] Handling ROUND_START:', dto);
             setGuessSubmitted(false);
             setUserGuess(null);
             setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
             fetchPanoramaAt(dto.latitude, dto.longitude);
             localStorage.setItem('roundLatitude', dto.latitude.toString());
             localStorage.setItem('roundLongitude', dto.longitude.toString());
+            // NEW: initialize timer
+            setRemainingTime(dto.roundTime);
+            localStorage.setItem('roundTime', dto.roundTime.toString());
           }
           else if (evt.type === 'ROUND_WINNER') {
             localStorage.setItem('roundWinnerEvent', JSON.stringify(evt));
             router.push(`/games/${code}/results`);
           }
           else if (evt.type === 'GAME_WINNER') {
-            // NEW: Handle game over
             localStorage.setItem('gameWinnerEvent', JSON.stringify(evt));
             router.push(`/games/${code}/results`);
           }
         });
       },
-      onStompError: (frame) => console.error('[GameComponent] STOMP error:', frame),
-      onDisconnect: () => console.log('[GameComponent] STOMP disconnected'),
+      onStompError: frame => console.error(frame),
+      onDisconnect: () => {},
     });
-
     client.activate();
     stompClientRef.current = client;
     return () => {
       client.deactivate();
+      // Don't return the promise from deactivate()
     };
   }, [user?.token, lobbyId, fetchPanoramaAt, router, code]);
 
-  // 6) Map invalidation
+  // 6) Countdown & auto-submit
+  useEffect(() => {
+    if (remainingTime <= 0) {
+      if (!guessSubmitted) {
+        handleSubmit();
+      }
+      return;
+    }
+    const iv = setInterval(() => {
+      setRemainingTime(t => t - 1);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [remainingTime, guessSubmitted]);
+
+  // 7) Map invalidation
   function MapSetup() {
     const map = useMap();
     useEffect(() => {
@@ -223,12 +224,11 @@ export default function GameComponent() {
     return null;
   }
 
-  // 7) Map click handler
+  // 8) Map click handler
   function MapClickHandler() {
     useMapEvents({
       click(e) {
         if (!guessSubmitted) {
-          console.log('[GameComponent] Map click:', e.latlng);
           setUserGuess({ lat: e.latlng.lat, lng: e.latlng.lng });
         }
       },
@@ -236,13 +236,9 @@ export default function GameComponent() {
     return null;
   }
 
-  // 8) Submit guess
+  // 9) Submit guess
   const handleSubmit = () => {
-    if (!userGuess || !stompClientRef.current?.connected) {
-      console.warn('[GameComponent] Cannot submit guess');
-      return;
-    }
-    console.log('[GameComponent] Publishing guess:', userGuess);
+    if (!userGuess || !stompClientRef.current?.connected) return;
     stompClientRef.current.publish({
       destination: `/app/lobby/${lobbyId}/game/guess`,
       body: JSON.stringify({ latitude: userGuess.lat, longitude: userGuess.lng }),
@@ -259,15 +255,27 @@ export default function GameComponent() {
     }
   };
 
-  console.log(
-    '[GameComponent] render:',
-    'locationCoords=', locationCoords,
-    'userGuess=', userGuess,
-    'guessSubmitted=', guessSubmitted
-  );
-
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      {/* Timer ticker */}
+      {remainingTime > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '1rem',
+            right: '1rem',
+            padding: '0.5rem 1rem',
+            background: 'rgba(0,0,0,0.6)',
+            color: '#fff',
+            borderRadius: 4,
+            fontSize: '1.2rem',
+            zIndex: 20
+          }}
+        >
+          ⏱ {remainingTime}s
+        </div>
+      )}
+
       {/* Fullscreen Street View */}
       {!streetViewFailed && (
         <div
