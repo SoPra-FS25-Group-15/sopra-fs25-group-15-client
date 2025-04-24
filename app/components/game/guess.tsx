@@ -122,6 +122,7 @@ export default function GameComponent() {
                 pano = new window.google.maps.StreetViewPanorama(container, {
                   pano: data.location.pano,
                   visible: true,
+                  disableDefaultUI: true,
                   pov: { heading: 0, pitch: 0 },
                 });
                 (container as any).__panoInstance = pano;
