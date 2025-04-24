@@ -101,8 +101,7 @@ reason).
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
-| **@DaryaTereshchenko** | 24.04.2025 | [f5c5319](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/f5c5319044df92d7b3b2ba82430f47da166f534c)
- | Implementation of the round logic, updating game logic, fixing action cards and implementing round cards. The PR was not created because the main was re-based to the branch with this commit and then updated based on the further fixes.| The full game-flow for the backend. |
+| **@DaryaTereshchenko** | 24.04.2025 | [f5c5319](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/f5c5319044df92d7b3b2ba82430f47da166f534c)| Implementation of the round logic, updating game logic, fixing action cards and implementing round cards. The PR was not created because the main was re-based to the branch with this commit to further been updated based on the fixes needed for the client.| The full game-flow for the backend. |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
