@@ -193,7 +193,6 @@ export default function ResultsPage() {
 
   return (
     <div style={{ background: purple[3], minHeight: "100vh", padding: "2rem" }}>
-      <Content>
         <Flex
           vertical
           align="center"
@@ -277,7 +276,6 @@ export default function ResultsPage() {
             <Text style={{ color: "#fff" }}>Waiting for the next round result…</Text>
           )}
         </Flex>
-      </Content>
     </div>
   );
 }

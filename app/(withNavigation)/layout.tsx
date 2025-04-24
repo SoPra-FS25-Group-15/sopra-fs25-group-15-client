@@ -1,5 +1,5 @@
 import GlobalInvitePopup from "@/components/general/globalPopUp";
-import FriendManager from "@/components/layout/friends";
+import FriendManagement from "@/components/layout/friends";
 import Header from "@/components/layout/header";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 
@@ -15,7 +15,7 @@ export default function NavigationLayout({
       <GlobalInvitePopup></GlobalInvitePopup>
 
       <AntdRegistry>
-        <section style={{ paddingTop: 98 }}>{children}</section>
+        <section style={{ padding: 8, margin: "0 auto", maxWidth: 1280 }}>{children}</section>
       </AntdRegistry>
     </>
   );

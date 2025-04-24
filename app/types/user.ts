@@ -32,6 +32,7 @@ export interface PublicUserAttributes {
   achievementProgress: {
     id: string;
     progress: number;
+    maxProgress: number;
   }[];
 }
 
@@ -54,7 +55,8 @@ export interface Stats {
     punishment: number;
   };
   roundsLostAgainst: {
-    username: number;
+    username: string;
+    amount: number;
   }[];
 }
 

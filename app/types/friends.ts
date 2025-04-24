@@ -1,12 +1,14 @@
 export interface FriendRequest {
-  id: number;
+  requestId: number;
   status: string;
   incoming: boolean;
+  sender: number;
   senderUsername: string;
+  recipient: number;
   recipientUsername: string;
 }
 
 export interface Friend {
-  id: number;
+  friendId: number;
   username: string;
 }
