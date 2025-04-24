@@ -11,9 +11,11 @@ import { useGlobalUserAttributes } from "@/contexts/globalUserAttributes";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
-import { Button, Card, Flex, Popover, Tag } from "antd";
+import "@ant-design/v5-patch-for-react-19";
+import { Button, Card, Popover, Tag } from "antd";  // removed Flex
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
 
 const appLinks: MenuItem[] = [
   { label: "Play Casual", link: "/casual" },
@@ -33,7 +35,6 @@ type ProfileProps = {
  */
 const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
   const [loading, setLoading] = useState(true);
-
   const { clear: clearToken } = useLocalStorage<User | null>("user", null);
   const { user } = useGlobalUser();
   const { userAttributes } = useGlobalUserAttributes();
@@ -44,11 +45,9 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
 
   useEffect(() => {
     setLoading(false);
-  }, [user, userAttributes]); // Re-renders on change
+  }, [user, userAttributes]);
 
-  if (loading) {
-    return;
-  }
+  if (loading) return null;
 
   if (user) {
     const userLinks: MenuItem[] = [
@@ -61,7 +60,12 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
 
     return (
       <span style={{ maxWidth: "25vw" }}>
-        <Popover content={<Menu items={userLinks} />} trigger="click" placement="bottomRight" mouseLeaveDelay={0.3}>
+        <Popover
+          content={<Menu items={userLinks} />}
+          trigger="click"
+          placement="bottomRight"
+          mouseLeaveDelay={0.3}
+        >
           <UserCard
             style={{ borderRadius: 4, height: 72, width: "100%", background: "#fff", color: "#000" }}
             username={user.username ?? "username"}
@@ -73,29 +77,23 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
       </span>
     );
   } else {
-    // Not logged in: show Register + Login buttons
     return (
-      <Flex align="center" justify="center" gap={8} style={{ height: 72, paddingRight: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, height: 72, paddingRight: 16 }}>
         <Link href="/register">
           <Button type="primary">Register</Button>
         </Link>
         <Link href="/login">
-          <Button type="default">Login</Button>
+          <Button>Login</Button>
         </Link>
-      </Flex>
+      </div>
     );
   }
 };
 
-/**
- * Header: keeps track of the active view in state, shows the corresponding component below.
- */
 const Header: React.FC = () => {
   const { user } = useGlobalUser();
   const { userAttributes } = useGlobalUserAttributes();
   const [activeView, setActiveView] = useState<Screens | null>(null);
-
-  useEffect(() => {}, [user, userAttributes]); // Re-renders on change
 
   function handleSelectView(viewName: Screens) {
     setActiveView((prev) => (prev === viewName ? null : viewName));
@@ -103,6 +101,7 @@ const Header: React.FC = () => {
 
   return (
     <>
+
       <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100, height: 82, overflow: "hidden" }}>
         <Card styles={{ body: { padding: 4 } }} size="small">
           <Flex justify="space-between" align="center">

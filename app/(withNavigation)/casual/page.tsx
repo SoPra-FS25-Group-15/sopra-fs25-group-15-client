@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Row, Col, Modal, Typography, Input, message } from "antd";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
@@ -20,6 +20,21 @@ const PlayCasual: React.FC = () => {
   const [joinLobbyCode, setJoinLobbyCode] = useState("");
   const [isCreatingLobby, setIsCreatingLobby] = useState(false);
 
+  // Wait for globalUser to load from localStorage before proceeding
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user");
+      if (!stored) {
+        router.push("/login");
+        return;
+      }
+      if (stored && !user) {
+        // still waiting for context to initialize
+        return;
+      }
+    }
+  }, [user, router]);
+  
   const getAuthHeaders = () => ({
     Authorization: user?.token || "",
     "Content-Type": "application/json",
