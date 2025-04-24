@@ -18,7 +18,6 @@ import { useEffect, useState } from "react";
 
 
 const appLinks: MenuItem[] = [
-  { label: "Home", link: "/" },
   { label: "Play Casual", link: "/casual" },
   { label: "Play Competitive", link: "/competitive" },
   { label: "Leaderboard", link: "/leaderboard" },
@@ -31,6 +30,9 @@ type ProfileProps = {
   onSelectView: (viewName: Screens) => void;
 };
 
+/**
+ * Profile: shows links to user's profile, achievements, game history, and settings.
+ */
 const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
   const [loading, setLoading] = useState(true);
   const { clear: clearToken } = useLocalStorage<User | null>("user", null);
@@ -65,7 +67,7 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
           mouseLeaveDelay={0.3}
         >
           <UserCard
-            style={{ borderRadius: 4, height: 72, width: "100%" }}
+            style={{ borderRadius: 4, height: 72, width: "100%", background: "#fff", color: "#000" }}
             username={user.username ?? "username"}
             subviewBottom={userAttributes ? `${userAttributes.mmr} MMR` : "0 MMR"}
             showPointer
@@ -99,46 +101,43 @@ const Header: React.FC = () => {
 
   return (
     <>
-      {/* Fixed header bar */}
-      <nav
-        style={{
-          position: "fixed",
-          top: 8,
-          left: 8,
-          right: 8,
-          height: 82,
-          zIndex: 100,
-          overflow: "hidden",
-        }}
-      >
-        <Card size="small" bodyStyle={{ padding: 4 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {/* Left: main nav */}
-            <Menu
-              style={{ height: 72 }}
-              items={[
-                ...appLinks,
-                {
-                  label: "Store",
-                  link: "/store",
-                  subview: user ? (
-                    <Tag icon={<DollarOutlined />} color="gold">
-                      {userAttributes ? userAttributes.points : "0"}
-                    </Tag>
-                  ) : undefined,
-                },
-              ]}
-              horizontal
-            />
 
-            {/* Right: profile/login */}
+      <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100, height: 82, overflow: "hidden" }}>
+        <Card styles={{ body: { padding: 4 } }} size="small">
+          <Flex justify="space-between" align="center">
+            <Flex align="center" gap={8}>
+              <Link href={"/"}>
+                <Flex style={{ fontSize: 24, padding: "12px 28px", color: "#fff" }}>
+                  <span style={{ fontWeight: "500" }}>Action</span>
+                  <span style={{ fontWeight: "800" }}>Guessr</span>
+                </Flex>
+              </Link>
+              <Menu
+                style={{ height: 72 }}
+                items={[
+                  ...appLinks,
+                  {
+                    label: "Store",
+                    link: "/store",
+                    subview: user ? (
+                      <Tag icon={<DollarOutlined />} color="gold">
+                        {userAttributes ? userAttributes.points : "0"}
+                      </Tag>
+                    ) : undefined,
+                  },
+                ]}
+                horizontal
+              />
+            </Flex>
+
+            {/* Right-hand side: Profile w/ popover */}
             <Profile onSelectView={handleSelectView} />
-          </div>
+          </Flex>
         </Card>
       </nav>
 
-      {/* Push everything down by header height + margin */}
-      <div style={{ paddingTop:  50, paddingLeft: 8, paddingRight: 8 }}>
+      {/* Conditionally render the chosen view below the header */}
+      <div style={{ padding: 8 + 82 }}>
         {activeView === "profile" && <UserProfile />}
         {activeView === "achievements" && <Achievements />}
         {activeView === "history" && <GameHistory />}
