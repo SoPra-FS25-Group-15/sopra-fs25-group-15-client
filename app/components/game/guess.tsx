@@ -43,6 +43,13 @@ interface RoundStartDTO {
   roundTime: number;
 }
 
+interface RoundWinnerEvent {
+  type: 'ROUND_WINNER';
+  winnerUsername: string;
+  round: number;
+  distance?: number;
+}
+
 export default function GameComponent() {
   const router = useRouter();
   const { code } = useParams() as { code: string };
@@ -70,20 +77,21 @@ export default function GameComponent() {
     });
   }, []);
 
-  // 2) Immediately load coords from localStorage (in case we missed the broadcast)
+  // 2) Load coords from localStorage on mount
   useEffect(() => {
     const lat = localStorage.getItem('roundLatitude');
     const lng = localStorage.getItem('roundLongitude');
     if (lat && lng) {
       const latitude = parseFloat(lat);
       const longitude = parseFloat(lng);
+      console.log('[GameComponent] Hydrating coords from storage:', { latitude, longitude });
       setLocationCoords({ lat: latitude, lng: longitude });
       setPanoramaLoaded(false);
       fetchPanoramaAt(latitude, longitude);
     }
   }, []);
 
-  // 3) Load Google Maps API script once
+  // 3) Load Google Maps API once
   useEffect(() => {
     if (!(window as any).google?.maps && !document.getElementById('gmaps-script')) {
       const script = document.createElement('script');
@@ -96,14 +104,12 @@ export default function GameComponent() {
     }
   }, []);
 
-  // 4) Fetch Street View (with retry if maps API not ready yet)
+  // 4) Fetch Street View panorama
   const fetchPanoramaAt = useCallback((lat: number, lng: number) => {
     if (!window.google?.maps) {
-      // Try again in 200ms until google.maps is ready
       setTimeout(() => fetchPanoramaAt(lat, lng), 200);
       return;
     }
-
     const sv = new window.google.maps.StreetViewService();
     sv.getPanorama(
       { location: new window.google.maps.LatLng(lat, lng), radius: 5000 },
@@ -122,49 +128,73 @@ export default function GameComponent() {
             pano.setPano(data.location.pano);
           }
         } else {
-          console.warn('[GameComponent] No Street View available here.');
+          console.warn('[GameComponent] No Street View available at', { lat, lng });
         }
         setPanoramaLoaded(true);
       }
     );
   }, []);
 
-  // 5) STOMP subscription for future ROUND_STARTs
+  // 5) STOMP subscription for ROUND_START and ROUND_WINNER
   useEffect(() => {
-    if (!user?.token || !lobbyId) return;
-
+    if (!user?.token || !lobbyId) {
+      console.warn('[GameComponent] Missing token or lobbyId, skipping STOMP setup');
+      return;
+    }
     const client = new Client({
       webSocketFactory: () =>
         new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       reconnectDelay: 5000,
       onConnect: () => {
+        console.log(`[GameComponent] STOMP connected, subscribing to /topic/lobby/${lobbyId}/game`);
         client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
-          const { type, payload } = JSON.parse(msg.body);
-          if (type === 'ROUND_START') {
-            const dto: RoundStartDTO = payload.roundData;
+          let evt: any;
+          try {
+            evt = JSON.parse(msg.body);
+          } catch (err) {
+            console.error('[GameComponent] Failed to parse STOMP message:', msg.body, err);
+            return;
+          }
+          console.log('[GameComponent] ← received event:', evt);
+
+          if (evt.type === 'ROUND_START') {
+            const dto: RoundStartDTO = evt.payload.roundData;
+            console.log('[GameComponent] Handling ROUND_START:', dto);
             setGuessSubmitted(false);
             setUserGuess(null);
             setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
             setPanoramaLoaded(false);
             fetchPanoramaAt(dto.latitude, dto.longitude);
-            // store for reloads
             localStorage.setItem('roundLatitude', dto.latitude.toString());
             localStorage.setItem('roundLongitude', dto.longitude.toString());
-          } else if (type === 'ROUND_WINNER') {
+          }
+          else if (evt.type === 'ROUND_WINNER') {
+            const win: RoundWinnerEvent = evt;
+            console.log('[GameComponent] Received ROUND_WINNER:', win);
+            localStorage.setItem('roundWinnerEvent', JSON.stringify(win));
             router.push(`/games/${code}/results`);
           }
         });
       },
+      onStompError: (frame) => {
+        console.error('[GameComponent] STOMP error:', frame.headers['message'], frame.body);
+      },
+      onDisconnect: () => {
+        console.log('[GameComponent] STOMP disconnected');
+      },
     });
+
+    console.log(`[GameComponent] Activating STOMP client for lobby ${lobbyId}`);
     client.activate();
     stompClientRef.current = client;
     return () => {
+      console.log('[GameComponent] Deactivating STOMP client');
       client.deactivate();
     };
   }, [user?.token, lobbyId, code, fetchPanoramaAt, router]);
 
-  // 6) Ensure Leaflet map invalidates size correctly
+  // 6) Map invalidation
   function MapSetup() {
     const map = useMap();
     useEffect(() => {
@@ -174,11 +204,12 @@ export default function GameComponent() {
     return null;
   }
 
-  // 7) Capture map clicks for guessing
+  // 7) Map click handler for guesses
   function MapClickHandler() {
     useMapEvents({
       click(e) {
         if (!guessSubmitted) {
+          console.log('[GameComponent] Map clicked, setting userGuess:', e.latlng);
           setUserGuess({ lat: e.latlng.lat, lng: e.latlng.lng });
         }
       },
@@ -186,9 +217,13 @@ export default function GameComponent() {
     return null;
   }
 
-  // 8) Send the guess
+  // 8) Submit guess
   const handleSubmit = () => {
-    if (!userGuess || !stompClientRef.current?.connected) return;
+    if (!userGuess || !stompClientRef.current?.connected) {
+      console.warn('[GameComponent] Cannot submit guess, missing guess or STOMP disconnected');
+      return;
+    }
+    console.log('[GameComponent] Submitting guess:', userGuess);
     stompClientRef.current.publish({
       destination: `/app/lobby/${lobbyId}/game/guess`,
       body: JSON.stringify({ latitude: userGuess.lat, longitude: userGuess.lng } as GuessMessage),

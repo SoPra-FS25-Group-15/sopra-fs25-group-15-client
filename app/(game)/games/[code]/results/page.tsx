@@ -1,222 +1,201 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// /games/[code]/results/page.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import Content from "@/components/layout/content";
-import { Flex } from "antd";
+import { Flex, Button, Typography, Divider, Progress, message } from "antd";
 import { TrophyOutlined } from "@ant-design/icons";
-import { gold, purple } from "@ant-design/colors";
-import { Client, StompSubscription } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
-import { useGlobalUser } from "@/contexts/globalUser";
-import { Button, Typography, message, Divider, Progress } from "antd";
-import { useRouter, useParams } from "next/navigation";
+import { purple } from "@ant-design/colors";
 import Confetti from "react-confetti";
 import { motion } from "framer-motion";
+import { Client, StompSubscription, Frame, IMessage } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { useGlobalUser } from "@/contexts/globalUser";
+import { useRouter, useParams } from "next/navigation";
 import { getApiDomain } from "@/utils/domain";
 
 const { Title, Text } = Typography;
-
-// ─── STYLES ────────────────────────────────────────────────────────────────
-
-const pageWrapper: React.CSSProperties = {
-    background: purple[3],  
-    minHeight: "100vh",
-    padding: "2rem",
-  };
-
-const fullHeightCenter: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  textAlign: "center",
-  flexDirection: "column",
-};
-
-const box: React.CSSProperties = {
-  width: "100%",
-  maxWidth: "500px",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  fontWeight: 600,
-  padding: 48,
-  borderRadius: 32,
-  color: "#fff",
-  backdropFilter: "blur(10px)",
-  background: "rgba(0, 0, 0, 0.8)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
-  border: "1px solid rgba(255,255,255,0.1)",
-};
-
-const h2: React.CSSProperties = {
-  fontSize: "clamp(28px, 5.8vw, 60px)",
-  lineHeight: 1.2,
-  margin: 0,
-};
-
-const p: React.CSSProperties = {
-  fontSize: "clamp(16px, 2.5vw, 30px)",
-  color: "#bbb",
-  margin: 0,
-};
-
-// ───────────────────────────────────────────────────────────────────────────
 
 interface RoundWinnerEvent {
   type: "ROUND_WINNER";
   winnerUsername: string;
   round: number;
+  distance?: number;
 }
-
 interface GameWinnerEvent {
   type: "GAME_WINNER";
   winnerUsername: string;
 }
 
-const ResultsPage: React.FC = () => {
+export default function ResultsPage() {
   const router = useRouter();
-  const params = useParams();
+  const { code } = useParams() as { code: string };
   const { user } = useGlobalUser();
 
-  const [lobbyCode, setLobbyCode] = useState<string>("");
-  const [lobbyId, setLobbyId] = useState<number | null>(null);
+  const [lobbyId, setLobbyId]         = useState<number | null>(null);
   const [roundWinner, setRoundWinner] = useState<RoundWinnerEvent | null>(null);
-  const [gameWinner, setGameWinner] = useState<string | null>(null);
-  const [count, setCount] = useState<number>(30);
+  const [gameWinner, setGameWinner]   = useState<string | null>(null);
+  const [count, setCount]             = useState(30);
 
-  const lobbyStatusSub = useRef<StompSubscription | null>(null);
   const gameSub = useRef<StompSubscription | null>(null);
 
-  // Demo mode
+  // 0) Hydrate any stored ROUND_WINNER event after user is ready
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const qp = new URLSearchParams(window.location.search);
-    const drw = qp.get("demoRoundWinner");
-    const rnd = qp.get("round") ?? "1";
-    const dgw = qp.get("demoGameWinner");
-    if (drw) setRoundWinner({ type: "ROUND_WINNER", winnerUsername: drw, round: parseInt(rnd, 10) });
-    if (dgw) setGameWinner(dgw);
+    if (!user) return;
+    const stored = localStorage.getItem("roundWinnerEvent");
+    console.log("[ResultsPage] 🔄 hydrating roundWinnerEvent:", stored);
+    if (stored) {
+      try {
+        const payload = JSON.parse(stored);
+        console.log("[ResultsPage] ✅ parsed payload:", payload);
+        setRoundWinner({
+          type: "ROUND_WINNER",
+          winnerUsername: payload.winnerUsername,
+          round: payload.round,
+          distance: payload.distance,
+        });
+        // Persist next chooser username
+        localStorage.setItem("roundChooserUsername", payload.winnerUsername);
+        console.log("[ResultsPage] ➡ set roundChooserUsername:", payload.winnerUsername);
+        // If current user is the winner, also persist their token for chooser
+        if (payload.winnerUsername === user.username) {
+          localStorage.setItem("roundChooser", user.token);
+          console.log("[ResultsPage] ➡ set roundChooser (token) for current user");
+        }
+      } catch (err) {
+        console.error("[ResultsPage] ❌ parse error:", err);
+      } finally {
+        localStorage.removeItem("roundWinnerEvent");
+      }
+    }
+  }, [user]);
+
+  // 1) Pull lobbyId out of localStorage so we can subscribe to game-events
+  useEffect(() => {
+    const stored = localStorage.getItem("lobbyId");
+    console.log("[ResultsPage] ▶ reading lobbyId from localStorage:", stored);
+    if (stored) {
+      const id = parseInt(stored, 10);
+      if (!isNaN(id)) {
+        setLobbyId(id);
+        console.log("[ResultsPage] ⇒ setLobbyId:", id);
+      } else {
+        console.error("[ResultsPage] ✖ invalid lobbyId in localStorage:", stored);
+      }
+    } else {
+      console.error("[ResultsPage] ✖ no lobbyId in localStorage");
+      message.error("Missing lobbyId—please rejoin the lobby.");
+    }
   }, []);
 
-  // Pull [code] from URL
+  // 2) Game-events STOMP subscription
   useEffect(() => {
-    if (!params.code) return;
-    setLobbyCode(Array.isArray(params.code) ? params.code[0] : params.code);
-  }, [params.code]);
-
-  // Fetch numeric lobbyId
-  useEffect(() => {
-    // Wait if context hasn't yet loaded the user from localStorage
-    if (
-      typeof window !== "undefined" &&
-      localStorage.getItem("user") &&
-      !user
-    ) {
+    if (!user?.token) {
+      console.log("[ResultsPage] ⏸ skipping game-events STOMP (no token)");
       return;
     }
-    if (!user?.token || !lobbyCode) return;
+    if (lobbyId == null) {
+      console.log("[ResultsPage] ⏸ skipping game-events STOMP (lobbyId not set)");
+      return;
+    }
 
-    const apiDomain = getApiDomain()
+    console.log(
+      `[ResultsPage] ▶ connecting to STOMP for game-events (lobbyId=${lobbyId}) at /ws/lobby-manager`
+    );
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () =>
+        new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
-      heartbeatIncoming: 0,
-      heartbeatOutgoing: 0,
       reconnectDelay: 5000,
-      onConnect: () => {
-        lobbyStatusSub.current = client.subscribe(
-          `/app/lobby-manager/lobby/${lobbyCode}`,
-          msg => {
-            const { type, payload }: any = JSON.parse(msg.body);
-            if (type === "LOBBY_STATUS" && payload.lobbyId) {
-              setLobbyId(payload.lobbyId);
+      onConnect: (frame: Frame) => {
+        console.log("[ResultsPage] 🟢 game-events STOMP connected:", frame.headers);
+        console.log(`[ResultsPage] 🔍 subscribing to /topic/lobby/${lobbyId}/game`);
+        gameSub.current = client.subscribe(
+          `/topic/lobby/${lobbyId}/game`,
+          (msg: IMessage) => {
+            console.log("[ResultsPage] ← gameSub raw message:", msg.body);
+            try {
+              const evt = JSON.parse(msg.body);
+              console.log("[ResultsPage] ← gameSub parsed:", evt);
+
+              if (evt.type === "ROUND_WINNER") {
+                setRoundWinner(evt as RoundWinnerEvent);
+                console.log("[ResultsPage] ⇒ roundWinner set by STOMP:", evt);
+                localStorage.setItem("roundChooserUsername", evt.winnerUsername);
+              }
+              if (evt.type === "GAME_WINNER") {
+                setGameWinner((evt as GameWinnerEvent).winnerUsername);
+                console.log(
+                  "[ResultsPage] ⇒ gameWinner set by STOMP:",
+                  (evt as GameWinnerEvent).winnerUsername
+                );
+              }
+            } catch (err) {
+              console.error("[ResultsPage] ✖ error parsing gameSub message:", err, msg.body);
             }
           }
         );
       },
-      onStompError: frame => {
-        message.error(frame.headers["message"] || "Could not fetch lobby status");
-      },
-    });
-    client.activate();
-    return () => {
-      lobbyStatusSub.current?.unsubscribe();
-      client.deactivate();
-    };
-  }, [user?.token, lobbyCode]);
-
-  // Subscribe to game events
-  useEffect(() => {
-    // Wait if context hasn't yet loaded the user from localStorage
-    if (
-      typeof window !== "undefined" &&
-      localStorage.getItem("user") &&
-      !user
-    ) {
-      return;
-    }
-    if (!user?.token || lobbyId === null) return;
-
-    const apiDomain = getApiDomain()
-    const client = new Client({
-      webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby?token=${user.token}`),
-      connectHeaders: { Authorization: `Bearer ${user.token}` },
-      heartbeatIncoming: 1000,
-      heartbeatOutgoing: 1000,
-      reconnectDelay: 5000,
-      onConnect: () => {
-        gameSub.current = client.subscribe(
-          `/topic/lobby/${lobbyId}/game`,
-          msg => {
-            const evt: any = JSON.parse(msg.body);
-            if (evt.type === "ROUND_WINNER") setRoundWinner(evt as RoundWinnerEvent);
-            if (evt.type === "GAME_WINNER") setGameWinner((evt as GameWinnerEvent).winnerUsername);
-          }
+      onStompError: (frame) => {
+        console.error(
+          "[ResultsPage] ⚠ game-events STOMP error:",
+          frame.headers["message"],
+          frame.body
         );
-      },
-      onStompError: frame => {
         message.error(frame.headers["message"] || "Game connection error");
       },
+      onDisconnect: () => {
+        console.log("[ResultsPage] 🔴 game-events STOMP disconnected");
+      },
     });
+
     client.activate();
+    console.log("[ResultsPage] game-events STOMP client activated");
+
     return () => {
+      console.log("[ResultsPage] 🧹 tearing down game-events STOMP client");
       gameSub.current?.unsubscribe();
       client.deactivate();
     };
   }, [user?.token, lobbyId]);
 
-  // Countdown for round redirect
+  // 3) Countdown & auto-redirect
   useEffect(() => {
     if (!roundWinner) return;
     setCount(30);
-    const interval = setInterval(() => setCount(c => c - 1), 1000);
-    return () => clearInterval(interval);
+    const iv = setInterval(() => setCount((c) => c - 1), 1000);
+    return () => clearInterval(iv);
   }, [roundWinner]);
 
-  // Auto-redirect after 30s
   useEffect(() => {
     if (!roundWinner) return;
-    const timer = setTimeout(() => {
-      router.push(`/games/${lobbyCode}/roundcard`);
-    }, 30000);
-    return () => clearTimeout(timer);
-  }, [roundWinner, lobbyCode, router]);
+    const to = setTimeout(() => router.push(`/games/${code}/roundcard`), 30000);
+    return () => clearTimeout(to);
+  }, [roundWinner, code, router]);
 
   return (
-    <div style={pageWrapper}>
+    <div style={{ background: purple[3], minHeight: "100vh", padding: "2rem" }}>
       <Content>
-        <Flex vertical align="center" justify="center" style={fullHeightCenter}>
+        <Flex
+          vertical
+          align="center"
+          justify="center"
+          style={{ width: "100%", height: "100%" }}
+        >
           {gameWinner && <Confetti recycle={false} numberOfPieces={300} />}
+
           {gameWinner ? (
-            <div style={box}>
-              <Title level={2} style={h2}>
-                {gameWinner} Wins the Game!
-              </Title>
+            <div
+              style={{
+                maxWidth: 500,
+                padding: 48,
+                borderRadius: 32,
+                background: "rgba(0,0,0,0.8)",
+                color: "#fff",
+                textAlign: "center",
+              }}
+            >
+              <Title level={2}>{gameWinner} Wins the Game!</Title>
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -224,28 +203,29 @@ const ResultsPage: React.FC = () => {
               >
                 <TrophyOutlined
                   style={{
-                    fontSize: "clamp(100px, 20vw, 200px)",
+                    fontSize: "clamp(100px,20vw,200px)",
                     color: purple[3],
-                    marginTop: "1rem",
                   }}
                 />
               </motion.div>
-              <Divider style={{ background: "rgba(255,255,255,0.3)", width: "60%" }} />
-              <Button
-                type="primary"
-                size="large"
-                onClick={() => router.push("/")}
-                style={{ marginTop: "1.5rem" }}
-              >
+              <Divider />
+              <Button type="primary" size="large" onClick={() => router.push("/")}>
                 Go Home
               </Button>
             </div>
           ) : roundWinner ? (
-            <div style={box}>
-              <Title level={2} style={h2}>
-                Round {roundWinner.round} Winner
-              </Title>
-              <Text style={{ ...p, marginTop: "0.5rem", marginBottom: "1.5rem" }}>
+            <div
+              style={{
+                maxWidth: 500,
+                padding: 48,
+                borderRadius: 32,
+                background: "rgba(0,0,0,0.8)",
+                color: "#fff",
+                textAlign: "center",
+              }}
+            >
+              <Title level={2}>Round {roundWinner.round} Winner</Title>
+              <Text style={{ margin: "1rem 0", display: "block" }}>
                 {roundWinner.winnerUsername}
               </Text>
               <motion.div
@@ -255,38 +235,31 @@ const ResultsPage: React.FC = () => {
               >
                 <TrophyOutlined
                   style={{
-                    fontSize: "clamp(100px, 20vw, 200px)",
+                    fontSize: "clamp(100px,20vw,200px)",
                     color: purple[3],
-                    marginTop: "1rem",
                   }}
                 />
               </motion.div>
-              <Divider style={{ background: "rgba(255,255,255,0.3)", width: "60%" }} />
+              <Divider />
               <Progress
-                percent={Math.max(0, (30 - count) / 30 * 100)}
+                percent={Math.max(0, ((30 - count) / 30) * 100)}
                 showInfo={false}
-                strokeColor="#8a2be2"
-                style={{ width: "60%", marginTop: "1rem" }}
               />
-              <Text type="secondary" style={{ marginTop: "0.5rem" }}>
-                Redirecting in {count > 0 ? count : 0}s…
-              </Text>
+              <Text>Redirecting in {count > 0 ? count : 0}s…</Text>
               <Button
+                style={{ marginTop: 16 }}
                 type="primary"
                 size="large"
-                onClick={() => router.push(`/games/${lobbyCode}/roundcard`)}
-                style={{ marginTop: "1.5rem" }}
+                onClick={() => router.push(`/games/${code}/roundcard`)}
               >
                 Next Round
               </Button>
             </div>
           ) : (
-            <Text type="secondary">Waiting for the next round result...</Text>
+            <Text style={{ color: "#fff" }}>Waiting for the next round result…</Text>
           )}
         </Flex>
       </Content>
     </div>
   );
-};
-
-export default ResultsPage;
+}
