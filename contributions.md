@@ -30,7 +30,7 @@ reason).
 
 ---
 
-## Contributions Week 1 - [27.3.2025] to [3.4.2025]
+## Contributions Week 1 - 27.3.2025 to 3.4.2025, Sprint 1
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
@@ -59,7 +59,7 @@ reason).
 
 ---
 
-## Contributions Week 2 - [3.4.2025] to [10.4.2025]
+## Contributions Week 2 - 3.4.2025 to 10.4.2025, Sprint 1
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
@@ -80,7 +80,7 @@ reason).
 
 ---
 
-## Contributions Week 3 - [10.4.2025] to [17.4.2025]
+## Contributions Week 3 - 10.4.2025 to 17.4.2025, Sprint 1
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
 | **@ctfbruce** | 15.04.2025   | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/285) | Implement websocket endpoint for sending friend requests | We need a way to receive friend requests in real time as part of our notification system. Additionally, for this I had to write the websocket friend controller which is neccesary for the proceeding friend websocket tasks |
@@ -97,10 +97,28 @@ reason).
 
 ---
 
-## Contributions Week 4 - [Begin Date] to [End Date]
+## Contributions Week 4 (Spring break) - 17.4.2025 to 24.4.2025, Sprint 1
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
+| **@froeoe** | 24.04.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/147) | Here I implemented the whole game flow & logic in the frontend. For this I implemented the websockets on all game screens and assured the transition between the different screens. Additionaly the game logic works as a winner is declared as soon as a player has no longer any round cards. | This PR implements the basic functionality of the whole game. |
+|                    | 24.04.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/298) | This PR fixed parts of the backend logic s.t. it is compatible with the frontend | Essential for a working frontend and thus for a working game flow. |
+| **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser4]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser5]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser6]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+
+## Contributions Week 5 - [dd.mm.yyyy] to [dd.mm.yyyy], Sprint 2
+
+| **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
+| ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
+| **[@githubUser1]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
