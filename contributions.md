@@ -103,8 +103,8 @@ reason).
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
 | **@froeoe** | 24.04.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/147) | Here I implemented the whole game flow & logic in the frontend. For this I implemented the websockets on all game screens and assured the transition between the different screens. Additionaly the game logic works as a winner is declared as soon as a player has no longer any round cards. | This PR implements the basic functionality of the whole game. |
 |                    | 24.04.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/298) | This PR fixed parts of the backend logic s.t. it is compatible with the frontend | Essential for a working frontend and thus for a working game flow. |
-| **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **@julienzb** | 23.04.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/145) | Updating the styling of various components | These optimizations ensure coherent styling and fix some errors with the component |
+|                    | 25.04.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/152) | Various UI and Error Fixes | Ensuring the deployment of the frontend and preventing visual bugs like overflows when resizing the screen |
 | **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser4]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
