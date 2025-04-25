@@ -8,36 +8,27 @@ declare global {
   }
 }
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import { useRouter, useParams } from 'next/navigation';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  useMapEvents,
-  useMap
-} from 'react-leaflet';
-import { useGlobalUser } from '@/contexts/globalUser';
-import { getApiDomain } from '@/utils/domain';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { useRouter, useParams } from "next/navigation";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
+import { useGlobalUser } from "@/contexts/globalUser";
+import { getApiDomain } from "@/utils/domain";
 
 export default function GameComponent() {
   const router = useRouter();
   const { code } = useParams() as { code: string };
   const { user } = useGlobalUser();
-  const lobbyId = Number(localStorage.getItem('lobbyId'));
+  const lobbyId = Number(localStorage.getItem("lobbyId"));
 
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [panoramaLoaded, setPanoramaLoaded] = useState(false);
   const [streetViewFailed, setStreetViewFailed] = useState(false);
   const [userGuess, setUserGuess] = useState<{ lat: number; lng: number } | null>(null);
   const [guessSubmitted, setGuessSubmitted] = useState(false);
-
-  // NEW: remaining time ticker
   const [remainingTime, setRemainingTime] = useState<number>(0);
 
   const stompClientRef = useRef<Client | null>(null);
@@ -50,77 +41,29 @@ export default function GameComponent() {
   // Debounce timeout handle
   const fetchDebounce = useRef<any>(null);
 
-  // 1) Fix Leaflet icons
-  useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
-  }, []);
-
-  // 2) Hydrate coords & time from storage
-  useEffect(() => {
-    const lat = localStorage.getItem('roundLatitude');
-    const lng = localStorage.getItem('roundLongitude');
-    const rt = localStorage.getItem('roundTime');
-    if (lat && lng) {
-      const latitude = parseFloat(lat);
-      const longitude = parseFloat(lng);
-      setLocationCoords({ lat: latitude, lng: longitude });
-      setPanoramaLoaded(false);
-      setStreetViewFailed(false);
-      fetchPanoramaAt(latitude, longitude);
-    }
-    if (rt) {
-      setRemainingTime(parseInt(rt, 10));
-    }
-  }, []);
-
-  // 3) Inject Google Maps API
-  useEffect(() => {
-    if (!(window as any).google?.maps && !document.getElementById('gmaps-script')) {
-      const script = document.createElement('script');
-      script.id = 'gmaps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=streetview`;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-  }, []);
-
-  // 4) Fetch Street View — with cache, reuse, debounce
+  // 1) Function: Fetch Street View with cache and debounce
   const fetchPanoramaAt = useCallback((lat: number, lng: number) => {
     const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
-
     if (!window.google?.maps) {
       setTimeout(() => fetchPanoramaAt(lat, lng), 200);
       return;
     }
-
     if (panoCache.current.has(key)) {
       const panoId = panoCache.current.get(key)!;
       panoInstance.current?.setPano(panoId);
       setPanoramaLoaded(true);
       return;
     }
-
     if (fetchDebounce.current) {
       clearTimeout(fetchDebounce.current);
     }
     fetchDebounce.current = setTimeout(() => {
       setPanoramaLoaded(false);
       setStreetViewFailed(false);
-
       const timeout = setTimeout(() => {
         setStreetViewFailed(true);
         setPanoramaLoaded(true);
       }, 7000);
-
       try {
         const sv = new window.google.maps.StreetViewService();
         sv.getPanorama(
@@ -131,7 +74,7 @@ export default function GameComponent() {
             if (status === window.google.maps.StreetViewStatus.OK && data.location?.pano) {
               const panoId = data.location.pano;
               panoCache.current.set(key, panoId);
-              const container = document.getElementById('street-view-container')!;
+              const container = document.getElementById("street-view-container")!;
               if (!panoInstance.current) {
                 panoInstance.current = new window.google.maps.StreetViewPanorama(container, {
                   pano: panoId,
@@ -155,89 +98,8 @@ export default function GameComponent() {
     }, 300);
   }, []);
 
-  // 5) STOMP subscription
-  useEffect(() => {
-    if (!user?.token || !lobbyId) return;
-    const client = new Client({
-      webSocketFactory: () =>
-        new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
-      connectHeaders: { Authorization: `Bearer ${user.token}` },
-      reconnectDelay: 5000,
-      onConnect: () => {
-        client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
-          const evt = JSON.parse(msg.body);
-
-          if (evt.type === 'ROUND_START') {
-            const dto = evt.payload.roundData;
-            setGuessSubmitted(false);
-            setUserGuess(null);
-            setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
-            fetchPanoramaAt(dto.latitude, dto.longitude);
-            localStorage.setItem('roundLatitude', dto.latitude.toString());
-            localStorage.setItem('roundLongitude', dto.longitude.toString());
-            // NEW: initialize timer
-            setRemainingTime(dto.roundTime);
-            localStorage.setItem('roundTime', dto.roundTime.toString());
-          }
-          else if (evt.type === 'ROUND_WINNER') {
-            localStorage.setItem('roundWinnerEvent', JSON.stringify(evt));
-            router.push(`/games/${code}/results`);
-          }
-          else if (evt.type === 'GAME_WINNER') {
-            localStorage.setItem('gameWinnerEvent', JSON.stringify(evt));
-            router.push(`/games/${code}/results`);
-          }
-        });
-      },
-      onStompError: frame => console.error(frame),
-      onDisconnect: () => {},
-    });
-    client.activate();
-    stompClientRef.current = client;
-    return () => {
-      client.deactivate();
-      // Don't return the promise from deactivate()
-    };
-  }, [user?.token, lobbyId, fetchPanoramaAt, router, code]);
-
-  // 6) Countdown & auto-submit
-  useEffect(() => {
-    if (remainingTime <= 0) {
-      if (!guessSubmitted) {
-        handleSubmit();
-      }
-      return;
-    }
-    const iv = setInterval(() => {
-      setRemainingTime(t => t - 1);
-    }, 1000);
-    return () => clearInterval(iv);
-  }, [remainingTime, guessSubmitted]);
-
-  // 7) Map invalidation
-  function MapSetup() {
-    const map = useMap();
-    useEffect(() => {
-      mapRef.current = map;
-      map.invalidateSize();
-    }, [map]);
-    return null;
-  }
-
-  // 8) Map click handler
-  function MapClickHandler() {
-    useMapEvents({
-      click(e) {
-        if (!guessSubmitted) {
-          setUserGuess({ lat: e.latlng.lat, lng: e.latlng.lng });
-        }
-      },
-    });
-    return null;
-  }
-
-  // 9) Submit guess
-  const handleSubmit = () => {
+  // 2) Function: Submit the user's guess
+  const handleSubmit = useCallback(() => {
     if (!userGuess || !stompClientRef.current?.connected) return;
     stompClientRef.current.publish({
       destination: `/app/lobby/${lobbyId}/game/guess`,
@@ -253,23 +115,138 @@ export default function GameComponent() {
         { padding: [20, 20] }
       );
     }
-  };
+  }, [userGuess, lobbyId, locationCoords]);
+
+  // 3) Function: Map setup for invalidating size
+  function MapSetup() {
+    const map = useMap();
+    useEffect(() => {
+      mapRef.current = map;
+      map.invalidateSize();
+    }, [map]);
+    return null;
+  }
+
+  // 4) Function: Handle map clicks for submitting guesses
+  function MapClickHandler() {
+    useMapEvents({
+      click(e) {
+        if (!guessSubmitted) {
+          setUserGuess({ lat: e.latlng.lat, lng: e.latlng.lng });
+        }
+      },
+    });
+    return null;
+  }
+
+  // 5) Fix Leaflet icons
+  useEffect(() => {
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+      iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    });
+  }, []);
+
+  // 6) Hydrate coordinates and time from storage
+  useEffect(() => {
+    const lat = localStorage.getItem("roundLatitude");
+    const lng = localStorage.getItem("roundLongitude");
+    const rt = localStorage.getItem("roundTime");
+    if (lat && lng) {
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lng);
+      setLocationCoords({ lat: latitude, lng: longitude });
+      setPanoramaLoaded(false);
+      setStreetViewFailed(false);
+      fetchPanoramaAt(latitude, longitude);
+    }
+    if (rt) {
+      setRemainingTime(parseInt(rt, 10));
+    }
+  }, [fetchPanoramaAt]);
+
+  // 7) Inject Google Maps API
+  useEffect(() => {
+    if (!(window as any).google?.maps && !document.getElementById("gmaps-script")) {
+      const script = document.createElement("script");
+      script.id = "gmaps-script";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=streetview`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // 8) STOMP subscription
+  useEffect(() => {
+    if (!user?.token || !lobbyId) return;
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
+      connectHeaders: { Authorization: `Bearer ${user.token}` },
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
+          const evt = JSON.parse(msg.body);
+          if (evt.type === "ROUND_START") {
+            const dto = evt.payload.roundData;
+            setGuessSubmitted(false);
+            setUserGuess(null);
+            setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
+            fetchPanoramaAt(dto.latitude, dto.longitude);
+            localStorage.setItem("roundLatitude", dto.latitude.toString());
+            localStorage.setItem("roundLongitude", dto.longitude.toString());
+            setRemainingTime(dto.roundTime);
+            localStorage.setItem("roundTime", dto.roundTime.toString());
+          } else if (evt.type === "ROUND_WINNER") {
+            localStorage.setItem("roundWinnerEvent", JSON.stringify(evt));
+            router.push(`/games/${code}/results`);
+          } else if (evt.type === "GAME_WINNER") {
+            localStorage.setItem("gameWinnerEvent", JSON.stringify(evt));
+            router.push(`/games/${code}/results`);
+          }
+        });
+      },
+      onStompError: (frame) => console.error(frame),
+      onDisconnect: () => {},
+    });
+    client.activate();
+    stompClientRef.current = client;
+    return () => {
+      client.deactivate();
+    };
+  }, [user?.token, lobbyId, fetchPanoramaAt, router, code]);
+
+  // 9) Countdown and auto-submit
+  useEffect(() => {
+    if (remainingTime <= 0) {
+      if (!guessSubmitted) {
+        handleSubmit();
+      }
+      return;
+    }
+    const iv = setInterval(() => {
+      setRemainingTime((t) => t - 1);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [remainingTime, guessSubmitted, handleSubmit]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+    <div style={{ position: "relative", width: "100%", height: "100vh" }}>
       {/* Timer ticker */}
       {remainingTime > 0 && (
         <div
           style={{
-            position: 'absolute',
-            top: '1rem',
-            right: '1rem',
-            padding: '0.5rem 1rem',
-            background: 'rgba(0,0,0,0.6)',
-            color: '#fff',
+            position: "absolute",
+            top: "1rem",
+            right: "1rem",
+            padding: "0.5rem 1rem",
+            background: "rgba(0,0,0,0.6)",
+            color: "#fff",
             borderRadius: 4,
-            fontSize: '1.2rem',
-            zIndex: 20
+            fontSize: "1.2rem",
+            zIndex: 20,
           }}
         >
           ⏱ {remainingTime}s
@@ -281,17 +258,25 @@ export default function GameComponent() {
         <div
           id="street-view-container"
           style={{
-            position: 'absolute',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'black',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "black",
             zIndex: 0,
           }}
         >
           {!panoramaLoaded && (
-            <div style={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)', color: 'white',
-            }}>
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                color: "white",
+              }}
+            >
               Loading Street View…
             </div>
           )}
@@ -302,18 +287,18 @@ export default function GameComponent() {
       {locationCoords && (
         <div
           style={{
-            position: 'absolute',
-            bottom: '6rem',
-            right: '1rem',
+            position: "absolute",
+            bottom: "6rem",
+            right: "1rem",
             width: 256,
             height: 192,
             zIndex: 10,
-            border: '1px solid rgba(0,0,0,0.2)',
+            border: "1px solid rgba(0,0,0,0.2)",
             borderRadius: 8,
-            overflow: 'hidden',
+            overflow: "hidden",
           }}
         >
-          <MapContainer center={[20, 0]} zoom={2} style={{ width: '100%', height: '100%' }}>
+          <MapContainer center={[20, 0]} zoom={2} style={{ width: "100%", height: "100%" }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <MapSetup />
             <MapClickHandler />
@@ -333,16 +318,16 @@ export default function GameComponent() {
               onClick={handleSubmit}
               disabled={!userGuess}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 bottom: 8,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                padding: '0.5rem 1rem',
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "0.5rem 1rem",
                 borderRadius: 4,
-                background: '#007bff',
-                color: 'white',
-                border: 'none',
-                cursor: userGuess ? 'pointer' : 'not-allowed',
+                background: "#007bff",
+                color: "white",
+                border: "none",
+                cursor: userGuess ? "pointer" : "not-allowed",
                 zIndex: 20,
               }}
             >
@@ -357,16 +342,16 @@ export default function GameComponent() {
         <button
           onClick={handleSubmit}
           style={{
-            position: 'fixed',
-            bottom: '2rem',
-            right: '1rem',
-            padding: '0.75rem 1.5rem',
-            color: '#fff',
-            fontWeight: 'bold',
-            border: 'none',
+            position: "fixed",
+            bottom: "2rem",
+            right: "1rem",
+            padding: "0.75rem 1.5rem",
+            color: "#fff",
+            fontWeight: "bold",
+            border: "none",
             borderRadius: 8,
-            backgroundColor: '#e53e3e',
-            cursor: 'pointer',
+            backgroundColor: "#e53e3e",
+            cursor: "pointer",
             zIndex: 20,
           }}
         >

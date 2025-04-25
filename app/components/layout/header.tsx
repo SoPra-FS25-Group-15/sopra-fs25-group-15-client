@@ -12,10 +12,9 @@ import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
 import { DollarOutlined, DownOutlined } from "@ant-design/icons";
 import "@ant-design/v5-patch-for-react-19";
-import { Button, Card, Popover, Tag } from "antd";  // removed Flex
+import { Button, Card, Flex, Popover, Tag } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
 
 const appLinks: MenuItem[] = [
   { label: "Play Casual", link: "/casual" },
@@ -60,12 +59,7 @@ const Profile: React.FC<ProfileProps> = ({ onSelectView }) => {
 
     return (
       <span style={{ maxWidth: "25vw" }}>
-        <Popover
-          content={<Menu items={userLinks} />}
-          trigger="click"
-          placement="bottomRight"
-          mouseLeaveDelay={0.3}
-        >
+        <Popover content={<Menu items={userLinks} />} trigger="click" placement="bottomRight" mouseLeaveDelay={0.3}>
           <UserCard
             style={{ borderRadius: 4, height: 72, width: "100%", background: "#fff", color: "#000" }}
             username={user.username ?? "username"}
@@ -101,7 +95,6 @@ const Header: React.FC = () => {
 
   return (
     <>
-
       <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100, height: 82, overflow: "hidden" }}>
         <Card styles={{ body: { padding: 4 } }} size="small">
           <Flex justify="space-between" align="center">

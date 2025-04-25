@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import GameContainer from "@/components/game/gameContainer";
 import RoundCardComponent from "@/components/game/roundCard";
 import Notification, { NotificationProps } from "@/components/general/notification";
-import { Button, Spin, message } from "antd";
+import { Button, Flex, Spin, message } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Client, StompSubscription, IMessage } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
@@ -31,9 +31,9 @@ export default function RoundCardPageComponent() {
 
   const [stompConnected, setStompConnected] = useState(false);
   const stompClient = useRef<Client | null>(null);
-  const gameSub    = useRef<StompSubscription | null>(null);
-  const stateSub   = useRef<StompSubscription | null>(null);
-  const errorSub   = useRef<StompSubscription | null>(null);
+  const gameSub = useRef<StompSubscription | null>(null);
+  const stateSub = useRef<StompSubscription | null>(null);
+  const errorSub = useRef<StompSubscription | null>(null);
 
   // 1) Load lobbyId
   useEffect(() => {
@@ -56,45 +56,38 @@ export default function RoundCardPageComponent() {
     if (lobbyId == null || !user?.token) return;
 
     const client = new Client({
-      webSocketFactory: () =>
-        new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       reconnectDelay: 5000,
       onConnect: () => {
         setStompConnected(true);
 
         // A) SCREEN_CHANGE
-        gameSub.current = client.subscribe(
-          `/topic/lobby/${lobbyId}/game`,
-          msg => {
-            const { type, payload } = JSON.parse(msg.body) as any;
-            if (type === "SCREEN_CHANGE" && payload.screen === "ACTIONCARD") {
-              router.push(`/games/${code}/actioncard`);
-            }
+        gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
+          const { type, payload } = JSON.parse(msg.body) as any;
+          if (type === "SCREEN_CHANGE" && payload.screen === "ACTIONCARD") {
+            router.push(`/games/${code}/actioncard`);
           }
-        );
+        });
 
         // B) GAME_STATE
-        stateSub.current = client.subscribe(
-          `/user/queue/lobby/${lobbyId}/game/state`,
-          (msg: IMessage) => {
-            const { type, payload } = JSON.parse(msg.body);
-            if (type === "GAME_STATE") {
-              const rawIds: string[] = payload.inventory.roundCards;
-              // keep raw for submission
-              setRawRoundCardIds(rawIds);
-              // derive clean identifiers
-              const cleanIds = rawIds.map(raw => raw.split("-")[0] as RoundCardIdentifier);
-              setRoundCardIds(cleanIds);
-              setSelectedIndex(0);
-              // determine chooser by token prefix
-              const myPrefix = user.token.split("-")[0];
-              const turnPrefix = (payload.currentTurnPlayerToken || "").split("-")[0];
-              setIsChooser(myPrefix === turnPrefix);
-              setLoading(false);
-            }
+        stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg: IMessage) => {
+          const { type, payload } = JSON.parse(msg.body);
+          if (type === "GAME_STATE") {
+            const rawIds: string[] = payload.inventory.roundCards;
+            // keep raw for submission
+            setRawRoundCardIds(rawIds);
+            // derive clean identifiers
+            const cleanIds = rawIds.map((raw) => raw.split("-")[0] as RoundCardIdentifier);
+            setRoundCardIds(cleanIds);
+            setSelectedIndex(0);
+            // determine chooser by token prefix
+            const myPrefix = user.token.split("-")[0];
+            const turnPrefix = (payload.currentTurnPlayerToken || "").split("-")[0];
+            setIsChooser(myPrefix === turnPrefix);
+            setLoading(false);
           }
-        );
+        });
 
         // pull initial state
         client.publish({
@@ -103,21 +96,18 @@ export default function RoundCardPageComponent() {
         });
 
         // C) ERROR
-        errorSub.current = client.subscribe(
-          `/user/queue/lobby/${lobbyId}/game`,
-          (msg: IMessage) => {
-            const { type, payload } = JSON.parse(msg.body);
-            if (type === "ERROR") {
-              setNotification({
-                type: "error",
-                message: payload as string,
-                onClose: () => setNotification(null),
-              });
-            }
+        errorSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game`, (msg: IMessage) => {
+          const { type, payload } = JSON.parse(msg.body);
+          if (type === "ERROR") {
+            setNotification({
+              type: "error",
+              message: payload as string,
+              onClose: () => setNotification(null),
+            });
           }
-        );
+        });
       },
-      onStompError: frame => {
+      onStompError: (frame) => {
         message.error(frame.headers["message"] as string);
       },
       onDisconnect: () => setStompConnected(false),
@@ -155,25 +145,18 @@ export default function RoundCardPageComponent() {
   if (!roundCardIds.length) {
     return (
       <GameContainer>
-        <p style={{ color: "#fff", textAlign: "center" }}>
-          No round cards available.
-        </p>
+        <p style={{ color: "#fff", textAlign: "center" }}>No round cards available.</p>
       </GameContainer>
     );
   }
   if (isChooser) {
     return (
-      <GameContainer>
+      <GameContainer leftHidden>
         {notification && <Notification {...notification} />}
         <h1 style={{ textAlign: "center" }}>Select your round card</h1>
-        <section style={{ display: "flex", gap: 20, padding: 20, overflowX: "auto" }}>
+        <section style={{ display: "flex", gap: 20, padding: 20, overflowX: "auto", height: 350 }}>
           {getRoundCards(roundCardIds).map((card, i) => (
-            <RoundCardComponent
-              key={i}
-              selected={i === selectedIndex}
-              {...card}
-              onClick={() => setSelectedIndex(i)}
-            />
+            <RoundCardComponent key={i} selected={i === selectedIndex} {...card} onClick={() => setSelectedIndex(i)} />
           ))}
         </section>
         <div style={{ textAlign: "center", marginTop: 20 }}>
@@ -185,11 +168,12 @@ export default function RoundCardPageComponent() {
     );
   }
   return (
-    <GameContainer>
+    <GameContainer leftHidden>
       {notification && <Notification {...notification} />}
-      <h1 style={{ textAlign: "center", padding: 30 }}>
-        Waiting for the chooser to pick…
-      </h1>
+      <h1 style={{ textAlign: "center", padding: 30 }}>Waiting for the chooser to pick…</h1>
+      <Flex justify="center" align="center" style={{ width: "100%", height: "100%" }}>
+        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+      </Flex>
     </GameContainer>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Content from "@/components/layout/content";
 import { green, purple, red } from "@ant-design/colors";
 import { ArrowRightOutlined, PlusOutlined } from "@ant-design/icons";
 import "@ant-design/v5-patch-for-react-19";
@@ -80,95 +79,91 @@ const items = [
 const Home: FC = () => {
   return (
     <NavigationLayout>
-      <Content>
-        <Flex vertical align="center" gap={120}>
-          <section style={section}>
-            <Flex
-              vertical
-              align="center"
-              justify="center"
-              style={{
-                textAlign: "center",
-                marginTop: "120px",
-                width: "100%",
-                height: "calc(100vh - (2 * 96px) - 120px)",
-              }}
-            >
-              <h1 style={{ fontSize: "clamp(32px, 12vw, 160px)" }}>ActionGuessr</h1>
-              <Flex vertical style={{ fontSize: "clamp(16px, 4vw, 80px)" }}>
-                <span style={{ whiteSpace: "nowrap" }}>Find out where you are on the world. Now</span>
-                <span style={{ whiteSpace: "nowrap" }}>as a turn based game with friends.</span>
-              </Flex>
-              <Button type="primary" size="large" style={{ marginTop: 64 }} href="/game">
-                Sign up now
-              </Button>
+      <Flex vertical align="center" gap={120}>
+        <section style={section}>
+          <Flex
+            vertical
+            align="center"
+            justify="center"
+            style={{
+              textAlign: "center",
+              marginTop: "120px",
+              width: "100%",
+              height: "calc(100vh - (2 * 96px) - 120px)",
+            }}
+          >
+            <h1 style={{ fontSize: "clamp(32px, 12vw, 160px)" }}>ActionGuessr</h1>
+            <Flex vertical style={{ fontSize: "clamp(16px, 4vw, 80px)" }}>
+              <span style={{ whiteSpace: "nowrap" }}>Find out where you are on the world. Now</span>
+              <span style={{ whiteSpace: "nowrap" }}>as a turn based game with friends.</span>
             </Flex>
-          </section>
-          <section style={section}>
-            <div style={{ display: "grid", gridTemplateColumns: "1", gap: 16 }}>
-              <div style={{ ...box, gridColumn: "1 / -1" }}>
-                <Flex vertical gap={16} style={{ width: "35%" }}>
-                  <h2 style={h2}>Determine the rules</h2>
-                  <p style={p}>
-                    On your turn, play one of your <span style={{ color: purple[3] }}>Round Cards</span>. If you win the
-                    round, discard it. The first player to discard all of their round cards wins.
-                  </p>
-                </Flex>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "-50%",
-                    right: "-10%",
-                    background: "no-repeat center / contain url('/round-card-render.webp')",
-                    height: "200%",
-                    width: "70%",
-                  }}
-                ></div>
-              </div>
-              <div style={box}>
-                <Flex vertical gap={16} style={{ width: "35%" }}>
-                  <h2 style={h2}>Power up</h2>
-                  <p style={p}>
-                    <span style={{ color: green[3] }}>Powerup Cards</span> give yourself an advantage for this round,
-                    like extra time or more guesses. Will it be enough to secure the round win?
-                  </p>
-                </Flex>
-              </div>
-              <div style={box}>
-                <Flex vertical gap={16} style={{ width: "35%" }}>
-                  <h2 style={h2}>Sabotage your friends</h2>
-                  <p style={p}>
-                    <span style={{ color: red[3] }}>Punishment Cards</span> hinder one specific opponent. Will it be
-                    enough to stop them from winning the round?
-                  </p>
-                </Flex>
-              </div>
-            </div>
-            <Flex vertical align="center" justify="center" style={{ marginTop: 32 }}>
-              <Link href={"/rules"}>
-                <Button iconPosition="end" icon={<ArrowRightOutlined />} type="link" size="large">
-                  See the full game rules
-                </Button>
-              </Link>
-            </Flex>
-          </section>
-          <section style={section}>
-            <h2 style={{ textAlign: "center", fontSize: 32, marginBottom: 32 }}>Frequently Asked Questions</h2>
-            <Collapse
-              items={items}
-              expandIcon={({ isActive }) => <PlusOutlined rotate={isActive ? 45 : 0} />}
-              style={{ fontSize: 18, width: "100%" }}
-            />
-          </section>
-        </Flex>
-      </Content>
-      <footer style={{ marginTop: 120, padding: 32, textAlign: "center", backgroundColor: "#222" }}>
-        <Content>
-          <Flex vertical align="center" justify="center" gap={8} style={{ fontWeight: 600 }}>
-            <span style={{ fontSize: 24, fontWeight: 800, color: "rgba(255, 255, 255, 0.8)" }}>ActionGuessr</span>
-            <span style={{ color: "rgba(255, 255, 255, 0.6)" }}>Made by Group 15 of Sopra FS25</span>
+            <Button type="primary" size="large" style={{ marginTop: 64 }} href="/game">
+              Sign up now
+            </Button>
           </Flex>
-        </Content>
+        </section>
+        <section style={section}>
+          <div style={{ display: "grid", gridTemplateColumns: "1", gap: 16 }}>
+            <div style={{ ...box, gridColumn: "1 / -1" }}>
+              <Flex vertical gap={16} style={{ width: "35%" }}>
+                <h2 style={h2}>Determine the rules</h2>
+                <p style={p}>
+                  On your turn, play one of your <span style={{ color: purple[3] }}>Round Cards</span>. If you win the
+                  round, discard it. The first player to discard all of their round cards wins.
+                </p>
+              </Flex>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "-50%",
+                  right: "-10%",
+                  background: "no-repeat center / contain url('/round-card-render.webp')",
+                  height: "200%",
+                  width: "70%",
+                }}
+              ></div>
+            </div>
+            <div style={box}>
+              <Flex vertical gap={16} style={{ width: "35%" }}>
+                <h2 style={h2}>Power up</h2>
+                <p style={p}>
+                  <span style={{ color: green[3] }}>Powerup Cards</span> give yourself an advantage for this round, like
+                  extra time or more guesses. Will it be enough to secure the round win?
+                </p>
+              </Flex>
+            </div>
+            <div style={box}>
+              <Flex vertical gap={16} style={{ width: "35%" }}>
+                <h2 style={h2}>Sabotage your friends</h2>
+                <p style={p}>
+                  <span style={{ color: red[3] }}>Punishment Cards</span> hinder one specific opponent. Will it be
+                  enough to stop them from winning the round?
+                </p>
+              </Flex>
+            </div>
+          </div>
+          <Flex vertical align="center" justify="center" style={{ marginTop: 32 }}>
+            <Link href={"/rules"}>
+              <Button iconPosition="end" icon={<ArrowRightOutlined />} type="link" size="large">
+                See the full game rules
+              </Button>
+            </Link>
+          </Flex>
+        </section>
+        <section style={section}>
+          <h2 style={{ textAlign: "center", fontSize: 32, marginBottom: 32 }}>Frequently Asked Questions</h2>
+          <Collapse
+            items={items}
+            expandIcon={({ isActive }) => <PlusOutlined rotate={isActive ? 45 : 0} />}
+            style={{ fontSize: 18, width: "100%" }}
+          />
+        </section>
+      </Flex>
+      <footer style={{ marginTop: 120, padding: 32, textAlign: "center", backgroundColor: "#222" }}>
+        <Flex vertical align="center" justify="center" gap={8} style={{ fontWeight: 600 }}>
+          <span style={{ fontSize: 24, fontWeight: 800, color: "rgba(255, 255, 255, 0.8)" }}>ActionGuessr</span>
+          <span style={{ color: "rgba(255, 255, 255, 0.6)" }}>Made by Group 15 of Sopra FS25</span>
+        </Flex>
       </footer>
     </NavigationLayout>
   );

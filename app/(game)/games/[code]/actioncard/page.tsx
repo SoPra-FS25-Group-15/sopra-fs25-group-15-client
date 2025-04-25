@@ -60,8 +60,7 @@ export default function ActionCardPage() {
     const lobbyId = parseInt(stored, 10);
 
     const client = new Client({
-      webSocketFactory: () =>
-        new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       heartbeatIncoming: 0,
       heartbeatOutgoing: 0,
@@ -71,39 +70,33 @@ export default function ActionCardPage() {
         setStompConnected(true);
 
         // Broadcast channel: wait for ROUND_START
-        gameSub.current = client.subscribe(
-          `/topic/lobby/${lobbyId}/game`,
-          (msg) => {
-            const { type: gType, payload } = JSON.parse(msg.body as string);
-            console.log("[ActionCardPage] Received", gType, payload);
-            if (gType === "ROUND_START") {
-              // Persist the coordinates + time before navigating
-              const dto = payload.roundData;
-              console.log("[ActionCardPage] Storing round data:", dto);
-              localStorage.setItem("roundLatitude", dto.latitude.toString());
-              localStorage.setItem("roundLongitude", dto.longitude.toString());
-              localStorage.setItem("roundTime", dto.roundTime.toString());
+        gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
+          const { type: gType, payload } = JSON.parse(msg.body as string);
+          console.log("[ActionCardPage] Received", gType, payload);
+          if (gType === "ROUND_START") {
+            // Persist the coordinates + time before navigating
+            const dto = payload.roundData;
+            console.log("[ActionCardPage] Storing round data:", dto);
+            localStorage.setItem("roundLatitude", dto.latitude.toString());
+            localStorage.setItem("roundLongitude", dto.longitude.toString());
+            localStorage.setItem("roundTime", dto.roundTime.toString());
 
-              console.log("[ActionCardPage] Routing to /guess");
-              router.push(`/games/${code}/guess`);
-            }
+            console.log("[ActionCardPage] Routing to /guess");
+            router.push(`/games/${code}/guess`);
           }
-        );
+        });
 
         // Personal queue for ERRORs & replacements
-        errorSub.current = client.subscribe(
-          `/user/queue/lobby/${lobbyId}/game`,
-          (msg) => {
-            const { type: t, payload: pl } = JSON.parse(msg.body as string);
-            if (t === "ERROR") {
-              setNotification({
-                type: "error",
-                message: pl as string,
-                onClose: () => setNotification(null),
-              });
-            }
+        errorSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game`, (msg) => {
+          const { type: t, payload: pl } = JSON.parse(msg.body as string);
+          if (t === "ERROR") {
+            setNotification({
+              type: "error",
+              message: pl as string,
+              onClose: () => setNotification(null),
+            });
           }
-        );
+        });
       },
       onStompError: (frame) => {
         console.error("[ActionCardPage] STOMP error:", frame.headers["message"]);
@@ -137,7 +130,11 @@ export default function ActionCardPage() {
       return;
     }
     if (selectedCard.type === "punishment" && !selectedUsername) {
-      setNotification({ type: "error", message: "Please select a player to punish", onClose: () => setNotification(null) });
+      setNotification({
+        type: "error",
+        message: "Please select a player to punish",
+        onClose: () => setNotification(null),
+      });
       return;
     }
     if (!stompConnected) return;
@@ -187,6 +184,9 @@ export default function ActionCardPage() {
         <div style={{ textAlign: "center", padding: 30 }}>
           <h1>Waiting for other players to submit…</h1>
         </div>
+        <Flex justify="center" align="center" style={{ width: "100%", height: "100%" }}>
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+        </Flex>
       </GameContainer>
     );
   }
@@ -200,13 +200,13 @@ export default function ActionCardPage() {
       </Flex>
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
-        <section style={{ overflowX: "auto", display: "flex", gap: 20, padding: "30px 10px", height: "40vh" }}>
+        <section style={{ overflowX: "auto", display: "flex", gap: 20, padding: "30px 10px", height: 350 }}>
           {getActionCards(game.inventory.actionCards).map((card, idx) => (
             <ActionCardComponent
               key={idx}
-              selected={idx === idx}
+              selected={card.identifier === selectedCard?.identifier}
               {...card}
-              playerList={game.players.map(p => ({ label: p.username, value: p.username }))}
+              playerList={game.players.map((p) => ({ label: p.username, value: p.username }))}
               onClick={() => setSelectedCard(card)}
               onChange={(username: string) => setSelectedUsername(username)}
             />
@@ -215,8 +215,12 @@ export default function ActionCardPage() {
       </Flex>
 
       <Flex align="center" justify="center" gap={8} style={{ width: "100%" }}>
-        <Button onClick={handleSubmit} type="primary" size="large">Select card</Button>
-        <Button onClick={handleSkip} type="default" size="large">Skip</Button>
+        <Button onClick={handleSubmit} type="primary" size="large">
+          Select card
+        </Button>
+        <Button onClick={handleSkip} type="default" size="large">
+          Skip
+        </Button>
       </Flex>
     </GameContainer>
   );

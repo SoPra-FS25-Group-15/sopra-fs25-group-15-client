@@ -13,16 +13,17 @@ import RoundCardComponent from "./roundCard";
 import UserCard from "../general/usercard";
 
 interface GameContainerProps {
+  leftHidden?: boolean;
   children: React.ReactNode;
 }
 
 export const gameState: GameState = {
-  currentRound: 3,
+  currentRound: 1,
   currentScreen: "ACTIONCARD",
   roundCardSubmitter: "Player1",
   activeRoundCard: "world",
   inventory: {
-    roundCards: ["world", "flash", ],
+    roundCards: ["world", "flash"],
     actionCards: ["7choices", "badsight"],
   },
   players: [
@@ -30,24 +31,18 @@ export const gameState: GameState = {
       username: "Player1",
       roundCardsLeft: 3,
       actionCardsLeft: 2,
-      activeActionCards: ["7choices", "badsight"],
+      activeActionCards: [],
     },
     {
       username: "Player2",
       roundCardsLeft: 3,
-      actionCardsLeft: 4,
-      activeActionCards: ["7choices"],
-    },
-    {
-      username: "Player3",
-      roundCardsLeft: 2,
-      actionCardsLeft: 1,
-      activeActionCards: ["badsight"],
+      actionCardsLeft: 2,
+      activeActionCards: [],
     },
   ],
 };
 
-const GameContainer: React.FC<GameContainerProps> = ({ children }) => {
+const GameContainer: React.FC<GameContainerProps> = ({ leftHidden = false, children }) => {
   const { code } = useParams() as { code: string };
   const [loading, setLoading] = useState(true);
 
@@ -73,63 +68,69 @@ const GameContainer: React.FC<GameContainerProps> = ({ children }) => {
   }
 
   return (
-    <Flex gap={10} style={{ width: "100%", height: "100%", padding: 30 }}>
-      <div style={{ width: "25vw", minWidth: "300px", height: "100%" }}>
+    <Flex gap={10} style={{ width: "100%", height: "100%", minHeight: 600, padding: 8 }}>
+      <div style={{ width: "20vw", minWidth: "250px", height: "100%" }}>
         <PlayerList players={gameState.players} />
       </div>
 
-      <Flex
-        vertical
-        align="center"
-        justify="center"
-        style={{
-          width: "25vw",
-          minWidth: "300px",
-          height: "100%",
-          padding: 40,
-          borderRadius: 16,
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          background: "rgba(0, 0, 0, 0.1)",
-        }}
-        gap={40}
-      >
+      {!leftHidden && (
         <Flex
-          gap={8}
           vertical
+          align="center"
+          justify="center"
           style={{
-            width: "100%",
+            width: "20vw",
+            minWidth: "300px",
+            height: "100%",
+            padding: 40,
+            borderRadius: 16,
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            background: "rgba(0, 0, 0, 0.1)",
           }}
+          gap={40}
         >
-          {gameState.currentScreen == "ACTIONCARD" ? (
-            <Flex vertical gap={40} align="center">
-              <Flex vertical gap={8} style={{ width: "100%" }}>
-                <h1>Round {gameState.currentRound}</h1>
-                <Flex gap={10} align="center">
-                  <h3 style={{ textTransform: "uppercase", color: "rgba(255, 255, 255, 0.8)" }}>Played by</h3>
+          <Flex
+            gap={8}
+            vertical
+            style={{
+              width: "100%",
+            }}
+          >
+            {!leftHidden ? (
+              <Flex vertical gap={40} align="center">
+                <Flex vertical gap={8} style={{ width: "100%" }}>
+                  <h1>Round {gameState.currentRound}</h1>
+                  <Flex gap={10} align="center">
+                    <h3 style={{ textTransform: "uppercase", color: "rgba(255, 255, 255, 0.8)" }}>Played by</h3>
+                    <span>
+                      <UserCard borderless iconsize="small" username={gameState.roundCardSubmitter}></UserCard>
+                    </span>
+                  </Flex>
+                </Flex>
+                <div style={{ height: 350 }}>
+                  {getRoundCards([gameState.activeRoundCard]).map((card, index) => {
+                    return <RoundCardComponent key={index} {...card} selected={false} onClick={() => {}} />;
+                  })}
+                </div>
+              </Flex>
+            ) : (
+              <Flex vertical gap={80} align="center">
+                <Flex vertical gap={16} align="center">
+                  <p
+                    style={{ lineHeight: 1.2, textAlign: "center", maxWidth: "70%", color: "rgba(255, 255, 255, 0.6)" }}
+                  >
+                    Waiting for submission from
+                  </p>
                   <span>
                     <UserCard borderless iconsize="small" username={gameState.roundCardSubmitter}></UserCard>
                   </span>
                 </Flex>
+                <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
               </Flex>
-              {getRoundCards([gameState.activeRoundCard]).map((card, index) => {
-                return <RoundCardComponent key={index} {...card} selected={false} onClick={() => {}} />;
-              })}
-            </Flex>
-          ) : (
-            <Flex vertical gap={80} align="center">
-              <Flex vertical gap={16} align="center">
-                <p style={{ lineHeight: 1.2, textAlign: "center", maxWidth: "70%", color: "rgba(255, 255, 255, 0.6)" }}>
-                  Waiting for submission from
-                </p>
-                <span>
-                  <UserCard borderless iconsize="small" username={gameState.roundCardSubmitter}></UserCard>
-                </span>
-              </Flex>
-              <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
-            </Flex>
-          )}
+            )}
+          </Flex>
         </Flex>
-      </Flex>
+      )}
       <Flex
         vertical
         gap={20}
@@ -142,6 +143,7 @@ const GameContainer: React.FC<GameContainerProps> = ({ children }) => {
           borderRadius: 16,
           border: "1px solid rgba(255, 255, 255, 0.2)",
           background: "#222",
+          overflow: "hidden",
         }}
       >
         {children}
