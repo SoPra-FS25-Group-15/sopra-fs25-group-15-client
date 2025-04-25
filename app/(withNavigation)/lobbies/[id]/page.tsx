@@ -117,7 +117,8 @@ const LobbyPage: React.FC = () => {
     console.log("[STOMP] initializing client for lobby:", lobbyCode);
     const apiDomain = getApiDomain();
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${apiDomain}/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () =>
+        new SockJS(`${apiDomain}/ws/lobby-manager?token=${user.token}`),  // ← only base path, token in query
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       heartbeatIncoming: 0,
       heartbeatOutgoing: 0,
@@ -142,7 +143,7 @@ const LobbyPage: React.FC = () => {
         });
         console.log("[STOMP] subscribed to /user/topic/lobby/join/result");
 
-        // Subscribe to lobby status (one‑time)
+        // Subscribe to lobby status (one-time)
         statusSub.current = client.subscribe(`/app/lobby-manager/lobby/${lobbyCode}`, (msg) => {
           console.log("[statusSub] message:", msg.body);
           const { type, payload: p } = JSON.parse(msg.body) as {
@@ -156,7 +157,6 @@ const LobbyPage: React.FC = () => {
 
           console.log("[statusSub] LOBBY_STATUS received:", p);
           setLobbyIdNumber(p.lobbyId);
-          // ← NEW: persist numeric lobbyId for RoundCard page
           localStorage.setItem("lobbyId", String(p.lobbyId));
 
           setJoinedUsers(
@@ -169,7 +169,7 @@ const LobbyPage: React.FC = () => {
           setPlayersPerTeam(p.playersPerTeam);
           setIsHost(p.host.username === user.username);
 
-          // Wire up live‑topic subscriptions
+          // Wire up live-topic subscriptions
           subscribeToLobbyTopics(p.lobbyId);
 
           // Now publish the JOIN request
@@ -197,7 +197,6 @@ const LobbyPage: React.FC = () => {
 
     return () => {
       console.log("[STOMP] tearing down");
-      // client.deactivate();
       joinResultSub.current?.unsubscribe();
       statusSub.current?.unsubscribe();
       updateSub.current?.unsubscribe();
@@ -227,7 +226,6 @@ const LobbyPage: React.FC = () => {
           payload: { code: lobbyCode },
         }),
       });
-      // wait for GAME_START broadcast; no immediate router.push
     }
   };
 
@@ -288,9 +286,7 @@ const LobbyPage: React.FC = () => {
         <Card style={{ flex: "0 0 240px", borderRadius: 8 }}>
           <div style={{ marginBottom: 16, display: "flex", alignItems: "center" }}>
             <SettingOutlined style={{ color: "#fff", marginRight: 8 }} />
-            <Text strong style={{ color: "#fff" }}>
-              Settings
-            </Text>
+            <Text strong style={{ color: "#fff" }}>Settings</Text>
           </div>
           <div style={{ marginBottom: 12 }}>
             <Text style={{ color: "#fff" }}>Players</Text>
@@ -303,9 +299,7 @@ const LobbyPage: React.FC = () => {
               style={{ width: "100%" }}
             />
           </div>
-          <Button danger block onClick={handleLeaveLobby}>
-            Leave
-          </Button>
+          <Button danger block onClick={handleLeaveLobby}>Leave</Button>
         </Card>
 
         <Card
