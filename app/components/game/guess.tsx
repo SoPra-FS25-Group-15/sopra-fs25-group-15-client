@@ -47,16 +47,18 @@ export default function GameComponent() {
     const raw = localStorage.getItem("actionCardEffects");
     if (!raw || !user?.token) return;
     try {
-      const actionCardEffects: Record<string, { effect: string; value?: string; duration?: number }> =
+      const actionCardEffects: Record<string, Array<{ effect: string; value?: string; duration?: number }>> =
         JSON.parse(raw);
-      const myEff = actionCardEffects[user.token];
-      if (myEff?.effect === "blur") {
-        setIsBlurred(true);
-        setTimeout(() => setIsBlurred(false), (myEff.duration ?? 15) * 1000);
-      }
-      if (myEff?.effect === "continent") {
-        setContinentHint(myEff.value ?? null);
-      }
+      const myEffects = actionCardEffects[user.token] || [];
+      myEffects.forEach(eff => {
+        if (eff.effect === "blur") {
+          setIsBlurred(true);
+          setTimeout(() => setIsBlurred(false), (eff.duration ?? 15) * 1000);
+        }
+        if (eff.effect === "continent") {
+          setContinentHint(eff.value ?? null);
+        }
+      });
     } catch (err) {
       console.error("Error parsing actionCardEffects:", err);
     } finally {
@@ -192,7 +194,7 @@ export default function GameComponent() {
     if (!(window as any).google?.maps && !document.getElementById("gmaps-script")) {
       const script = document.createElement("script");
       script.id = "gmaps-script";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=streetview`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
       script.async = true;
       script.defer = true;
       document.head.appendChild(script);
@@ -214,8 +216,8 @@ export default function GameComponent() {
               const { roundData: dto, actionCardEffects } = evt.payload;
               if (actionCardEffects) {
                 localStorage.setItem(
-                "actionCardEffects",
-                JSON.stringify(actionCardEffects)
+                  "actionCardEffects",
+                  JSON.stringify(actionCardEffects)
                 );
               }
               
@@ -231,14 +233,16 @@ export default function GameComponent() {
               setContinentHint(null);
               setIsBlurred(false);
 
-              const myEff = actionCardEffects?.[user.token];
-              if (myEff?.effect === "continent") {
-                setContinentHint(myEff.value);
-              }
-              if (myEff?.effect === "blur") {
-                setIsBlurred(true);
-                setTimeout(() => setIsBlurred(false), (myEff.duration || 15) * 1000);
-              }
+              const myEffects = actionCardEffects?.[user.token] || [];
+              myEffects.forEach((eff: { effect: string; value?: string; duration?: number }) => {
+                if (eff.effect === "continent") {
+                  setContinentHint(eff.value ?? null);
+                }
+                if (eff.effect === "blur") {
+                  setIsBlurred(true);
+                  setTimeout(() => setIsBlurred(false), (eff.duration || 15) * 1000);
+                }
+              });
               break;
             }
             case "ROUND_WINNER":
