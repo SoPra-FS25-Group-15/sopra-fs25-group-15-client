@@ -76,12 +76,15 @@ export default function ActionCardPage() {
           console.log("[ActionCardPage] Received", gType, payload);
           if (gType === "ROUND_START") {
             // Persist the coordinates + time before navigating
-            const dto = payload.roundData;
+
+            const {roundData: dto, actionCardEffects } = payload;
             console.log("[ActionCardPage] Storing round data:", dto);
             localStorage.setItem("roundLatitude", dto.latitude.toString());
             localStorage.setItem("roundLongitude", dto.longitude.toString());
             localStorage.setItem("roundTime", dto.roundTime.toString());
 
+            console.log("[ActionCardPage] Storing actionCardEffects:", actionCardEffects);
+            localStorage.setItem("actionCardEffects", JSON.stringify(actionCardEffects));
             console.log("[ActionCardPage] Routing to /guess");
             router.push(`/games/${code}/guess`);
           }
@@ -231,7 +234,6 @@ export default function ActionCardPage() {
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
         <h1>Choose an action card</h1>
-        <h2>Or skip to keep them for later</h2>
       </Flex>
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
