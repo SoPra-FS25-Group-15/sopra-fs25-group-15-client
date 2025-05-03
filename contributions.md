@@ -108,12 +108,26 @@ reason).
 |                    | 21.04.2025 | [Commit](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/7342fe036644979d6e0c18630e79aecf32357f51)| This commit closes tasks: #241, #240, #239, #165, #166, #167, #168, #156, #157, #158, #159, #148, #149, #150, #221, #222, #223. Fixes to: #288, #290, #291, #292. | Server part. Essentially, it's refactored code from previous action cards and game flow implementation because they were not aligned with the game flow or message specifications necessary for the client. Also, I added the Google API call and the round cards because they are essential for the round. And implemented the round logic. This commit has no PR because I rebased the main branch onto the feat/game_logic. |
 | **@zhenmei** | 21.04.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/297) |Added endpoint for round card. Defined and stored different card types, assigns exactly three World cards to each player at game start, marks round card as used after play it, and applies their effects to the current round.| Round card is one of the core functionality of the game.|
 |                    | 24.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/303) | Added tests about round card flow and some missing tests, including StatsControllerTest, GameControllerTest, RoundCardServiceIntegrationTest, GameRoundServiceTest, and some simple dto tests. | For more tests coverage on the SonarQube.|
+
+
+## Contributions Week 5 - 2.5.2025 to 8.5.2025, Sprint 2
+
+| **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
+| ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
+| **@froeoe** | 3.5.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/153) | This PR implements the whole game logic in the frontend. The action and round cards have their intended effects. | This PR implements the working base version of this game. |
+|                    | 3.5.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/307) | This PR makes the necessary changes in the backend s.t. the whole game logic in the frontend works.  | This PR implements the working base version of this game. |
+| **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **[@githubUser4]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser5]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser6]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 
-## Contributions Week 5 - [dd.mm.yyyy] to [dd.mm.yyyy], Sprint 2
+## Contributions Week 6 - 9.5.2025 to 15.5.2025, Sprint 2
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
