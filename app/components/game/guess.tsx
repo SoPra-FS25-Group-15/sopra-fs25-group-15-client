@@ -14,7 +14,14 @@ import SockJS from "sockjs-client";
 import { useRouter, useParams } from "next/navigation";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { getApiDomain } from "@/utils/domain";
 
@@ -31,17 +38,40 @@ export default function GameComponent() {
   const [guessSubmitted, setGuessSubmitted] = useState(false);
   const [remainingTime, setRemainingTime] = useState<number>(0);
 
+  // ✂️ NEW STATE FOR ACTION-CARD EFFECTS
+  const [continentHint, setContinentHint] = useState<string | null>(null);
+  const [isBlurred, setIsBlurred] = useState(false);
+
+  // Hydrate any pre-cached actionCardEffects if we missed the live event
+  useEffect(() => {
+    const raw = localStorage.getItem("actionCardEffects");
+    if (!raw || !user?.token) return;
+    try {
+      const actionCardEffects: Record<string, Array<{ effect: string; value?: string; duration?: number }>> =
+        JSON.parse(raw);
+      const myEffects = actionCardEffects[user.token] || [];
+      myEffects.forEach(eff => {
+        if (eff.effect === "blur") {
+          setIsBlurred(true);
+          setTimeout(() => setIsBlurred(false), (eff.duration ?? 15) * 1000);
+        }
+        if (eff.effect === "continent") {
+          setContinentHint(eff.value ?? null);
+        }
+      });
+    } catch (err) {
+      console.error("Error parsing actionCardEffects:", err);
+    } finally {
+      localStorage.removeItem("actionCardEffects");
+    }
+  }, [user?.token]);
+
   const stompClientRef = useRef<Client | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-
-  // Cache pano IDs: key "lat,lng" -> panoId
   const panoCache = useRef<Map<string, string>>(new Map());
-  // Single StreetViewPanorama instance
   const panoInstance = useRef<any>(null);
-  // Debounce timeout handle
   const fetchDebounce = useRef<any>(null);
 
-  // 1) Function: Fetch Street View with cache and debounce
   const fetchPanoramaAt = useCallback((lat: number, lng: number) => {
     const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
     if (!window.google?.maps) {
@@ -49,14 +79,11 @@ export default function GameComponent() {
       return;
     }
     if (panoCache.current.has(key)) {
-      const panoId = panoCache.current.get(key)!;
-      panoInstance.current?.setPano(panoId);
+      panoInstance.current?.setPano(panoCache.current.get(key)!);
       setPanoramaLoaded(true);
       return;
     }
-    if (fetchDebounce.current) {
-      clearTimeout(fetchDebounce.current);
-    }
+    if (fetchDebounce.current) clearTimeout(fetchDebounce.current);
     fetchDebounce.current = setTimeout(() => {
       setPanoramaLoaded(false);
       setStreetViewFailed(false);
@@ -98,7 +125,6 @@ export default function GameComponent() {
     }, 300);
   }, []);
 
-  // 2) Function: Submit the user's guess
   const handleSubmit = useCallback(() => {
     if (!userGuess || !stompClientRef.current?.connected) return;
     stompClientRef.current.publish({
@@ -117,7 +143,6 @@ export default function GameComponent() {
     }
   }, [userGuess, lobbyId, locationCoords]);
 
-  // 3) Function: Map setup for invalidating size
   function MapSetup() {
     const map = useMap();
     useEffect(() => {
@@ -127,7 +152,6 @@ export default function GameComponent() {
     return null;
   }
 
-  // 4) Function: Handle map clicks for submitting guesses
   function MapClickHandler() {
     useMapEvents({
       click(e) {
@@ -139,17 +163,18 @@ export default function GameComponent() {
     return null;
   }
 
-  // 5) Fix Leaflet icons
   useEffect(() => {
     delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-      iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+      iconRetinaUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+      iconUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+      shadowUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
     });
   }, []);
 
-  // 6) Hydrate coordinates and time from storage
   useEffect(() => {
     const lat = localStorage.getItem("roundLatitude");
     const lng = localStorage.getItem("roundLongitude");
@@ -162,53 +187,76 @@ export default function GameComponent() {
       setStreetViewFailed(false);
       fetchPanoramaAt(latitude, longitude);
     }
-    if (rt) {
-      setRemainingTime(parseInt(rt, 10));
-    }
+    if (rt) setRemainingTime(parseInt(rt, 10));
   }, [fetchPanoramaAt]);
 
-  // 7) Inject Google Maps API
   useEffect(() => {
     if (!(window as any).google?.maps && !document.getElementById("gmaps-script")) {
       const script = document.createElement("script");
       script.id = "gmaps-script";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=streetview`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
       script.async = true;
       script.defer = true;
       document.head.appendChild(script);
     }
   }, []);
 
-  // 8) STOMP subscription
   useEffect(() => {
     if (!user?.token || !lobbyId) return;
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () =>
+        new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
-          const evt = JSON.parse(msg.body);
-          if (evt.type === "ROUND_START") {
-            const dto = evt.payload.roundData;
-            setGuessSubmitted(false);
-            setUserGuess(null);
-            setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
-            fetchPanoramaAt(dto.latitude, dto.longitude);
-            localStorage.setItem("roundLatitude", dto.latitude.toString());
-            localStorage.setItem("roundLongitude", dto.longitude.toString());
-            setRemainingTime(dto.roundTime);
-            localStorage.setItem("roundTime", dto.roundTime.toString());
-          } else if (evt.type === "ROUND_WINNER") {
-            localStorage.setItem("roundWinnerEvent", JSON.stringify(evt));
-            router.push(`/games/${code}/results`);
-          } else if (evt.type === "GAME_WINNER") {
-            localStorage.setItem("gameWinnerEvent", JSON.stringify(evt));
-            router.push(`/games/${code}/results`);
+          const evt: any = JSON.parse(msg.body);
+          switch (evt.type) {
+            case "ROUND_START": {
+              const { roundData: dto, actionCardEffects } = evt.payload;
+              if (actionCardEffects) {
+                localStorage.setItem(
+                  "actionCardEffects",
+                  JSON.stringify(actionCardEffects)
+                );
+              }
+              
+              setGuessSubmitted(false);
+              setUserGuess(null);
+              setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
+              fetchPanoramaAt(dto.latitude, dto.longitude);
+              localStorage.setItem("roundLatitude", dto.latitude.toString());
+              localStorage.setItem("roundLongitude", dto.longitude.toString());
+              setRemainingTime(dto.roundTime);
+              localStorage.setItem("roundTime", dto.roundTime.toString());
+
+              setContinentHint(null);
+              setIsBlurred(false);
+
+              const myEffects = actionCardEffects?.[user.token] || [];
+              myEffects.forEach((eff: { effect: string; value?: string; duration?: number }) => {
+                if (eff.effect === "continent") {
+                  setContinentHint(eff.value ?? null);
+                }
+                if (eff.effect === "blur") {
+                  setIsBlurred(true);
+                  setTimeout(() => setIsBlurred(false), (eff.duration || 15) * 1000);
+                }
+              });
+              break;
+            }
+            case "ROUND_WINNER":
+              localStorage.setItem("roundWinnerEvent", JSON.stringify(evt));
+              router.push(`/games/${code}/results`);
+              break;
+            case "GAME_WINNER":
+              localStorage.setItem("gameWinnerEvent", JSON.stringify(evt));
+              router.push(`/games/${code}/results`);
+              break;
           }
         });
       },
-      onStompError: (frame) => console.error(frame),
+      onStompError: console.error,
       onDisconnect: () => {},
     });
     client.activate();
@@ -218,23 +266,22 @@ export default function GameComponent() {
     };
   }, [user?.token, lobbyId, fetchPanoramaAt, router, code]);
 
-  // 9) Countdown and auto-submit
   useEffect(() => {
     if (remainingTime <= 0) {
-      if (!guessSubmitted) {
-        handleSubmit();
+      if (stompClientRef.current?.connected) {
+        stompClientRef.current.publish({
+          destination: `/app/lobby/${lobbyId}/game/round-time-expired`,
+          body: "",
+        });
       }
       return;
     }
-    const iv = setInterval(() => {
-      setRemainingTime((t) => t - 1);
-    }, 1000);
+    const iv = setInterval(() => setRemainingTime((t) => t - 1), 1000);
     return () => clearInterval(iv);
   }, [remainingTime, guessSubmitted, handleSubmit]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
-      {/* Timer ticker */}
       {remainingTime > 0 && (
         <div
           style={{
@@ -253,7 +300,24 @@ export default function GameComponent() {
         </div>
       )}
 
-      {/* Fullscreen Street View */}
+      {continentHint && (
+        <div
+          style={{
+            position: "absolute",
+            top: "1rem",
+            left: "1rem",
+            padding: "0.5rem 1rem",
+            background: "rgba(0,0,0,0.7)",
+            color: "#fff",
+            borderRadius: 4,
+            fontSize: "1.2rem",
+            zIndex: 30,
+          }}
+        >
+          Continent: {continentHint}
+        </div>
+      )}
+
       {!streetViewFailed && (
         <div
           id="street-view-container"
@@ -265,6 +329,8 @@ export default function GameComponent() {
             bottom: 0,
             backgroundColor: "black",
             zIndex: 0,
+            filter: isBlurred ? "blur(8px)" : "none",
+            transition: "filter 0.3s ease-in-out",
           }}
         >
           {!panoramaLoaded && (
@@ -301,7 +367,7 @@ export default function GameComponent() {
           <MapContainer center={[20, 0]} zoom={2} style={{ width: "100%", height: "100%" }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <MapSetup />
-            <MapClickHandler />
+            {remainingTime > 0 && <MapClickHandler />}
             {userGuess && (
               <Marker position={[userGuess.lat, userGuess.lng]}>
                 <Popup>Your guess</Popup>
@@ -316,7 +382,7 @@ export default function GameComponent() {
           {!guessSubmitted && (
             <button
               onClick={handleSubmit}
-              disabled={!userGuess}
+              disabled={!userGuess || remainingTime <= 0}
               style={{
                 position: "absolute",
                 bottom: 8,
@@ -327,7 +393,7 @@ export default function GameComponent() {
                 background: "#007bff",
                 color: "white",
                 border: "none",
-                cursor: userGuess ? "pointer" : "not-allowed",
+                cursor: userGuess && remainingTime > 0 ? "pointer" : "not-allowed",
                 zIndex: 20,
               }}
             >
@@ -337,8 +403,7 @@ export default function GameComponent() {
         </div>
       )}
 
-      {/* LOCK IN button */}
-      {locationCoords && (
+      {locationCoords && remainingTime > 0 && (
         <button
           onClick={handleSubmit}
           style={{
