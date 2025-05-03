@@ -7,7 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Button, Spin, Flex } from "antd";
 
-import GameContainer, { gameState } from "@/components/game/gameContainer";
+import GameContainer from "@/components/game/gameContainer";
 import ActionCardComponent from "@/components/game/actionCard";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import { useGlobalUser } from "@/contexts/globalUser";
@@ -31,22 +31,23 @@ export default function ActionCardPage() {
   const stompClient = useRef<Client | null>(null);
   const gameSub = useRef<StompSubscription | null>(null);
   const errorSub = useRef<StompSubscription | null>(null);
+  const stateSub = useRef<StompSubscription | null>(null);
 
-  // 1) Initialize local game state & default selection
-  useEffect(() => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-    setGame(gameState);
-    const available = getActionCards(gameState.inventory.actionCards);
-    setSelectedCard(available[0] || null);
-    setLoading(false);
-  }, [code, user, router]);
+  // // 1) Initialize local game state & default selection
+  // useEffect(() => {
+  //   if (!user) {
+  //     router.push("/login");
+  //     return;
+  //   }
+  //   setGame(gameState);
+  //   const available = getActionCards(gameState.inventory.actionCards);
+  //   setSelectedCard(available[0] || null);
+  //   setLoading(false);
+  // }, [code, user, router]);
 
-  // 2) STOMP setup — now only navigating on ROUND_START, after storing coords
+  // 2) STOMP setup — now also syncing real-time game state
   useEffect(() => {
-    if (loading || !user?.token) return;
+    if (!user?.token) return;
 
     const stored = localStorage.getItem("lobbyId");
     if (!stored) {
@@ -86,7 +87,7 @@ export default function ActionCardPage() {
           }
         });
 
-        // Personal queue for ERRORs & replacements
+        // Personal queue for ERRORs
         errorSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game`, (msg) => {
           const { type: t, payload: pl } = JSON.parse(msg.body as string);
           if (t === "ERROR") {
@@ -96,6 +97,22 @@ export default function ActionCardPage() {
               onClose: () => setNotification(null),
             });
           }
+        });
+
+        // ── NEW: subscribe to your private game-state feed ──
+        stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg) => {
+          const { payload } = JSON.parse(msg.body as string);
+          const freshState = payload as GameState;
+          setGame(freshState);
+          const available = getActionCards(freshState.inventory.actionCards);
+          setSelectedCard(available[0] || null);
+          setSelectedUsername(null);
+          setLoading(false);
+        });
+        // request the latest state
+        client.publish({
+          destination: `/app/lobby/${lobbyId}/game/state`,
+          body: "",
         });
       },
       onStompError: (frame) => {
@@ -119,14 +136,32 @@ export default function ActionCardPage() {
       console.log("[ActionCardPage] Cleaning up STOMP subscriptions");
       gameSub.current?.unsubscribe();
       errorSub.current?.unsubscribe();
+      stateSub.current?.unsubscribe();
       client.deactivate();
     };
-  }, [loading, user?.token, code, router]);
+  }, [user?.token, code, router]);
+
+  // Debug: why is punishment list empty?
+  useEffect(() => {
+    if (game) {
+      console.log("[ActionCardPage] Debug - game.players:", game.players);
+      console.log("[ActionCardPage] Debug - current user.username:", user?.username);
+      console.log(
+        "[ActionCardPage] Debug - filtered playerList:",
+        game.players.filter((p) => p.username !== user?.username)
+      );
+    }
+  }, [game, user]);
 
   // 3) Handlers
   const handleSubmit = () => {
+    console.log("🔍 handleSubmit – selectedCard:", selectedCard, "selectedUsername:", selectedUsername);
     if (!selectedCard) {
-      setNotification({ type: "error", message: "Please select a card", onClose: () => setNotification(null) });
+      setNotification({
+        type: "error",
+        message: "Please select a card",
+        onClose: () => setNotification(null),
+      });
       return;
     }
     if (selectedCard.type === "punishment" && !selectedUsername) {
@@ -147,7 +182,7 @@ export default function ActionCardPage() {
       destination: `/app/lobby/${lobbyId}/game/play-action-card`,
       body: JSON.stringify({
         actionCardId: selectedCard.identifier,
-        targetPlayerToken: selectedUsername,
+        targetUsername: selectedUsername,
       }),
     });
 
@@ -206,9 +241,11 @@ export default function ActionCardPage() {
               key={idx}
               selected={card.identifier === selectedCard?.identifier}
               {...card}
-              playerList={game.players.map((p) => ({ label: p.username, value: p.username }))}
+              playerList={game.players
+                .filter((p) => p.username !== user?.username)
+                .map((p) => ({ label: p.username, value: p.username }))}
               onClick={() => setSelectedCard(card)}
-              onChange={(username: string) => setSelectedUsername(username)}
+              onChange={(token: string) => setSelectedUsername(token)}
             />
           ))}
         </section>

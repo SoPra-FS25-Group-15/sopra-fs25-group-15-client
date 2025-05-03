@@ -14,7 +14,14 @@ import SockJS from "sockjs-client";
 import { useRouter, useParams } from "next/navigation";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { getApiDomain } from "@/utils/domain";
 
@@ -24,12 +31,19 @@ export default function GameComponent() {
   const { user } = useGlobalUser();
   const lobbyId = Number(localStorage.getItem("lobbyId"));
 
-  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationCoords, setLocationCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [panoramaLoaded, setPanoramaLoaded] = useState(false);
   const [streetViewFailed, setStreetViewFailed] = useState(false);
   const [userGuess, setUserGuess] = useState<{ lat: number; lng: number } | null>(null);
   const [guessSubmitted, setGuessSubmitted] = useState(false);
   const [remainingTime, setRemainingTime] = useState<number>(0);
+
+  // ✂️ NEW STATE FOR ACTION‐CARD EFFECTS
+  const [continentHint, setContinentHint] = useState<string | null>(null);
+  const [isBlurred, setIsBlurred] = useState(false);
 
   const stompClientRef = useRef<Client | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -115,7 +129,7 @@ export default function GameComponent() {
         { padding: [20, 20] }
       );
     }
-  }, [userGuess, lobbyId, locationCoords]);
+  }, [userGuess, lobbyId, locationCoords, userGuess, locationCoords]);
 
   // 3) Function: Map setup for invalidating size
   function MapSetup() {
@@ -143,9 +157,12 @@ export default function GameComponent() {
   useEffect(() => {
     delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-      iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+      iconRetinaUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+      iconUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+      shadowUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
     });
   }, []);
 
@@ -183,28 +200,59 @@ export default function GameComponent() {
   useEffect(() => {
     if (!user?.token || !lobbyId) return;
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
+      webSocketFactory: () =>
+        new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
           const evt = JSON.parse(msg.body);
-          if (evt.type === "ROUND_START") {
-            const dto = evt.payload.roundData;
-            setGuessSubmitted(false);
-            setUserGuess(null);
-            setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
-            fetchPanoramaAt(dto.latitude, dto.longitude);
-            localStorage.setItem("roundLatitude", dto.latitude.toString());
-            localStorage.setItem("roundLongitude", dto.longitude.toString());
-            setRemainingTime(dto.roundTime);
-            localStorage.setItem("roundTime", dto.roundTime.toString());
-          } else if (evt.type === "ROUND_WINNER") {
-            localStorage.setItem("roundWinnerEvent", JSON.stringify(evt));
-            router.push(`/games/${code}/results`);
-          } else if (evt.type === "GAME_WINNER") {
-            localStorage.setItem("gameWinnerEvent", JSON.stringify(evt));
-            router.push(`/games/${code}/results`);
+          switch (evt.type) {
+            // ▶️ HANDLE ACTION CARD PLAYED
+            case "ACTION_CARD_PLAYED": {
+              const p: any = evt.payload;
+              // 7 Choices → show continent only to the player who played it
+              if (p.effect === "continent" && p.playerToken === user.token) {
+                setContinentHint(p.value);
+              }
+              // Bad Sight → blur only the targeted player
+              if (p.effect === "blur" && p.targetPlayerToken === user.token) {
+                setIsBlurred(true);
+                // p.duration is in seconds; default to 15 if missing
+                const dur = (p.duration || 15) * 1000;
+                setTimeout(() => setIsBlurred(false), dur);
+              }
+              break;
+            }
+
+            // ▶️ EXISTING ROUND_START
+            case "ROUND_START": {
+              const dto = evt.payload.roundData;
+              setGuessSubmitted(false);
+              setUserGuess(null);
+              setLocationCoords({ lat: dto.latitude, lng: dto.longitude });
+              fetchPanoramaAt(dto.latitude, dto.longitude);
+              localStorage.setItem("roundLatitude", dto.latitude.toString());
+              localStorage.setItem("roundLongitude", dto.longitude.toString());
+              setRemainingTime(dto.roundTime);
+              localStorage.setItem("roundTime", dto.roundTime.toString());
+              // reset any lingering hints/blur each round
+              setContinentHint(null);
+              setIsBlurred(false);
+              break;
+            }
+
+            // ▶️ EXISTING ROUND_WINNER
+            case "ROUND_WINNER":
+              localStorage.setItem("roundWinnerEvent", JSON.stringify(evt));
+              router.push(`/games/${code}/results`);
+              break;
+
+            // ▶️ EXISTING GAME_WINNER
+            case "GAME_WINNER":
+              localStorage.setItem("gameWinnerEvent", JSON.stringify(evt));
+              router.push(`/games/${code}/results`);
+              break;
           }
         });
       },
@@ -225,7 +273,7 @@ export default function GameComponent() {
       if (stompClientRef.current?.connected) {
         stompClientRef.current.publish({
           destination: `/app/lobby/${lobbyId}/game/round-time-expired`,
-          body: ""
+          body: "",
         });
       }
       return;
@@ -257,6 +305,25 @@ export default function GameComponent() {
         </div>
       )}
 
+      {/* 🌍 CONTINENT HINT (7 Choices card) */}
+      {continentHint && (
+        <div
+          style={{
+            position: "absolute",
+            top: "1rem",
+            left: "1rem",
+            padding: "0.5rem 1rem",
+            background: "rgba(0,0,0,0.7)",
+            color: "#fff",
+            borderRadius: 4,
+            fontSize: "1.2rem",
+            zIndex: 30,
+          }}
+        >
+          Continent: {continentHint}
+        </div>
+      )}
+
       {/* Fullscreen Street View */}
       {!streetViewFailed && (
         <div
@@ -269,6 +336,9 @@ export default function GameComponent() {
             bottom: 0,
             backgroundColor: "black",
             zIndex: 0,
+            // 🔍 BAD SIGHT blur filter
+            filter: isBlurred ? "blur(8px)" : "none",
+            transition: "filter 0.3s ease-in-out",
           }}
         >
           {!panoramaLoaded && (
