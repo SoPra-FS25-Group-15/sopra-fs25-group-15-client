@@ -221,8 +221,12 @@ export default function GameComponent() {
   // 9) Countdown and auto-submit
   useEffect(() => {
     if (remainingTime <= 0) {
-      if (!guessSubmitted) {
-        handleSubmit();
+      // auto‐submit local guess if none yet
+      if (stompClientRef.current?.connected) {
+        stompClientRef.current.publish({
+          destination: `/app/lobby/${lobbyId}/game/round-time-expired`,
+          body: ""
+        });
       }
       return;
     }
@@ -301,7 +305,7 @@ export default function GameComponent() {
           <MapContainer center={[20, 0]} zoom={2} style={{ width: "100%", height: "100%" }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <MapSetup />
-            <MapClickHandler />
+            {remainingTime > 0 && <MapClickHandler />}
             {userGuess && (
               <Marker position={[userGuess.lat, userGuess.lng]}>
                 <Popup>Your guess</Popup>
@@ -316,7 +320,7 @@ export default function GameComponent() {
           {!guessSubmitted && (
             <button
               onClick={handleSubmit}
-              disabled={!userGuess}
+              disabled={!userGuess || remainingTime <= 0}
               style={{
                 position: "absolute",
                 bottom: 8,
@@ -327,7 +331,7 @@ export default function GameComponent() {
                 background: "#007bff",
                 color: "white",
                 border: "none",
-                cursor: userGuess ? "pointer" : "not-allowed",
+                cursor: userGuess && remainingTime > 0 ? "pointer" : "not-allowed",
                 zIndex: 20,
               }}
             >
@@ -338,7 +342,7 @@ export default function GameComponent() {
       )}
 
       {/* LOCK IN button */}
-      {locationCoords && (
+      {locationCoords && remainingTime > 0 && (
         <button
           onClick={handleSubmit}
           style={{
