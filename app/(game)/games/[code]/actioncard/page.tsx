@@ -33,18 +33,6 @@ export default function ActionCardPage() {
   const errorSub = useRef<StompSubscription | null>(null);
   const stateSub = useRef<StompSubscription | null>(null);
 
-  // // 1) Initialize local game state & default selection
-  // useEffect(() => {
-  //   if (!user) {
-  //     router.push("/login");
-  //     return;
-  //   }
-  //   setGame(gameState);
-  //   const available = getActionCards(gameState.inventory.actionCards);
-  //   setSelectedCard(available[0] || null);
-  //   setLoading(false);
-  // }, [code, user, router]);
-
   // 2) STOMP setup — now also syncing real-time game state
   useEffect(() => {
     if (!user?.token) return;
@@ -192,21 +180,6 @@ export default function ActionCardPage() {
     setSubmitted(true);
   };
 
-  const handleSkip = () => {
-    if (!stompConnected) return;
-    const stored = localStorage.getItem("lobbyId");
-    if (!stored) return;
-    const lobbyId = parseInt(stored, 10);
-
-    console.log("[ActionCardPage] Publishing action-cards-complete");
-    stompClient.current?.publish({
-      destination: `/app/lobby/${lobbyId}/game/action-cards-complete`,
-      body: "",
-    });
-
-    setSubmitted(true);
-  };
-
   // Render
   if (loading || !game) {
     return (
@@ -256,9 +229,6 @@ export default function ActionCardPage() {
       <Flex align="center" justify="center" gap={8} style={{ width: "100%" }}>
         <Button onClick={handleSubmit} type="primary" size="large">
           Select card
-        </Button>
-        <Button onClick={handleSkip} type="default" size="large">
-          Skip
         </Button>
       </Flex>
     </GameContainer>

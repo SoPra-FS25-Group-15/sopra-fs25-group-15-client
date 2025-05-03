@@ -171,11 +171,19 @@ export default function ResultsPage() {
     return () => clearInterval(iv);
   }, [roundWinner]);
 
+  // Only auto-redirect to the next round if we have a ROUND_WINNER and the GAME isn't over
   useEffect(() => {
-    if (!roundWinner) return;
+    if (!roundWinner || gameWinner) return;
     const to = setTimeout(() => router.push(`/games/${code}/roundcard`), 30000);
     return () => clearTimeout(to);
-  }, [roundWinner, code, router]);
+  }, [roundWinner, gameWinner, code, router]);
+
+  // If the whole game is won, auto-redirect home after 30s
+  useEffect(() => {
+    if (!gameWinner) return;
+    const to = setTimeout(() => router.push("/"), 30000);
+    return () => clearTimeout(to);
+  }, [gameWinner, router]);
 
   return (
     <div style={{ background: purple[3], minHeight: "100vh", padding: "2rem" }}>
