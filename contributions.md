@@ -116,6 +116,7 @@ reason).
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
 | **@froeoe** | 3.5.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/153) | This PR implements the whole game logic in the frontend. The action and round cards have their intended effects. | This PR implements the working base version of this game. |
 |                    | 3.5.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/307) | This PR makes the necessary changes in the backend s.t. the whole game logic in the frontend works.  | This PR implements the working base version of this game. |
+|                    | 4.5.2025 | [Commit](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/6a110fbda86de6a211f49d688d47316efb7b6833) | This code makes sure also games with more than 2 players work. | Before the whole game crashed, whenever a two punishment card were applied to the same player. |
 | **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
