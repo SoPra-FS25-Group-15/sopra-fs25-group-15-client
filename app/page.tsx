@@ -97,7 +97,7 @@ const Home: FC = () => {
               <span style={{ whiteSpace: "nowrap" }}>Find out where you are on the world. Now</span>
               <span style={{ whiteSpace: "nowrap" }}>as a turn based game with friends.</span>
             </Flex>
-            <Button type="primary" size="large" style={{ marginTop: 64 }} href="/game">
+            <Button type="primary" size="large" style={{ marginTop: 64 }} href="/register">
               Sign up now
             </Button>
           </Flex>
