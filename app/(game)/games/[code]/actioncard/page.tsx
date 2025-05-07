@@ -14,6 +14,7 @@ import { useGlobalUser } from "@/contexts/globalUser";
 import { getApiDomain } from "@/utils/domain";
 import { ActionCard, getActionCards } from "@/types/game/actioncard";
 import { GameState } from "@/types/game/game";
+import { loadGameStateFromLocalStorage, setGameStateToLocalStorage } from "@/utils/localStorageGameStateManager";
 
 export default function ActionCardPage() {
   const { code } = useParams() as { code: string };
@@ -21,7 +22,6 @@ export default function ActionCardPage() {
   const { user } = useGlobalUser();
 
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-  const [game, setGame] = useState<GameState | null>(null);
   const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
   const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -33,10 +33,16 @@ export default function ActionCardPage() {
   const errorSub = useRef<StompSubscription | null>(null);
   const stateSub = useRef<StompSubscription | null>(null);
 
+  const loadGameState = React.useCallback((): Partial<GameState> => {
+    return loadGameStateFromLocalStorage();
+  }, []);
+
+  const [gameState, setGameState] = useState<Partial<GameState> | null>(null);
+
   // 2) STOMP setup — now also syncing real-time game state
   useEffect(() => {
     if (!user?.token) return;
-
+    setGameState(loadGameState());
     const stored = localStorage.getItem("lobbyId");
     if (!stored) {
       setNotification({
@@ -65,7 +71,7 @@ export default function ActionCardPage() {
           if (gType === "ROUND_START") {
             // Persist the coordinates + time before navigating
 
-            const {roundData: dto, actionCardEffects } = payload;
+            const { roundData: dto, actionCardEffects } = payload;
             console.log("[ActionCardPage] Storing round data:", dto);
             localStorage.setItem("roundLatitude", dto.latitude.toString());
             localStorage.setItem("roundLongitude", dto.longitude.toString());
@@ -93,8 +99,9 @@ export default function ActionCardPage() {
         // ── NEW: subscribe to your private game-state feed ──
         stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg) => {
           const { payload } = JSON.parse(msg.body as string);
+          setGameStateToLocalStorage(payload);
+
           const freshState = payload as GameState;
-          setGame(freshState);
           const available = getActionCards(freshState.inventory.actionCards);
           setSelectedCard(available[0] || null);
           setSelectedUsername(null);
@@ -130,19 +137,19 @@ export default function ActionCardPage() {
       stateSub.current?.unsubscribe();
       client.deactivate();
     };
-  }, [user?.token, code, router]);
+  }, [user?.token, code, router, loadGameState]);
 
   // Debug: why is punishment list empty?
   useEffect(() => {
-    if (game) {
-      console.log("[ActionCardPage] Debug - game.players:", game.players);
+    if (gameState && gameState.players && user) {
+      console.log("[ActionCardPage] Debug - game.players:", gameState.players);
       console.log("[ActionCardPage] Debug - current user.username:", user?.username);
       console.log(
         "[ActionCardPage] Debug - filtered playerList:",
-        game.players.filter((p) => p.username !== user?.username)
+        gameState.players.filter((p) => p.username !== user?.username)
       );
     }
-  }, [game, user]);
+  }, [gameState, user]);
 
   // 3) Handlers
   const handleSubmit = () => {
@@ -181,7 +188,7 @@ export default function ActionCardPage() {
   };
 
   // Render
-  if (loading || !game) {
+  if (loading || !gameState) {
     return (
       <Flex justify="center" align="center" style={{ width: "100%", height: "100%", padding: 30 }}>
         <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
@@ -190,7 +197,7 @@ export default function ActionCardPage() {
   }
   if (submitted) {
     return (
-      <GameContainer>
+      <GameContainer gameState={gameState}>
         {notification && <Notification {...notification} />}
         <div style={{ textAlign: "center", padding: 30 }}>
           <h1>Waiting for other players to submit…</h1>
@@ -202,7 +209,7 @@ export default function ActionCardPage() {
     );
   }
   return (
-    <GameContainer>
+    <GameContainer gameState={gameState}>
       {notification && <Notification {...notification} />}
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
@@ -210,19 +217,31 @@ export default function ActionCardPage() {
       </Flex>
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
-        <section style={{ overflowX: "auto", display: "flex", gap: 20, padding: "30px 10px", height: 350 }}>
-          {getActionCards(game.inventory.actionCards).map((card, idx) => (
-            <ActionCardComponent
-              key={idx}
-              selected={card.identifier === selectedCard?.identifier}
-              {...card}
-              playerList={game.players
-                .filter((p) => p.username !== user?.username)
-                .map((p) => ({ label: p.username, value: p.username }))}
-              onClick={() => setSelectedCard(card)}
-              onChange={(token: string) => setSelectedUsername(token)}
-            />
-          ))}
+        <section
+          style={{
+            overflowX: "auto",
+            display: "flex",
+            gap: 20,
+            padding: "30px 10px",
+            height: 350,
+          }}
+        >
+          {gameState.inventory ? (
+            getActionCards(gameState.inventory.actionCards).map((card, idx) => (
+              <ActionCardComponent
+                key={idx}
+                selected={card.identifier === selectedCard?.identifier}
+                {...card}
+                playerList={(gameState.players ?? [])
+                  .filter((p) => p.username !== user?.username)
+                  .map((p) => ({ label: p.username, value: p.username }))}
+                onClick={() => setSelectedCard(card)}
+                onChange={(token: string) => setSelectedUsername(token)}
+              />
+            ))
+          ) : (
+            <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+          )}
         </section>
       </Flex>
 

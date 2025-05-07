@@ -13,6 +13,8 @@ import { useGlobalUser } from "@/contexts/globalUser";
 import { useRouter, useParams } from "next/navigation";
 import { getApiDomain } from "@/utils/domain";
 import { getRoundCards, RoundCardIdentifier } from "@/types/game/roundcard";
+import { GameState } from "@/types/game/game";
+import { loadGameStateFromLocalStorage, setGameStateToLocalStorage } from "@/utils/localStorageGameStateManager";
 
 export default function RoundCardPageComponent() {
   const router = useRouter();
@@ -35,9 +37,16 @@ export default function RoundCardPageComponent() {
   const stateSub = useRef<StompSubscription | null>(null);
   const errorSub = useRef<StompSubscription | null>(null);
 
+  const loadGameState = React.useCallback((): Partial<GameState> => {
+    return loadGameStateFromLocalStorage();
+  }, []);
+
+  const [gameState, setGameState] = useState<Partial<GameState> | null>(null);
+
   // 1) Load lobbyId
   useEffect(() => {
     if (!user) return;
+    setGameState(loadGameState());
     const stored = localStorage.getItem("lobbyId");
     if (!stored) {
       setNotification({
@@ -49,7 +58,7 @@ export default function RoundCardPageComponent() {
       return;
     }
     setLobbyId(parseInt(stored, 10));
-  }, [user]);
+  }, [loadGameState, user]);
 
   // 2) STOMP setup
   useEffect(() => {
@@ -74,7 +83,10 @@ export default function RoundCardPageComponent() {
         stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg: IMessage) => {
           const { type, payload } = JSON.parse(msg.body);
           if (type === "GAME_STATE") {
+            setGameStateToLocalStorage(payload);
+
             const rawIds: string[] = payload.inventory.roundCards;
+
             // keep raw for submission
             setRawRoundCardIds(rawIds);
             // derive clean identifiers
@@ -122,7 +134,7 @@ export default function RoundCardPageComponent() {
       errorSub.current?.unsubscribe();
       client.deactivate();
     };
-  }, [lobbyId, user?.token, code, router]);
+  }, [lobbyId, user?.token, user?.username, code, router]);
 
   // 3) submit chosen full ID
   const handleSubmit = () => {
@@ -135,23 +147,13 @@ export default function RoundCardPageComponent() {
   };
 
   // 4) render
-  if (loading) {
-    return (
-      <GameContainer>
-        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
-      </GameContainer>
-    );
+  if (loading || !gameState) {
+    return <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />;
   }
-  if (!roundCardIds.length) {
-    return (
-      <GameContainer>
-        <p style={{ color: "#fff", textAlign: "center" }}>No round cards available.</p>
-      </GameContainer>
-    );
-  }
+
   if (isChooser) {
     return (
-      <GameContainer leftHidden>
+      <GameContainer gameState={gameState} showPickedRoundCardContainer={false}>
         {notification && <Notification {...notification} />}
         <h1 style={{ textAlign: "center" }}>Select your round card</h1>
         <section style={{ display: "flex", gap: 20, padding: 20, overflowX: "auto", height: 350 }}>
@@ -167,8 +169,9 @@ export default function RoundCardPageComponent() {
       </GameContainer>
     );
   }
+
   return (
-    <GameContainer leftHidden>
+    <GameContainer gameState={gameState} showPickedRoundCardContainer={false}>
       {notification && <Notification {...notification} />}
       <h1 style={{ textAlign: "center", padding: 30 }}>Waiting for the chooser to pick…</h1>
       <Flex justify="center" align="center" style={{ width: "100%", height: "100%" }}>

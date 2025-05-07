@@ -8,6 +8,7 @@ export interface GameState {
   currentScreen: GameScreen;
   roundCardSubmitter: string;
   activeRoundCard: RoundCardIdentifier;
+  guessScreenAttributes: GuessScreenAttributes;
   inventory: Inventory;
   players: Player[];
 }
@@ -22,6 +23,14 @@ export interface Player {
   roundCardsLeft: number;
   actionCardsLeft: number;
   activeActionCards: ActionCardIdentifier[];
+}
+
+export interface GuessScreenAttributes {
+  time: number;
+  guessLocation: {
+    lat: number;
+    lon: number;
+  };
 }
 
 export interface GameRecord {
