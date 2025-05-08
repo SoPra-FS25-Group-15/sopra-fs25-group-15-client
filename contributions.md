@@ -124,8 +124,7 @@ reason).
 |                    | 07.05.2025| [Commit](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/58f7f5bb386e51b22e26a247ae133682159c2d56) | add two new actioncards for sprint 2, powerup： Clear Vision, punishment：No Labels | enrich the type of actioncards and increase game playability |
 | **TongxiHu** | 08.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/159) | implement Leaderboard UI: Create an interface displaying player rankings, current scores, and details on tie-breaker rules. implement GameHistory UI: Develop and optimize the persistence layer to efficiently retrieve historical game data, ensuring smooth performance for sorting and filtering operations. Ensure end-to-end functionality for sorting, filtering, and error handling between frontend and backend in GameHistory page. Verify data retrieval meets the acceptable load time requirement (under 3 seconds). Return informative error responses and log issues for data retrieval failures. | Provide an interface for tracking player rankings and game history. Enable interaction with competitive and historical data |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
-| **[@githubUser6]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **@julienzb** | 08.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/160) | Making the gameState update dynamically and persisting it in local storage | Every aspect of the game ui updates when the game state updates so the user always sees the most recent data |
 
 ## Contributions Week 6 - 9.5.2025 to 15.5.2025, Sprint 2
 
