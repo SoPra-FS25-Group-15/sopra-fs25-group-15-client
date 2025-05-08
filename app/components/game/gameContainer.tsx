@@ -2,7 +2,6 @@
 
 import PlayerList from "@/components/game/playerList";
 import { useGlobalUser } from "@/contexts/globalUser";
-import { GameState } from "@/types/game/game";
 import LoadingOutlined from "@ant-design/icons/LoadingOutlined";
 import "@ant-design/v5-patch-for-react-19";
 import { purple } from "@ant-design/colors";
@@ -12,26 +11,27 @@ import React, { useEffect, useState } from "react";
 import { getRoundCards } from "@/types/game/roundcard";
 import RoundCardComponent from "./roundCard";
 import UserCard from "../general/usercard";
+import { useGlobalGameState } from "@/contexts/globalGameState";
 
 interface GameContainerProps {
-  gameState: Partial<GameState>;
   children: React.ReactNode;
   showPickedRoundCardContainer?: boolean;
 }
 
-const GameContainer: React.FC<GameContainerProps> = ({ gameState, children, showPickedRoundCardContainer = true }) => {
+const GameContainer: React.FC<GameContainerProps> = ({ children, showPickedRoundCardContainer = true }) => {
   const { code } = useParams() as { code: string };
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
   const { user } = useGlobalUser();
+  const { gameState } = useGlobalGameState();
 
   useEffect(() => {
-    if (localStorage.getItem("user") === null) {
-      return;
-    }
+    if (!user) return;
+    if (!gameState) return;
+
     setLoading(false);
-  }, [code, user, router]);
+  }, [code, user, router, gameState]);
 
   if (loading || !gameState) {
     return (
@@ -47,7 +47,9 @@ const GameContainer: React.FC<GameContainerProps> = ({ gameState, children, show
         {gameState.players ? (
           <PlayerList players={gameState.players} />
         ) : (
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+          <Flex justify="center" align="center" style={{ width: "100%", height: "100%" }}>
+            <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+          </Flex>
         )}
       </div>
 

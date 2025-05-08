@@ -14,12 +14,16 @@ import { useGlobalUser } from "@/contexts/globalUser";
 import { getApiDomain } from "@/utils/domain";
 import { ActionCard, getActionCards } from "@/types/game/actioncard";
 import { GameState } from "@/types/game/game";
-import { loadGameStateFromLocalStorage, setGameStateToLocalStorage } from "@/utils/localStorageGameStateManager";
+import useLocalStorage from "@/hooks/useLocalStorage";
+import { useGlobalGameState } from "@/contexts/globalGameState";
 
 export default function ActionCardPage() {
   const { code } = useParams() as { code: string };
   const router = useRouter();
   const { user } = useGlobalUser();
+  const { gameState } = useGlobalGameState();
+
+  const { set: setGameStateInLocalStorage } = useLocalStorage<Partial<GameState> | null>("gameState", null);
 
   const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
@@ -33,16 +37,11 @@ export default function ActionCardPage() {
   const errorSub = useRef<StompSubscription | null>(null);
   const stateSub = useRef<StompSubscription | null>(null);
 
-  const loadGameState = React.useCallback((): Partial<GameState> => {
-    return loadGameStateFromLocalStorage();
-  }, []);
-
-  const [gameState, setGameState] = useState<Partial<GameState> | null>(null);
-
   // 2) STOMP setup — now also syncing real-time game state
   useEffect(() => {
-    if (!user?.token) return;
-    setGameState(loadGameState());
+    if (!user) return;
+    if (!gameState) return;
+
     const stored = localStorage.getItem("lobbyId");
     if (!stored) {
       setNotification({
@@ -99,7 +98,7 @@ export default function ActionCardPage() {
         // ── NEW: subscribe to your private game-state feed ──
         stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg) => {
           const { payload } = JSON.parse(msg.body as string);
-          setGameStateToLocalStorage(payload);
+          setGameStateInLocalStorage(payload);
 
           const freshState = payload as GameState;
           const available = getActionCards(freshState.inventory.actionCards);
@@ -137,7 +136,7 @@ export default function ActionCardPage() {
       stateSub.current?.unsubscribe();
       client.deactivate();
     };
-  }, [user?.token, code, router, loadGameState]);
+  }, [user?.token, code, router, user, gameState, setGameStateInLocalStorage]);
 
   // Debug: why is punishment list empty?
   useEffect(() => {
@@ -197,7 +196,7 @@ export default function ActionCardPage() {
   }
   if (submitted) {
     return (
-      <GameContainer gameState={gameState}>
+      <GameContainer>
         {notification && <Notification {...notification} />}
         <div style={{ textAlign: "center", padding: 30 }}>
           <h1>Waiting for other players to submit…</h1>
@@ -209,7 +208,7 @@ export default function ActionCardPage() {
     );
   }
   return (
-    <GameContainer gameState={gameState}>
+    <GameContainer>
       {notification && <Notification {...notification} />}
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>

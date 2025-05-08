@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import ContextProvider from "./contexts/contextProvider";
 import { WebSocketProvider } from "./contexts/webSocketProvider";
 import { Space_Grotesk } from "next/font/google";
+import LocalStorageHandler from "./contexts/localStorageHandler";
 
 export const metadata: Metadata = {
   title: "ActionGuessr",
@@ -36,39 +37,41 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <ContextProvider>
           <WebSocketProvider>
-            <ConfigProvider
-              theme={{
-                token: {
-                  //Seed token
-                  fontFamily: `${spaceGrotesk.style.fontFamily}, sans-serif`,
-                  colorPrimary: purple[5],
-                  colorBgBase: "#222",
-                  fontSize: 16,
-                  colorLink: purple[3],
-                  //Map token
-                  colorTextBase: "#fff",
-                  colorPrimaryBg: "#222",
-                  colorBgElevated: "#333",
-                  colorBgSolid: purple[5],
-                  colorBorder: "#555",
-                  colorBorderSecondary: "#444",
-                  colorErrorBg: red[9],
-                  colorErrorBorder: red[8],
-                  colorWarningBg: yellow[9],
-                  colorWarningBorder: yellow[8],
-                  colorSuccessBg: green[9],
-                  colorSuccessBorder: green[8],
-                  colorInfoBg: blue[9],
-                  colorInfoBorder: blue[8],
-                  colorErrorText: "#fff",
-                  //Alias token
-                  colorBgSpotlight: "#333",
-                  colorTextPlaceholder: "#aaa",
-                },
-              }}
-            >
-              <AntdRegistry>{children}</AntdRegistry>
-            </ConfigProvider>
+            <LocalStorageHandler>
+              <ConfigProvider
+                theme={{
+                  token: {
+                    //Seed token
+                    fontFamily: `${spaceGrotesk.style.fontFamily}, sans-serif`,
+                    colorPrimary: purple[5],
+                    colorBgBase: "#222",
+                    fontSize: 16,
+                    colorLink: purple[3],
+                    //Map token
+                    colorTextBase: "#fff",
+                    colorPrimaryBg: "#222",
+                    colorBgElevated: "#333",
+                    colorBgSolid: purple[5],
+                    colorBorder: "#555",
+                    colorBorderSecondary: "#444",
+                    colorErrorBg: red[9],
+                    colorErrorBorder: red[8],
+                    colorWarningBg: yellow[9],
+                    colorWarningBorder: yellow[8],
+                    colorSuccessBg: green[9],
+                    colorSuccessBorder: green[8],
+                    colorInfoBg: blue[9],
+                    colorInfoBorder: blue[8],
+                    colorErrorText: "#fff",
+                    //Alias token
+                    colorBgSpotlight: "#333",
+                    colorTextPlaceholder: "#aaa",
+                  },
+                }}
+              >
+                <AntdRegistry>{children}</AntdRegistry>
+              </ConfigProvider>
+            </LocalStorageHandler>
           </WebSocketProvider>
         </ContextProvider>
       </body>

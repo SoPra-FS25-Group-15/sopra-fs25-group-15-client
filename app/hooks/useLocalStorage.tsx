@@ -63,8 +63,11 @@ function notify(key: string) {
     case "user":
       window.dispatchEvent(new Event("userChanged"));
       break;
-    case "user-attributes":
+    case "userAttributes":
       window.dispatchEvent(new Event("userAttributesChanged"));
+      break;
+    case "gameState":
+      window.dispatchEvent(new Event("gameStateChanged"));
       break;
     default:
       break;
