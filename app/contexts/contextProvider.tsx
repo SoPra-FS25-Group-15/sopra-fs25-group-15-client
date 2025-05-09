@@ -1,10 +1,13 @@
-import { GlobalUserProvider } from "./globalUser";
-import { GlobalUserAttributesProvider } from "./globalUserAttributes";
+import { GlobalGameStateProvider } from "@/contexts/globalGameState";
+import { GlobalUserProvider } from "@/contexts/globalUser";
+import { GlobalUserAttributesProvider } from "@/contexts/globalUserAttributes";
 
 const ContextProvider = ({ children }: { children: React.ReactNode }) => (
-  <GlobalUserAttributesProvider>
-    <GlobalUserProvider>{children}</GlobalUserProvider>
-  </GlobalUserAttributesProvider>
+  <GlobalGameStateProvider>
+    <GlobalUserAttributesProvider>
+      <GlobalUserProvider>{children}</GlobalUserProvider>
+    </GlobalUserAttributesProvider>
+  </GlobalGameStateProvider>
 );
 
 export default ContextProvider;
