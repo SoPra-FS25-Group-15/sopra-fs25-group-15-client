@@ -6,9 +6,8 @@ import LoadingOutlined from "@ant-design/icons/LoadingOutlined";
 import "@ant-design/v5-patch-for-react-19";
 import { purple } from "@ant-design/colors";
 import { Flex, Spin } from "antd";
-import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { getRoundCards } from "@/types/game/roundcard";
+import { getRoundCards, RoundCardIdentifier } from "@/types/game/roundcard";
 import RoundCardComponent from "./roundCard";
 import UserCard from "../general/usercard";
 import { useGlobalGameState } from "@/contexts/globalGameState";
@@ -19,10 +18,8 @@ interface GameContainerProps {
 }
 
 const GameContainer: React.FC<GameContainerProps> = ({ children, showPickedRoundCardContainer = true }) => {
-  const { code } = useParams() as { code: string };
   const [loading, setLoading] = useState(true);
 
-  const router = useRouter();
   const { user } = useGlobalUser();
   const { gameState } = useGlobalGameState();
 
@@ -31,7 +28,7 @@ const GameContainer: React.FC<GameContainerProps> = ({ children, showPickedRound
     if (!gameState) return;
 
     setLoading(false);
-  }, [code, user, router, gameState]);
+  }, [user, gameState]);
 
   if (loading || !gameState) {
     return (
@@ -100,9 +97,11 @@ const GameContainer: React.FC<GameContainerProps> = ({ children, showPickedRound
               </Flex>
               {gameState.activeRoundCard && (
                 <div style={{ height: 350 }}>
-                  {getRoundCards([gameState.activeRoundCard]).map((card, index) => {
-                    return <RoundCardComponent key={index} {...card} selected={false} onClick={() => {}} />;
-                  })}
+                  {getRoundCards([gameState.activeRoundCard.split("-")[0] as RoundCardIdentifier]).map(
+                    (card, index) => {
+                      return <RoundCardComponent key={index} {...card} selected={false} onClick={() => {}} />;
+                    }
+                  )}
                 </div>
               )}
             </Flex>

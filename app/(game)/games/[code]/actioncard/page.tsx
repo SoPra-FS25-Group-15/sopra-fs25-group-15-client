@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Client, StompSubscription } from "@stomp/stompjs";
+import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { useRouter, useParams } from "next/navigation";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -14,8 +14,9 @@ import { useGlobalUser } from "@/contexts/globalUser";
 import { getApiDomain } from "@/utils/domain";
 import { ActionCard, getActionCards } from "@/types/game/actioncard";
 import { GameState } from "@/types/game/game";
-import useLocalStorage from "@/hooks/useLocalStorage";
 import { useGlobalGameState } from "@/contexts/globalGameState";
+import useOnceWhenReady from "@/hooks/useOnceWhenReady";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 export default function ActionCardPage() {
   const { code } = useParams() as { code: string };
@@ -23,12 +24,12 @@ export default function ActionCardPage() {
   const { user } = useGlobalUser();
   const { gameState } = useGlobalGameState();
 
-  const { set: setGameStateInLocalStorage } = useLocalStorage<Partial<GameState> | null>("gameState", null);
+  const { set: setGameState } = useLocalStorage<Partial<GameState> | null>("gameState", null);
 
   const [notification, setNotification] = useState<NotificationProps | null>(null);
+  const [lobbyId, setLobbyId] = useState<number | null>(null);
   const [selectedCard, setSelectedCard] = useState<ActionCard | null>(null);
   const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [stompConnected, setStompConnected] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
 
@@ -37,11 +38,9 @@ export default function ActionCardPage() {
   const errorSub = useRef<StompSubscription | null>(null);
   const stateSub = useRef<StompSubscription | null>(null);
 
-  // 2) STOMP setup — now also syncing real-time game state
+  // 1) Load lobbyId
   useEffect(() => {
     if (!user) return;
-    if (!gameState) return;
-
     const stored = localStorage.getItem("lobbyId");
     if (!stored) {
       setNotification({
@@ -51,7 +50,12 @@ export default function ActionCardPage() {
       });
       return;
     }
-    const lobbyId = parseInt(stored, 10);
+    setLobbyId(parseInt(stored));
+  }, [user]);
+
+  // 2) STOMP setup — run once when lobbyId and user are ready
+  useOnceWhenReady([lobbyId, user], () => {
+    if (!user || !lobbyId) return; // telling TypeScript that the values will not be null
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
@@ -63,27 +67,40 @@ export default function ActionCardPage() {
         console.log("[ActionCardPage] STOMP connected");
         setStompConnected(true);
 
-        // Broadcast channel: wait for ROUND_START
+        // A) GAME STATE
+        stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg: IMessage) => {
+          const { type, payload }: { type: string; payload: GameState } = JSON.parse(msg.body);
+          if (type === "GAME_STATE") {
+            setGameState(payload);
+
+            if (payload.currentScreen === "GUESS") {
+              router.push(`/games/${code}/guess`);
+            }
+
+            if (payload.inventory.actionCards.length > 0) {
+              setSelectedCard(getActionCards([payload.inventory.actionCards[0]])[0] || null);
+              setSelectedUsername(null);
+            }
+          }
+        });
+
+        // B) ACTION CARD EFFECTS (Should be part of game state)
         gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
           const { type: gType, payload } = JSON.parse(msg.body as string);
           console.log("[ActionCardPage] Received", gType, payload);
           if (gType === "ROUND_START") {
-            // Persist the coordinates + time before navigating
-
-            const { roundData: dto, actionCardEffects } = payload;
-            console.log("[ActionCardPage] Storing round data:", dto);
-            localStorage.setItem("roundLatitude", dto.latitude.toString());
-            localStorage.setItem("roundLongitude", dto.longitude.toString());
-            localStorage.setItem("roundTime", dto.roundTime.toString());
-
-            console.log("[ActionCardPage] Storing actionCardEffects:", actionCardEffects);
+            const { actionCardEffects } = payload;
             localStorage.setItem("actionCardEffects", JSON.stringify(actionCardEffects));
-            console.log("[ActionCardPage] Routing to /guess");
-            router.push(`/games/${code}/guess`);
           }
         });
 
-        // Personal queue for ERRORs
+        // c) INITIAL GAME STATE REQUEST
+        client.publish({
+          destination: `/app/lobby/${lobbyId}/game/state`,
+          body: "",
+        });
+
+        // D) ERROR
         errorSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game`, (msg) => {
           const { type: t, payload: pl } = JSON.parse(msg.body as string);
           if (t === "ERROR") {
@@ -93,23 +110,6 @@ export default function ActionCardPage() {
               onClose: () => setNotification(null),
             });
           }
-        });
-
-        // ── NEW: subscribe to your private game-state feed ──
-        stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg) => {
-          const { payload } = JSON.parse(msg.body as string);
-          setGameStateInLocalStorage(payload);
-
-          const freshState = payload as GameState;
-          const available = getActionCards(freshState.inventory.actionCards);
-          setSelectedCard(available[0] || null);
-          setSelectedUsername(null);
-          setLoading(false);
-        });
-        // request the latest state
-        client.publish({
-          destination: `/app/lobby/${lobbyId}/game/state`,
-          body: "",
         });
       },
       onStompError: (frame) => {
@@ -136,22 +136,18 @@ export default function ActionCardPage() {
       stateSub.current?.unsubscribe();
       client.deactivate();
     };
-  }, [user?.token, code, router, user, gameState, setGameStateInLocalStorage]);
-
-  // Debug: why is punishment list empty?
-  useEffect(() => {
-    if (gameState && gameState.players && user) {
-      console.log("[ActionCardPage] Debug - game.players:", gameState.players);
-      console.log("[ActionCardPage] Debug - current user.username:", user?.username);
-      console.log(
-        "[ActionCardPage] Debug - filtered playerList:",
-        gameState.players.filter((p) => p.username !== user?.username)
-      );
-    }
-  }, [gameState, user]);
+  });
 
   // 3) Handlers
   const handleSubmit = () => {
+    if (!stompConnected) {
+      setNotification({
+        type: "error",
+        message: "Could not connect to the game server, please reload the page and try again.",
+        onClose: () => setNotification(null),
+      });
+      return;
+    }
     console.log("🔍 handleSubmit – selectedCard:", selectedCard, "selectedUsername:", selectedUsername);
     if (!selectedCard) {
       setNotification({
@@ -169,10 +165,6 @@ export default function ActionCardPage() {
       });
       return;
     }
-    if (!stompConnected) return;
-    const stored = localStorage.getItem("lobbyId");
-    if (!stored) return;
-    const lobbyId = parseInt(stored, 10);
 
     console.log("[ActionCardPage] Publishing play-action-card", selectedCard.identifier, selectedUsername);
     stompClient.current?.publish({
@@ -187,13 +179,6 @@ export default function ActionCardPage() {
   };
 
   // Render
-  if (loading || !gameState) {
-    return (
-      <Flex justify="center" align="center" style={{ width: "100%", height: "100%", padding: 30 }}>
-        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
-      </Flex>
-    );
-  }
   if (submitted) {
     return (
       <GameContainer>
@@ -225,7 +210,7 @@ export default function ActionCardPage() {
             height: 350,
           }}
         >
-          {gameState.inventory ? (
+          {gameState && gameState.inventory ? (
             getActionCards(gameState.inventory.actionCards).map((card, idx) => (
               <ActionCardComponent
                 key={idx}

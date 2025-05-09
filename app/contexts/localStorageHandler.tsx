@@ -33,14 +33,10 @@ const LocalStorageHandler: FC<{ children: React.ReactNode }> = ({ children }) =>
         }
       } catch (error) {
         if (error instanceof Error) {
-          localStorage.removeItem("user");
-          localStorage.removeItem("userAttributes");
-          localStorage.removeItem("gameState");
-          localStorage.removeItem("lobbyId");
-
+          localStorage.clear();
           console.info("Stored token is invalid, please log in again.");
         } else {
-          console.error("An unknown error occurred during login.");
+          console.error("An unknown error occurred during checking token validity", error);
         }
       }
     },

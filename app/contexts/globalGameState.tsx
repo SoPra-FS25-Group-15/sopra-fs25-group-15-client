@@ -14,7 +14,7 @@ export function GlobalGameStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const update = () => {
-      const stored = window.localStorage.getItem("game-state");
+      const stored = window.localStorage.getItem("gameState");
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<GameState>;
         setGlobalGameState(parsed);
