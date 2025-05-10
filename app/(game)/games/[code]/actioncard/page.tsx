@@ -33,7 +33,30 @@ export default function ActionCardPage() {
   const errorSub = useRef<StompSubscription | null>(null);
   const stateSub = useRef<StompSubscription | null>(null);
 
-  // 2) STOMP setup — now also syncing real-time game state
+  // derive the current hand and targets each render
+  const availableCards = game
+    ? getActionCards(game.inventory.actionCards)
+    : [];
+  const possibleTargets = game
+    ? game.players.filter((p) => p.username !== user?.username)
+    : [];
+
+  // 1️⃣ Whenever the set of available cards changes, pick the first and clear the target
+  useEffect(() => {
+    if (availableCards.length > 0) {
+      setSelectedCard(availableCards[0]);
+      setSelectedUsername(null);
+    }
+  }, [JSON.stringify(availableCards)]);
+
+  // 2️⃣ If there's exactly one other player, auto-select them
+  useEffect(() => {
+    if (possibleTargets.length === 1 && !selectedUsername) {
+      setSelectedUsername(possibleTargets[0].username);
+    }
+  }, [JSON.stringify(possibleTargets), selectedUsername]);
+
+  // 2) STOMP setup — now only syncing real-time game state
   useEffect(() => {
     if (!user?.token) return;
 
@@ -61,19 +84,12 @@ export default function ActionCardPage() {
         // Broadcast channel: wait for ROUND_START
         gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
           const { type: gType, payload } = JSON.parse(msg.body as string);
-          console.log("[ActionCardPage] Received", gType, payload);
           if (gType === "ROUND_START") {
-            // Persist the coordinates + time before navigating
-
-            const {roundData: dto, actionCardEffects } = payload;
-            console.log("[ActionCardPage] Storing round data:", dto);
+            const { roundData: dto, actionCardEffects } = payload;
             localStorage.setItem("roundLatitude", dto.latitude.toString());
             localStorage.setItem("roundLongitude", dto.longitude.toString());
             localStorage.setItem("roundTime", dto.roundTime.toString());
-
-            console.log("[ActionCardPage] Storing actionCardEffects:", actionCardEffects);
             localStorage.setItem("actionCardEffects", JSON.stringify(actionCardEffects));
-            console.log("[ActionCardPage] Routing to /guess");
             router.push(`/games/${code}/guess`);
           }
         });
@@ -90,16 +106,14 @@ export default function ActionCardPage() {
           }
         });
 
-        // ── NEW: subscribe to your private game-state feed ──
+        // ── subscribe to your private game-state feed ──
         stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg) => {
           const { payload } = JSON.parse(msg.body as string);
           const freshState = payload as GameState;
           setGame(freshState);
-          const available = getActionCards(freshState.inventory.actionCards);
-          setSelectedCard(available[0] || null);
-          setSelectedUsername(null);
           setLoading(false);
         });
+
         // request the latest state
         client.publish({
           destination: `/app/lobby/${lobbyId}/game/state`,
@@ -107,24 +121,19 @@ export default function ActionCardPage() {
         });
       },
       onStompError: (frame) => {
-        console.error("[ActionCardPage] STOMP error:", frame.headers["message"]);
         setNotification({
           type: "error",
           message: frame.headers["message"] as string,
           onClose: () => setNotification(null),
         });
       },
-      onDisconnect: () => {
-        console.log("[ActionCardPage] STOMP disconnected");
-        setStompConnected(false);
-      },
+      onDisconnect: () => setStompConnected(false),
     });
 
     client.activate();
     stompClient.current = client;
 
     return () => {
-      console.log("[ActionCardPage] Cleaning up STOMP subscriptions");
       gameSub.current?.unsubscribe();
       errorSub.current?.unsubscribe();
       stateSub.current?.unsubscribe();
@@ -132,35 +141,22 @@ export default function ActionCardPage() {
     };
   }, [user?.token, code, router]);
 
-  // Debug: why is punishment list empty?
+  // Debug
   useEffect(() => {
     if (game) {
-      console.log("[ActionCardPage] Debug - game.players:", game.players);
-      console.log("[ActionCardPage] Debug - current user.username:", user?.username);
-      console.log(
-        "[ActionCardPage] Debug - filtered playerList:",
-        game.players.filter((p) => p.username !== user?.username)
-      );
+      console.log("[ActionCardPage] players:", game.players);
+      console.log("[ActionCardPage] targets:", possibleTargets);
     }
   }, [game, user]);
 
   // 3) Handlers
   const handleSubmit = () => {
-    console.log("🔍 handleSubmit – selectedCard:", selectedCard, "selectedUsername:", selectedUsername);
     if (!selectedCard) {
-      setNotification({
-        type: "error",
-        message: "Please select a card",
-        onClose: () => setNotification(null),
-      });
+      setNotification({ type: "error", message: "Please select a card", onClose: () => setNotification(null) });
       return;
     }
     if (selectedCard.type === "punishment" && !selectedUsername) {
-      setNotification({
-        type: "error",
-        message: "Please select a player to punish",
-        onClose: () => setNotification(null),
-      });
+      setNotification({ type: "error", message: "Please select a player to punish", onClose: () => setNotification(null) });
       return;
     }
     if (!stompConnected) return;
@@ -168,7 +164,6 @@ export default function ActionCardPage() {
     if (!stored) return;
     const lobbyId = parseInt(stored, 10);
 
-    console.log("[ActionCardPage] Publishing play-action-card", selectedCard.identifier, selectedUsername);
     stompClient.current?.publish({
       destination: `/app/lobby/${lobbyId}/game/play-action-card`,
       body: JSON.stringify({
@@ -211,14 +206,12 @@ export default function ActionCardPage() {
 
       <Flex vertical align="center" justify="center" gap={10} style={{ width: "100%" }}>
         <section style={{ overflowX: "auto", display: "flex", gap: 20, padding: "30px 10px", height: 350 }}>
-          {getActionCards(game.inventory.actionCards).map((card, idx) => (
+          {availableCards.map((card, idx) => (
             <ActionCardComponent
               key={idx}
               selected={card.identifier === selectedCard?.identifier}
               {...card}
-              playerList={game.players
-                .filter((p) => p.username !== user?.username)
-                .map((p) => ({ label: p.username, value: p.username }))}
+              playerList={possibleTargets.map((p) => ({ label: p.username, value: p.username }))}
               onClick={() => setSelectedCard(card)}
               onChange={(token: string) => setSelectedUsername(token)}
             />
