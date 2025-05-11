@@ -18,6 +18,7 @@ const LocalStorageHandler: FC<{ children: React.ReactNode }> = ({ children }) =>
 
     if (!pathname.startsWith("/games/")) {
       localStorage.removeItem("gameState");
+      window.dispatchEvent(new Event("gameStateChanged"));
     }
   }, [pathname]);
 
@@ -30,10 +31,14 @@ const LocalStorageHandler: FC<{ children: React.ReactNode }> = ({ children }) =>
         });
         if (response.token) {
           localStorage.setItem("user", JSON.stringify(response));
+          window.dispatchEvent(new Event("userChanged"));
         }
       } catch (error) {
         if (error instanceof Error) {
           localStorage.clear();
+          window.dispatchEvent(new Event("userChanged"));
+          window.dispatchEvent(new Event("userAttributesChanged"));
+          window.dispatchEvent(new Event("gameStateChanged"));
           console.info("Stored token is invalid, please log in again.");
         } else {
           console.error("An unknown error occurred during checking token validity", error);
