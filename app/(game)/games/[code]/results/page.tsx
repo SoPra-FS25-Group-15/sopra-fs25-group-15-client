@@ -108,6 +108,13 @@ export default function ResultsPage() {
       reconnectDelay: 5000,
       onConnect: (frame: Frame) => {
         console.log("[ResultsPage] 🟢 game-events STOMP connected:", frame.headers);
+
+        // ←── ADDITION: always re-join the lobby on each new connection
+        client.publish({
+          destination: `/app/lobby/join/${code}`,
+          body: JSON.stringify({ type: "JOIN", payload: null }),
+        });
+
         console.log(`[ResultsPage] 🔍 subscribing to /topic/lobby/${lobbyId}/game`);
         gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg: IMessage) => {
           console.log("[ResultsPage] ← gameSub raw message:", msg.body);
