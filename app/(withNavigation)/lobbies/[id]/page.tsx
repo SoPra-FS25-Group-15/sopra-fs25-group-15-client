@@ -84,11 +84,8 @@ const LobbyPage: React.FC = () => {
       // game start
       gameSub.current = stompClient.current.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
         console.log("[gameSub] msg:", msg.body);
-        const { type, payload } = JSON.parse(msg.body) as { type: string; payload: any };
+        const { type } = JSON.parse(msg.body) as { type: string };
         if (type === "GAME_START") {
-          console.log("[gameSub] GAME_START → routing to roundcard");
-          // persist chooser token
-          localStorage.setItem("roundChooser", payload.startingPlayerToken);
           router.push(`/games/${lobbyCode}/roundcard`);
         }
       });

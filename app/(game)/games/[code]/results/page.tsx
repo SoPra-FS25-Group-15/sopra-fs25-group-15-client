@@ -12,6 +12,10 @@ import SockJS from "sockjs-client";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { useRouter, useParams } from "next/navigation";
 import { getApiDomain } from "@/utils/domain";
+import useLocalStorage from "@/hooks/useLocalStorage";
+import { GameState } from "@/types/game/game";
+import { useGlobalGameState } from "@/contexts/globalGameState";
+import useOnceWhenReady from "@/hooks/useOnceWhenReady";
 
 const { Title, Text } = Typography;
 
@@ -30,6 +34,9 @@ export default function ResultsPage() {
   const router = useRouter();
   const { code } = useParams() as { code: string };
   const { user } = useGlobalUser();
+  const { gameState } = useGlobalGameState();
+
+  const { set: setGameState } = useLocalStorage<Partial<GameState> | null>("gameState", null);
 
   const [lobbyId, setLobbyId] = useState<number | null>(null);
   const [roundWinner, setRoundWinner] = useState<RoundWinnerEvent | null>(null);
@@ -53,21 +60,16 @@ export default function ResultsPage() {
           round: payload.round,
           distance: payload.distance,
         });
-        // Persist next chooser username
-        localStorage.setItem("roundChooserUsername", payload.winnerUsername);
-        console.log("[ResultsPage] ➡ set roundChooserUsername:", payload.winnerUsername);
-        // If current user is the winner, also persist their token for chooser
-        if (payload.winnerUsername === user.username) {
-          localStorage.setItem("roundChooser", user.token);
-          console.log("[ResultsPage] ➡ set roundChooser (token) for current user");
-        }
+
+        // Persist next chooser username to gameState
+        setGameState({ ...gameState, roundCardSubmitter: payload.winnerUsername });
       } catch (err) {
         console.error("[ResultsPage] ❌ parse error:", err);
       } finally {
         localStorage.removeItem("roundWinnerEvent");
       }
     }
-  }, [user]);
+  }, [gameState, setGameState, user]);
 
   // 0b) Hydrate any stored GAME_WINNER event after user is ready
   useEffect(() => {
@@ -87,34 +89,17 @@ export default function ResultsPage() {
     }
   }, [user]);
 
-  // 1) Pull lobbyId out of localStorage so we can subscribe to game-events
+  // 1) Load lobbyId
   useEffect(() => {
+    if (!user) return;
     const stored = localStorage.getItem("lobbyId");
-    console.log("[ResultsPage] ▶ reading lobbyId from localStorage:", stored);
-    if (stored) {
-      const id = parseInt(stored, 10);
-      if (!isNaN(id)) {
-        setLobbyId(id);
-        console.log("[ResultsPage] ⇒ setLobbyId:", id);
-      } else {
-        console.error("[ResultsPage] ✖ invalid lobbyId in localStorage:", stored);
-      }
-    } else {
-      console.error("[ResultsPage] ✖ no lobbyId in localStorage");
-      message.error("Missing lobbyId—please rejoin the lobby.");
-    }
-  }, []);
+    if (!stored) return;
+    setLobbyId(parseInt(stored));
+  }, [user]);
 
   // 2) Game-events STOMP subscription
-  useEffect(() => {
-    if (!user?.token) {
-      console.log("[ResultsPage] ⏸ skipping game-events STOMP (no token)");
-      return;
-    }
-    if (lobbyId == null) {
-      console.log("[ResultsPage] ⏸ skipping game-events STOMP (lobbyId not set)");
-      return;
-    }
+  useOnceWhenReady([user?.token, lobbyId, setGameState, gameState], () => {
+    if (!lobbyId || !user?.token || !gameState) return;
 
     console.log(`[ResultsPage] ▶ connecting to STOMP for game-events (lobbyId=${lobbyId}) at /ws/lobby-manager`);
     const client = new Client({
@@ -133,7 +118,10 @@ export default function ResultsPage() {
             if (evt.type === "ROUND_WINNER") {
               setRoundWinner(evt as RoundWinnerEvent);
               console.log("[ResultsPage] ⇒ roundWinner set by STOMP:", evt);
-              localStorage.setItem("roundChooserUsername", evt.winnerUsername);
+
+              // Update the game state
+              setGameState({ ...gameState, roundCardSubmitter: evt.winnerUsername });
+              console.log("[ResultsPage] ⇒ gameState updated with roundCardSubmitter:", evt.winnerUsername);
             }
             if (evt.type === "GAME_WINNER") {
               setGameWinner((evt as GameWinnerEvent).winnerUsername);
@@ -161,29 +149,31 @@ export default function ResultsPage() {
       gameSub.current?.unsubscribe();
       client.deactivate();
     };
-  }, [user?.token, lobbyId]);
+  });
 
-  // 3) Countdown & auto-redirect for next round (only if roundWinner)
+  // Unified countdown and auto-redirect logic
   useEffect(() => {
-    if (!roundWinner) return;
-    setCount(30);
-    const iv = setInterval(() => setCount((c) => c - 1), 1000);
-    return () => clearInterval(iv);
-  }, [roundWinner]);
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  // Only auto-redirect to the next round if we have a ROUND_WINNER and the GAME isn't over
-  useEffect(() => {
-    if (!roundWinner || gameWinner) return;
-    const to = setTimeout(() => router.push(`/games/${code}/roundcard`), 30000);
-    return () => clearTimeout(to);
+    if (roundWinner) {
+      if (!gameWinner) {
+        setCount(10);
+        timeoutId = setTimeout(() => router.push(`/games/${code}/roundcard`), 10000);
+      } else {
+        setCount(30);
+        timeoutId = setTimeout(() => router.push("/"), 30000);
+      }
+      intervalId = setInterval(() => {
+        setCount((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [roundWinner, gameWinner, code, router]);
-
-  // If the whole game is won, auto-redirect home after 30s
-  useEffect(() => {
-    if (!gameWinner) return;
-    const to = setTimeout(() => router.push("/"), 30000);
-    return () => clearTimeout(to);
-  }, [gameWinner, router]);
 
   return (
     <div style={{ background: purple[3], minHeight: "100vh", padding: "2rem" }}>
@@ -245,16 +235,11 @@ export default function ResultsPage() {
               />
             </motion.div>
             <Divider />
-            <Progress percent={Math.max(0, ((30 - count) / 30) * 100)} showInfo={false} />
+            <Progress
+              percent={Math.max(0, (((gameWinner ? 30 : 10) - count) / (gameWinner ? 30 : 10)) * 100)}
+              showInfo={false}
+            />
             <Text>Redirecting in {count > 0 ? count : 0}s…</Text>
-            <Button
-              style={{ marginTop: 16 }}
-              type="primary"
-              size="large"
-              onClick={() => router.push(`/games/${code}/roundcard`)}
-            >
-              Next Round
-            </Button>
           </div>
         ) : (
           <Text style={{ color: "#fff" }}>Waiting for the next round result…</Text>

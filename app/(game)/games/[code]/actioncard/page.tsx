@@ -77,9 +77,10 @@ export default function ActionCardPage() {
               router.push(`/games/${code}/guess`);
             }
 
+            setSelectedUsername(null);
+
             if (payload.inventory.actionCards.length > 0) {
               setSelectedCard(getActionCards([payload.inventory.actionCards[0]])[0] || null);
-              setSelectedUsername(null);
             }
           }
         });
