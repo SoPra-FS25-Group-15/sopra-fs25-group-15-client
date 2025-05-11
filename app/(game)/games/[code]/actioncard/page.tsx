@@ -33,6 +33,23 @@ export default function ActionCardPage() {
   const errorSub = useRef<StompSubscription | null>(null);
   const stateSub = useRef<StompSubscription | null>(null);
 
+  // track previous screen to only init once on phase start
+  const prevScreen = useRef<string | null>(null);
+
+  // initialize selection when entering ACTIONCARD phase
+  useEffect(() => {
+    if (!game) return;
+
+    if (game.currentScreen === "ACTIONCARD" && prevScreen.current !== "ACTIONCARD") {
+      const available = getActionCards(game.inventory.actionCards);
+      setSelectedCard(available[0] || null);
+      setSelectedUsername(null);
+      setLoading(false);
+    }
+
+    prevScreen.current = game.currentScreen;
+  }, [game]);
+
   // 2) STOMP setup — now also syncing real-time game state
   useEffect(() => {
     if (!user?.token) return;
@@ -58,7 +75,7 @@ export default function ActionCardPage() {
         console.log("[ActionCardPage] STOMP connected");
         setStompConnected(true);
 
-        // ←── ADDITION: always re-join the lobby on each new connection
+        // ←── re-join the lobby
         client.publish({
           destination: `/app/lobby/join/${code}`,
           body: JSON.stringify({ type: "JOIN", payload: null }),
@@ -69,17 +86,11 @@ export default function ActionCardPage() {
           const { type: gType, payload } = JSON.parse(msg.body as string);
           console.log("[ActionCardPage] Received", gType, payload);
           if (gType === "ROUND_START") {
-            // Persist the coordinates + time before navigating
-
             const { roundData: dto, actionCardEffects } = payload;
-            console.log("[ActionCardPage] Storing round data:", dto);
             localStorage.setItem("roundLatitude", dto.latitude.toString());
             localStorage.setItem("roundLongitude", dto.longitude.toString());
             localStorage.setItem("roundTime", dto.roundTime.toString());
-
-            console.log("[ActionCardPage] Storing actionCardEffects:", actionCardEffects);
             localStorage.setItem("actionCardEffects", JSON.stringify(actionCardEffects));
-            console.log("[ActionCardPage] Routing to /guess");
             router.push(`/games/${code}/guess`);
           }
         });
@@ -96,16 +107,16 @@ export default function ActionCardPage() {
           }
         });
 
-        // ── NEW: subscribe to your private game-state feed ──
-        stateSub.current = client.subscribe(`/user/queue/lobby/${lobbyId}/game/state`, (msg) => {
-          const { payload } = JSON.parse(msg.body as string);
-          const freshState = payload as GameState;
-          setGame(freshState);
-          const available = getActionCards(freshState.inventory.actionCards);
-          setSelectedCard(available[0] || null);
-          setSelectedUsername(null);
-          setLoading(false);
-        });
+        // ── subscribe to your private game-state feed ──
+        stateSub.current = client.subscribe(
+          `/user/queue/lobby/${lobbyId}/game/state`,
+          (msg) => {
+            const { payload } = JSON.parse(msg.body as string);
+            const freshState = payload as GameState;
+            setGame(freshState);
+          }
+        );
+
         // request the latest state
         client.publish({
           destination: `/app/lobby/${lobbyId}/game/state`,
