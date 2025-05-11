@@ -62,6 +62,12 @@ export default function RoundCardPageComponent() {
       onConnect: () => {
         setStompConnected(true);
 
+        // ←── ADDITION: always re-join the lobby on each new connection
+        client.publish({
+          destination: `/app/lobby/join/${code}`,
+          body: JSON.stringify({ type: "JOIN", payload: null }),
+        });
+
         // A) SCREEN_CHANGE
         gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
           const { type, payload } = JSON.parse(msg.body) as any;

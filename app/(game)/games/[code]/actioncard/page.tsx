@@ -58,6 +58,12 @@ export default function ActionCardPage() {
         console.log("[ActionCardPage] STOMP connected");
         setStompConnected(true);
 
+        // ←── ADDITION: always re-join the lobby on each new connection
+        client.publish({
+          destination: `/app/lobby/join/${code}`,
+          body: JSON.stringify({ type: "JOIN", payload: null }),
+        });
+
         // Broadcast channel: wait for ROUND_START
         gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg) => {
           const { type: gType, payload } = JSON.parse(msg.body as string);
@@ -65,7 +71,7 @@ export default function ActionCardPage() {
           if (gType === "ROUND_START") {
             // Persist the coordinates + time before navigating
 
-            const {roundData: dto, actionCardEffects } = payload;
+            const { roundData: dto, actionCardEffects } = payload;
             console.log("[ActionCardPage] Storing round data:", dto);
             localStorage.setItem("roundLatitude", dto.latitude.toString());
             localStorage.setItem("roundLongitude", dto.longitude.toString());
