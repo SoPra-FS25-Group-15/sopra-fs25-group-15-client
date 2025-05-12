@@ -76,12 +76,6 @@ export default function ActionCardPage() {
             if (payload.currentScreen === "GUESS") {
               router.push(`/games/${code}/guess`);
             }
-
-            setSelectedUsername(null);
-
-            if (payload.inventory.actionCards.length > 0) {
-              setSelectedCard(getActionCards([payload.inventory.actionCards[0]])[0] || null);
-            }
           }
         });
 
@@ -139,7 +133,17 @@ export default function ActionCardPage() {
     };
   });
 
-  // 3) Handlers
+  // 3) Initial setup once the game state is loaded
+  useOnceWhenReady([gameState], () => {
+    if (!gameState) return;
+
+    // Pre-select the first action card if there is one
+    if (gameState.inventory?.actionCards?.length && gameState.inventory.actionCards.length > 0) {
+      setSelectedCard(getActionCards([gameState.inventory.actionCards[0]])[0] || null);
+    }
+  });
+
+  // 4) Handlers
   const handleSubmit = () => {
     if (!stompConnected) {
       setNotification({
