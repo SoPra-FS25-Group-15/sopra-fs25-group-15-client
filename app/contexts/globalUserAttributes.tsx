@@ -15,7 +15,7 @@ export function GlobalUserAttributesProvider({ children }: { children: ReactNode
   useEffect(() => {
     // Update the user from local storage when the component mounts
     const update = () => {
-      const stored = window.localStorage.getItem("user-attributes");
+      const stored = window.localStorage.getItem("userAttributes");
       if (stored) {
         setGlobalUserAttributes(JSON.parse(stored) as UserAttributes | null);
         console.log("Global UserAttributes updated:", JSON.parse(stored) as UserAttributes | null);
@@ -30,7 +30,7 @@ export function GlobalUserAttributesProvider({ children }: { children: ReactNode
 
     // Listen for changes from other windows/tabs
     const handleExternal = (event: StorageEvent) => {
-      if (event.key === "user-attributes") {
+      if (event.key === "userAttributes") {
         update();
       }
     };

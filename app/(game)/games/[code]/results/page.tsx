@@ -12,6 +12,8 @@ import SockJS from "sockjs-client";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { useRouter, useParams } from "next/navigation";
 import { getApiDomain } from "@/utils/domain";
+import { useGlobalGameState } from "@/contexts/globalGameState";
+import useOnceWhenReady from "@/hooks/useOnceWhenReady";
 
 const { Title, Text } = Typography;
 
@@ -30,6 +32,7 @@ export default function ResultsPage() {
   const router = useRouter();
   const { code } = useParams() as { code: string };
   const { user } = useGlobalUser();
+  const { gameState } = useGlobalGameState();
 
   const [lobbyId, setLobbyId] = useState<number | null>(null);
   const [roundWinner, setRoundWinner] = useState<RoundWinnerEvent | null>(null);
@@ -38,159 +41,115 @@ export default function ResultsPage() {
 
   const gameSub = useRef<StompSubscription | null>(null);
 
-  // 0) Hydrate any stored ROUND_WINNER event after user is ready
+  // 0) get stored events from localStorage
+  useOnceWhenReady([user], () => {
+    if (!user) return;
+
+    const storedRoundWinnerEvent = localStorage.getItem("roundWinnerEvent");
+    const storedGameWinnerEvent = localStorage.getItem("gameWinnerEvent");
+
+    if (storedGameWinnerEvent) {
+      console.log("[ResultsPage] Loading stored game winner event:", storedGameWinnerEvent);
+      try {
+        const { winnerUsername } = JSON.parse(storedGameWinnerEvent);
+        setGameWinner(winnerUsername);
+      } catch (error) {
+        console.error("[ResultsPage] Error parsing stored game winner event:", error);
+      }
+      localStorage.removeItem("gameWinnerEvent");
+    } else if (storedRoundWinnerEvent) {
+      console.log("[ResultsPage] Loading stored round winner event:", storedRoundWinnerEvent);
+      try {
+        const { winnerUsername, round, distance } = JSON.parse(storedRoundWinnerEvent);
+        setRoundWinner({ type: "ROUND_WINNER", winnerUsername, round, distance });
+      } catch (error) {
+        console.error("[ResultsPage] Error parsing stored round winner event:", error);
+      }
+      localStorage.removeItem("roundWinnerEvent");
+    }
+  });
+
+  // 1) Load lobbyId
   useEffect(() => {
     if (!user) return;
-    const stored = localStorage.getItem("roundWinnerEvent");
-    console.log("[ResultsPage] 🔄 hydrating roundWinnerEvent:", stored);
-    if (stored) {
-      try {
-        const payload = JSON.parse(stored);
-        console.log("[ResultsPage] ✅ parsed payload:", payload);
-        setRoundWinner({
-          type: "ROUND_WINNER",
-          winnerUsername: payload.winnerUsername,
-          round: payload.round,
-          distance: payload.distance,
-        });
-        // Persist next chooser username
-        localStorage.setItem("roundChooserUsername", payload.winnerUsername);
-        console.log("[ResultsPage] ➡ set roundChooserUsername:", payload.winnerUsername);
-        // If current user is the winner, also persist their token for chooser
-        if (payload.winnerUsername === user.username) {
-          localStorage.setItem("roundChooser", user.token);
-          console.log("[ResultsPage] ➡ set roundChooser (token) for current user");
-        }
-      } catch (err) {
-        console.error("[ResultsPage] ❌ parse error:", err);
-      } finally {
-        localStorage.removeItem("roundWinnerEvent");
-      }
-    }
-  }, [user]);
-
-  // 0b) Hydrate any stored GAME_WINNER event after user is ready
-  useEffect(() => {
-    if (!user) return;
-    const stored = localStorage.getItem("gameWinnerEvent");
-    console.log("[ResultsPage] 🔄 hydrating gameWinnerEvent:", stored);
-    if (stored) {
-      try {
-        const payload: GameWinnerEvent = JSON.parse(stored);
-        console.log("[ResultsPage] ✅ parsed gameWinner payload:", payload);
-        setGameWinner(payload.winnerUsername);
-      } catch (err) {
-        console.error("[ResultsPage] ❌ parse error for gameWinnerEvent:", err);
-      } finally {
-        localStorage.removeItem("gameWinnerEvent");
-      }
-    }
-  }, [user]);
-
-  // 1) Pull lobbyId out of localStorage so we can subscribe to game-events
-  useEffect(() => {
     const stored = localStorage.getItem("lobbyId");
-    console.log("[ResultsPage] ▶ reading lobbyId from localStorage:", stored);
-    if (stored) {
-      const id = parseInt(stored, 10);
-      if (!isNaN(id)) {
-        setLobbyId(id);
-        console.log("[ResultsPage] ⇒ setLobbyId:", id);
-      } else {
-        console.error("[ResultsPage] ✖ invalid lobbyId in localStorage:", stored);
-      }
-    } else {
-      console.error("[ResultsPage] ✖ no lobbyId in localStorage");
-      message.error("Missing lobbyId—please rejoin the lobby.");
-    }
-  }, []);
+    if (!stored) return;
+    setLobbyId(parseInt(stored));
+  }, [user]);
 
   // 2) Game-events STOMP subscription
-  useEffect(() => {
-    if (!user?.token) {
-      console.log("[ResultsPage] ⏸ skipping game-events STOMP (no token)");
-      return;
-    }
-    if (lobbyId == null) {
-      console.log("[ResultsPage] ⏸ skipping game-events STOMP (lobbyId not set)");
-      return;
-    }
+  useOnceWhenReady([lobbyId, user?.token, gameState], () => {
+    if (!lobbyId || !user?.token || !gameState) return;
 
-    console.log(`[ResultsPage] ▶ connecting to STOMP for game-events (lobbyId=${lobbyId}) at /ws/lobby-manager`);
+    console.log(`[ResultsPage] Connecting to STOMP for game-events (lobbyId=${lobbyId}) at /ws/lobby-manager`);
     const client = new Client({
       webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       reconnectDelay: 5000,
       onConnect: (frame: Frame) => {
-        console.log("[ResultsPage] 🟢 game-events STOMP connected:", frame.headers);
+        console.log("[ResultsPage] Game-events STOMP connected:", frame.headers);
 
-        // ←── ADDITION: always re-join the lobby on each new connection
-        client.publish({
-          destination: `/app/lobby/join/${code}`,
-          body: JSON.stringify({ type: "JOIN", payload: null }),
-        });
-
-        console.log(`[ResultsPage] 🔍 subscribing to /topic/lobby/${lobbyId}/game`);
         gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg: IMessage) => {
-          console.log("[ResultsPage] ← gameSub raw message:", msg.body);
+          console.log("[ResultsPage] Received raw gameSub message:", msg.body);
           try {
             const evt = JSON.parse(msg.body);
-            console.log("[ResultsPage] ← gameSub parsed:", evt);
+            console.log("[ResultsPage] Parsed gameSub event:", evt);
 
             if (evt.type === "ROUND_WINNER") {
               setRoundWinner(evt as RoundWinnerEvent);
-              console.log("[ResultsPage] ⇒ roundWinner set by STOMP:", evt);
-              localStorage.setItem("roundChooserUsername", evt.winnerUsername);
+              console.log("[ResultsPage] Round winner set from STOMP:", evt);
             }
             if (evt.type === "GAME_WINNER") {
               setGameWinner((evt as GameWinnerEvent).winnerUsername);
-              console.log("[ResultsPage] ⇒ gameWinner set by STOMP:", (evt as GameWinnerEvent).winnerUsername);
+              console.log("[ResultsPage] Game winner set from STOMP:", evt);
             }
           } catch (err) {
-            console.error("[ResultsPage] ✖ error parsing gameSub message:", err, msg.body);
+            console.error("[ResultsPage] Error parsing gameSub message:", err, msg.body);
           }
         });
       },
       onStompError: (frame) => {
-        console.error("[ResultsPage] ⚠ game-events STOMP error:", frame.headers["message"], frame.body);
+        console.error("[ResultsPage] Game-events STOMP error:", frame.headers["message"], frame.body);
         message.error(frame.headers["message"] || "Game connection error");
       },
       onDisconnect: () => {
-        console.log("[ResultsPage] 🔴 game-events STOMP disconnected");
+        console.log("[ResultsPage] Game-events STOMP disconnected");
       },
     });
 
     client.activate();
-    console.log("[ResultsPage] game-events STOMP client activated");
+    console.log("[ResultsPage] Game-events STOMP client activated");
 
     return () => {
-      console.log("[ResultsPage] 🧹 tearing down game-events STOMP client");
+      console.log("[ResultsPage] Tearing down game-events STOMP client");
       gameSub.current?.unsubscribe();
       client.deactivate();
     };
-  }, [user?.token, lobbyId, code]);
+  });
 
-  // 3) Countdown & auto-redirect for next round (only if roundWinner)
-  useEffect(() => {
-    if (!roundWinner) return;
-    setCount(30);
-    const iv = setInterval(() => setCount((c) => c - 1), 1000);
-    return () => clearInterval(iv);
-  }, [roundWinner]);
+  // Unified countdown and auto-redirect logic
+  useOnceWhenReady([roundWinner], () => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  // Only auto-redirect to the next round if we have a ROUND_WINNER and the GAME isn't over
-  useEffect(() => {
-    if (!roundWinner || gameWinner) return;
-    const to = setTimeout(() => router.push(`/games/${code}/roundcard`), 30000);
-    return () => clearTimeout(to);
-  }, [roundWinner, gameWinner, code, router]);
+    if (roundWinner) {
+      if (!gameWinner) {
+        setCount(10);
+        timeoutId = setTimeout(() => router.push(`/games/${code}/roundcard`), 10000);
+      } else {
+        setCount(30);
+        timeoutId = setTimeout(() => router.push("/"), 30000);
+      }
+      intervalId = setInterval(() => {
+        setCount((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
 
-  // If the whole game is won, auto-redirect home after 30s
-  useEffect(() => {
-    if (!gameWinner) return;
-    const to = setTimeout(() => router.push("/"), 30000);
-    return () => clearTimeout(to);
-  }, [gameWinner, router]);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  });
 
   return (
     <div style={{ background: purple[3], minHeight: "100vh", padding: "2rem" }}>
@@ -252,16 +211,11 @@ export default function ResultsPage() {
               />
             </motion.div>
             <Divider />
-            <Progress percent={Math.max(0, ((30 - count) / 30) * 100)} showInfo={false} />
+            <Progress
+              percent={Math.max(0, (((gameWinner ? 30 : 10) - count) / (gameWinner ? 30 : 10)) * 100)}
+              showInfo={false}
+            />
             <Text>Redirecting in {count > 0 ? count : 0}s…</Text>
-            <Button
-              style={{ marginTop: 16 }}
-              type="primary"
-              size="large"
-              onClick={() => router.push(`/games/${code}/roundcard`)}
-            >
-              Next Round
-            </Button>
           </div>
         ) : (
           <Text style={{ color: "#fff" }}>Waiting for the next round result…</Text>
