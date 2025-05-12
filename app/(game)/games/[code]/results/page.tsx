@@ -12,8 +12,6 @@ import SockJS from "sockjs-client";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { useRouter, useParams } from "next/navigation";
 import { getApiDomain } from "@/utils/domain";
-import useLocalStorage from "@/hooks/useLocalStorage";
-import { GameState } from "@/types/game/game";
 import { useGlobalGameState } from "@/contexts/globalGameState";
 import useOnceWhenReady from "@/hooks/useOnceWhenReady";
 
@@ -36,8 +34,6 @@ export default function ResultsPage() {
   const { user } = useGlobalUser();
   const { gameState } = useGlobalGameState();
 
-  const { set: setGameState } = useLocalStorage<Partial<GameState> | null>("gameState", null);
-
   const [lobbyId, setLobbyId] = useState<number | null>(null);
   const [roundWinner, setRoundWinner] = useState<RoundWinnerEvent | null>(null);
   const [gameWinner, setGameWinner] = useState<string | null>(null);
@@ -45,49 +41,33 @@ export default function ResultsPage() {
 
   const gameSub = useRef<StompSubscription | null>(null);
 
-  // 0) Hydrate any stored ROUND_WINNER event after user is ready
-  useEffect(() => {
+  // 0) get stored events from localStorage
+  useOnceWhenReady([user], () => {
     if (!user) return;
-    const stored = localStorage.getItem("roundWinnerEvent");
-    console.log("[ResultsPage] 🔄 hydrating roundWinnerEvent:", stored);
-    if (stored) {
-      try {
-        const payload = JSON.parse(stored);
-        console.log("[ResultsPage] ✅ parsed payload:", payload);
-        setRoundWinner({
-          type: "ROUND_WINNER",
-          winnerUsername: payload.winnerUsername,
-          round: payload.round,
-          distance: payload.distance,
-        });
 
-        // Persist next chooser username to gameState
-        setGameState({ ...gameState, roundCardSubmitter: payload.winnerUsername });
-      } catch (err) {
-        console.error("[ResultsPage] ❌ parse error:", err);
-      } finally {
-        localStorage.removeItem("roundWinnerEvent");
-      }
-    }
-  }, [gameState, setGameState, user]);
+    const storedRoundWinnerEvent = localStorage.getItem("roundWinnerEvent");
+    const storedGameWinnerEvent = localStorage.getItem("gameWinnerEvent");
 
-  // 0b) Hydrate any stored GAME_WINNER event after user is ready
-  useEffect(() => {
-    if (!user) return;
-    const stored = localStorage.getItem("gameWinnerEvent");
-    console.log("[ResultsPage] 🔄 hydrating gameWinnerEvent:", stored);
-    if (stored) {
+    if (storedGameWinnerEvent) {
+      console.log("[ResultsPage] Loading stored game winner event:", storedGameWinnerEvent);
       try {
-        const payload: GameWinnerEvent = JSON.parse(stored);
-        console.log("[ResultsPage] ✅ parsed gameWinner payload:", payload);
-        setGameWinner(payload.winnerUsername);
-      } catch (err) {
-        console.error("[ResultsPage] ❌ parse error for gameWinnerEvent:", err);
-      } finally {
-        localStorage.removeItem("gameWinnerEvent");
+        const { winnerUsername } = JSON.parse(storedGameWinnerEvent);
+        setGameWinner(winnerUsername);
+      } catch (error) {
+        console.error("[ResultsPage] Error parsing stored game winner event:", error);
       }
+      localStorage.removeItem("gameWinnerEvent");
+    } else if (storedRoundWinnerEvent) {
+      console.log("[ResultsPage] Loading stored round winner event:", storedRoundWinnerEvent);
+      try {
+        const { winnerUsername, round, distance } = JSON.parse(storedRoundWinnerEvent);
+        setRoundWinner({ type: "ROUND_WINNER", winnerUsername, round, distance });
+      } catch (error) {
+        console.error("[ResultsPage] Error parsing stored round winner event:", error);
+      }
+      localStorage.removeItem("roundWinnerEvent");
     }
-  }, [user]);
+  });
 
   // 1) Load lobbyId
   useEffect(() => {
@@ -98,68 +78,57 @@ export default function ResultsPage() {
   }, [user]);
 
   // 2) Game-events STOMP subscription
-  useOnceWhenReady([user?.token, lobbyId, setGameState, gameState], () => {
+  useOnceWhenReady([lobbyId, user?.token, gameState], () => {
     if (!lobbyId || !user?.token || !gameState) return;
 
-    console.log(`[ResultsPage] ▶ connecting to STOMP for game-events (lobbyId=${lobbyId}) at /ws/lobby-manager`);
+    console.log(`[ResultsPage] Connecting to STOMP for game-events (lobbyId=${lobbyId}) at /ws/lobby-manager`);
     const client = new Client({
       webSocketFactory: () => new SockJS(`${getApiDomain()}/ws/lobby-manager?token=${user.token}`),
       connectHeaders: { Authorization: `Bearer ${user.token}` },
       reconnectDelay: 5000,
       onConnect: (frame: Frame) => {
-        console.log("[ResultsPage] 🟢 game-events STOMP connected:", frame.headers);
+        console.log("[ResultsPage] Game-events STOMP connected:", frame.headers);
 
-        // ←── ADDITION: always re-join the lobby on each new connection
-        client.publish({
-          destination: `/app/lobby/join/${code}`,
-          body: JSON.stringify({ type: "JOIN", payload: null }),
-        });
-
-        console.log(`[ResultsPage] 🔍 subscribing to /topic/lobby/${lobbyId}/game`);
         gameSub.current = client.subscribe(`/topic/lobby/${lobbyId}/game`, (msg: IMessage) => {
-          console.log("[ResultsPage] ← gameSub raw message:", msg.body);
+          console.log("[ResultsPage] Received raw gameSub message:", msg.body);
           try {
             const evt = JSON.parse(msg.body);
-            console.log("[ResultsPage] ← gameSub parsed:", evt);
+            console.log("[ResultsPage] Parsed gameSub event:", evt);
 
             if (evt.type === "ROUND_WINNER") {
               setRoundWinner(evt as RoundWinnerEvent);
-              console.log("[ResultsPage] ⇒ roundWinner set by STOMP:", evt);
-
-              // Update the game state
-              setGameState({ ...gameState, roundCardSubmitter: evt.winnerUsername });
-              console.log("[ResultsPage] ⇒ gameState updated with roundCardSubmitter:", evt.winnerUsername);
+              console.log("[ResultsPage] Round winner set from STOMP:", evt);
             }
             if (evt.type === "GAME_WINNER") {
               setGameWinner((evt as GameWinnerEvent).winnerUsername);
-              console.log("[ResultsPage] ⇒ gameWinner set by STOMP:", (evt as GameWinnerEvent).winnerUsername);
+              console.log("[ResultsPage] Game winner set from STOMP:", evt);
             }
           } catch (err) {
-            console.error("[ResultsPage] ✖ error parsing gameSub message:", err, msg.body);
+            console.error("[ResultsPage] Error parsing gameSub message:", err, msg.body);
           }
         });
       },
       onStompError: (frame) => {
-        console.error("[ResultsPage] ⚠ game-events STOMP error:", frame.headers["message"], frame.body);
+        console.error("[ResultsPage] Game-events STOMP error:", frame.headers["message"], frame.body);
         message.error(frame.headers["message"] || "Game connection error");
       },
       onDisconnect: () => {
-        console.log("[ResultsPage] 🔴 game-events STOMP disconnected");
+        console.log("[ResultsPage] Game-events STOMP disconnected");
       },
     });
 
     client.activate();
-    console.log("[ResultsPage] game-events STOMP client activated");
+    console.log("[ResultsPage] Game-events STOMP client activated");
 
     return () => {
-      console.log("[ResultsPage] 🧹 tearing down game-events STOMP client");
+      console.log("[ResultsPage] Tearing down game-events STOMP client");
       gameSub.current?.unsubscribe();
       client.deactivate();
     };
   });
 
   // Unified countdown and auto-redirect logic
-  useEffect(() => {
+  useOnceWhenReady([roundWinner], () => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -180,7 +149,7 @@ export default function ResultsPage() {
       if (intervalId) clearInterval(intervalId);
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [roundWinner, gameWinner, code, router]);
+  });
 
   return (
     <div style={{ background: purple[3], minHeight: "100vh", padding: "2rem" }}>
