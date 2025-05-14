@@ -1,7 +1,7 @@
 "use client";
 
 import { useApi } from "@/hooks/useApi";
-import { PublicUser, PublicUserAttributes } from "@/types/user";
+import { PublicUser, UserAttributes } from "@/types/user";
 import { Card, Empty, Flex, Spin, Statistic } from "antd";
 import React, { useEffect, useState } from "react";
 import UserCard from "./usercard";
@@ -13,7 +13,7 @@ interface PublicUserProfileProps {
 const PublicUserProfile: React.FC<PublicUserProfileProps> = ({ userId }) => {
   const apiService = useApi();
   const [publicUser, setPublicUser] = useState<PublicUser | null>(null);
-  const [publicUserAttributes, setPublicUserAttributes] = useState<PublicUserAttributes | null>(null);
+  const [publicUserAttributes, setPublicUserAttributes] = useState<UserAttributes | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -35,7 +35,7 @@ const PublicUserProfile: React.FC<PublicUserProfileProps> = ({ userId }) => {
   useEffect(() => {
     const fetchUserAttributeData = async () => {
       try {
-        const publicUserAttributesData = await apiService.get<PublicUserAttributes>(`/users/${userId}/stats`);
+        const publicUserAttributesData = await apiService.get<UserAttributes>(`/users/${userId}/stats`);
         setPublicUserAttributes(publicUserAttributesData);
         console.log("[PublicProfile] Fetched public user attribute data:", publicUserAttributesData);
       } catch (error) {
@@ -92,10 +92,10 @@ const PublicUserProfile: React.FC<PublicUserProfileProps> = ({ userId }) => {
       >
         <Flex align="center" gap={16}>
           <UserCard username={publicUser.username} iconOnly iconsize="large" />
-          <div>
-            <h2>{publicUser.username}</h2>
-            {publicUserAttributes?.xp && <p>{publicUserAttributes.xp} XP</p>}
-          </div>
+          <Flex vertical gap={2}>
+            <h2 style={{ lineHeight: 1.2 }}>{publicUser.username}</h2>
+            {publicUserAttributes && <p style={{ lineHeight: 1 }}>{publicUserAttributes.xp} XP</p>}
+          </Flex>
         </Flex>
       </Flex>
 

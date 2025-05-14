@@ -114,10 +114,10 @@ const UserProfile: React.FC = () => {
       >
         <Flex align="center" gap={16}>
           <UserCard username={user.username} iconOnly iconsize="large" />
-          <div>
-            <h2>{user.username}</h2>
-            {userAttributes && <p>{userAttributes.xp} XP</p>}
-          </div>
+          <Flex vertical gap={2}>
+            <h2 style={{ lineHeight: 1.2 }}>{user.username}</h2>
+            {userAttributes && <p style={{ lineHeight: 1 }}>{userAttributes.xp} XP</p>}
+          </Flex>
         </Flex>
         <Button icon={<ExportOutlined />} style={{ color: purple[5] }} type="text" onClick={() => setPreviewOpen(true)}>
           Preview Public Profile
@@ -186,7 +186,7 @@ const UserProfile: React.FC = () => {
                 <Input placeholder={user.email} style={inputStyle} />
               </Form.Item>
               <Form.Item label={<p style={{ color: "#fff" }}>Make Profile Public</p>} name="statsPublic">
-                <Switch checked={user.statsPublic} />
+                <Switch defaultChecked={user.statsPublic} />
               </Form.Item>
             </Form>
           </>

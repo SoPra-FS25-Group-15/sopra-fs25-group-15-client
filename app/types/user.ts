@@ -14,12 +14,7 @@ export interface UserAttributes {
 }
 
 export interface PublicUser {
+  userid: number;
   username: string;
-}
-
-export interface PublicUserAttributes {
-  xp: number;
-  gamesPlayed: number;
-  wins: number;
-  points: number;
+  statsPublic: boolean;
 }
