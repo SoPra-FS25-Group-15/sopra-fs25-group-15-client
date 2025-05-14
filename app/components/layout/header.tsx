@@ -11,7 +11,10 @@ import "@ant-design/v5-patch-for-react-19";
 import { Button, Card, Drawer, Flex, Modal, Popover } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import UserProfile from "./user";
+import UserProfile from "../userMenu/userProfile";
+import Achievements from "../userMenu/achievements";
+import GameHistory from "../userMenu/gameHistory";
+import Settings from "../userMenu/settings";
 
 const appLinks: MenuItem[] = [
   { label: "Play", link: "/casual" },
@@ -107,9 +110,9 @@ const Profile: React.FC = () => {
           style={{ zIndex: 1000 }}
         >
           {activeView === "profile" && <UserProfile />}
-          {activeView === "achievements" && <div>Achievements Content</div>}
-          {activeView === "history" && <div>Game History Content</div>}
-          {activeView === "settings" && <div>Settings Content</div>}
+          {activeView === "achievements" && <Achievements />}
+          {activeView === "history" && <GameHistory />}
+          {activeView === "settings" && <Settings />}
         </Drawer>
         <span style={{ maxWidth: "25vw" }}>
           <Popover
