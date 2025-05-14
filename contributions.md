@@ -133,8 +133,8 @@ reason).
 | **@froeoe** | 8.5.2025 |  | As announced in the meeting of the 8.5.25, I am taking the week of as I worked ahead during the easter break. Nevertheless, I did some beta-testing and resolved some errors. |  |
 |                    | 11.5.2025 | [Commit1](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/commit/abde426a8d9092508c52aa041bbe92148ff5b925) | This task fixes the edge case when two users receive the badsight card and use a specific ordering of submitting the action card. | Before this fix, the game crashed. |
 |                    | 11.5.2025 | [Commit2](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/commit/30acc0cd11ca8d4673a1d94657192383094f69f1) | This task makes sure, that in the game screens the refresh button can be clicked and the game still continues. | Before this fix, the game crashed. |
-| **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **@zhenmei** | 13.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/318) | 1.add controller tests for websocket 2.expand websocket config test | Tests need to be added to meet test coverage requirements |
+|                    | 13.05.2025 |[PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/318) | 1.add all dto tests for websocket 2.add entity tests, and missing dto test.| Add missing tests for test coverage |
 | **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser4]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
