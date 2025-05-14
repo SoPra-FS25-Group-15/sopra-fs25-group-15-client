@@ -1,117 +1,77 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Card, Button, Form, Input, message, Avatar, Spin, Typography, Divider, Tag } from "antd";
-import { EditOutlined, SaveOutlined, RollbackOutlined, UserOutlined, CloseOutlined } from "@ant-design/icons";
+import { useGlobalUser } from "@/contexts/globalUser";
+import { useGlobalUserAttributes } from "@/contexts/globalUserAttributes";
 import { useApi } from "@/hooks/useApi";
-
-const { Title, Text } = Typography;
-
-interface UserProfileDTO {
-  userid: number;
-  username: string;
-  email: string;
-  token?: string;
-  statsPublic?: boolean;
-  mmr?: number;
-  points?: number;
-  achievements?: string[];
-  avatar?: string;
-  rank?: string;
-}
+import useLocalStorage from "@/hooks/useLocalStorage";
+import { User } from "@/types/user";
+import { CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
+import { Button, Divider, Flex, Form, Input, Spin } from "antd";
+import React, { useState } from "react";
+import Notification, { NotificationProps } from "@/components/general/notification";
+import UserCard from "@/components/general/usercard";
+import { red } from "@ant-design/colors";
 
 const UserProfile: React.FC = () => {
   const apiService = useApi();
-  const [profile, setProfile] = useState<UserProfileDTO | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [editMode, setEditMode] = useState<boolean>(false);
-  const [visible, setVisible] = useState<boolean>(true);
   const [form] = Form.useForm();
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
 
-  // Load token from localStorage
-  const storedUserStr = localStorage.getItem("user");
-  let token: string | null = null;
-  if (storedUserStr) {
-    try {
-      token = JSON.parse(storedUserStr).token;
-    } catch {
-      console.error("Error parsing user token");
+  const { user } = useGlobalUser();
+  const { userAttributes } = useGlobalUserAttributes();
+  const { set: setUser } = useLocalStorage<User | null>("user", null);
+
+  const handleEditSave = () => {
+    if (!user || !user.token) {
+      setNotification({
+        type: "error",
+        message: "User not authenticated",
+        description: "Please log in to update your profile.",
+        onClose: () => setNotification(null),
+      });
+      return;
     }
-  }
 
-  // Fetch profile
-  useEffect(() => {
-    if (!token) return;
-    setLoading(true);
-    apiService
-      .get<UserProfileDTO>("/auth/me", {
-        headers: { Authorization: token, "Content-Type": "application/json" },
-      })
-      .then((data) => {
-        data.statsPublic = true;
-        setProfile(data);
-        form.setFieldsValue({ username: data.username, email: data.email });
-      })
-      .catch((err) => {
-        console.error("Failed to load profile:", err);
-        message.error("Failed to load profile.");
-      })
-      .finally(() => setLoading(false));
-  }, [token, apiService, form]);
-
-  const handleEdit = () => setEditMode(true);
-  const handleCancelEdit = () => {
-    setEditMode(false);
-    if (profile) {
-      form.setFieldsValue({ username: profile.username, email: profile.email });
-    }
-  };
-  const handleSave = () => {
     form
       .validateFields()
       .then((values) => {
-        if (!token) {
-          message.error("User not authenticated.");
-          return;
-        }
         setLoading(true);
         apiService
-          .put<UserProfileDTO>(
+          .put<User>(
             "/users/me",
-            { ...values, statsPublic: true },
-            { headers: { Authorization: token, "Content-Type": "application/json" } }
+            { username: values.username || user.username, email: values.email || user.email, statsPublic: true },
+            { headers: { Authorization: user.token, "Content-Type": "application/json" } }
           )
-          .then((data) => {
-            message.success("Profile updated successfully.");
-            data.statsPublic = true;
-            setProfile(data);
+          .then((payload) => {
+            setUser({ ...user, ...payload } as User);
+            form.setFieldsValue(payload);
             setEditMode(false);
-            // Sync localStorage
-            const current = JSON.parse(localStorage.getItem("user") || "{}");
-            current.username = data.username;
-            current.email = data.email;
-            localStorage.setItem("user", JSON.stringify(current));
           })
           .catch((err) => {
             console.error("Update failed:", err);
-            message.error(err.message || "Failed to update profile.");
+            setNotification({
+              type: "error",
+              message: "Failed to update user",
+              description: err.message,
+              onClose: () => setNotification(null),
+            });
           })
           .finally(() => setLoading(false));
       })
       .catch((info) => console.log("Validation failed:", info));
   };
-  const handleClose = () => setVisible(false);
 
-  if (!visible) return null;
+  const inputStyle = {
+    backgroundColor: "#222",
+    color: "#fff",
+    borderColor: "#444",
+  };
 
-  if (!token) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "#fff" }}>
-        User authentication required. Please log in.
-      </div>
-    );
-  }
-  if (loading || !profile) {
+  const inputStyleNoEdit = { color: "#fff", cursor: "text" };
+
+  if (loading) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
         <Spin style={{ color: "#fff" }} />
@@ -119,120 +79,97 @@ const UserProfile: React.FC = () => {
     );
   }
 
+  if (!user) {
+    return <div style={{ color: "#fff" }}>User authentication required. Please log in.</div>;
+  }
+
   return (
-    <div
-      style={{
-        position: "relative", // make this container the positioning context
-        maxWidth: 600,
-        margin: "40px auto",
-        padding: 24,
-        background: "#1f1f1f",
-        borderRadius: 12,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-        color: "#fff",
-      }}
-    >
-      {/* absolutely positioned close button with larger hit area */}
-      <Button
-        type="text"
-        shape="circle"
-        size="small"
-        onClick={handleClose}
-        icon={<CloseOutlined style={{ color: "#fff", fontSize: 16 }} />}
-        style={{
-          position: "absolute",
-          top: 16,
-          right: 16,
-          padding: 4,
-        }}
-        aria-label="Close"
-      />
-
-      <Card style={{ background: "transparent", border: "none", color: "#fff" }} styles={{ body: { padding: 0 } }}>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
-          <Avatar
-            size={72}
-            src={profile.avatar || undefined}
-            icon={!profile.avatar && <UserOutlined />}
-            style={{ marginRight: 24 }}
-          >
-            {profile.username.charAt(0).toUpperCase()}
-          </Avatar>
-
-          <div>
-            <Title level={4} style={{ margin: 0, color: "#fff" }}>
-              {profile.username}
-            </Title>
-            {profile.rank && <Tag color="purple">{profile.rank}</Tag>}
-          </div>
+    <Flex vertical gap={8}>
+      {notification && <Notification {...notification} />}
+      <Flex gap={16}>
+        <UserCard username={user.username} iconOnly iconsize="large" />
+        <div>
+          <h2>{user.username}</h2>
+          {userAttributes && <p>{userAttributes.xp} XP</p>}
         </div>
+      </Flex>
 
-        {editMode ? (
-          <Form form={form} layout="vertical" onFinish={handleSave}>
+      {editMode ? (
+        <>
+          <Divider style={{ borderColor: "#444" }} />
+          <Form form={form} layout="vertical" autoComplete="off" initialValues={user}>
             <Form.Item
-              label={<Text style={{ color: "#fff" }}>Username</Text>}
+              label={<p style={{ color: "#fff" }}>Username</p>}
               name="username"
-              rules={[{ required: true, message: "Please input your username!" }]}
-            >
-              <Input style={{ backgroundColor: "#333", color: "#fff", borderColor: "#444" }} />
-            </Form.Item>
-            <Form.Item
-              label={<Text style={{ color: "#fff" }}>Email</Text>}
-              name="email"
               rules={[
-                { required: true, message: "Please input your email!" },
-                { type: "email", message: "Please enter a valid email!" },
+                { min: 3, message: "Username must be at least 3 characters long" },
+                { max: 16, message: "Username cannot exceed 16 characters" },
               ]}
             >
-              <Input style={{ backgroundColor: "#333", color: "#fff", borderColor: "#444" }} />
+              <Input
+                showCount={{
+                  formatter: ({ count }) => {
+                    const remaining = Math.max(0, 16 - count);
+                    return <span style={{ color: remaining <= 3 ? red[3] : "inherit" }}>{remaining}</span>;
+                  },
+                }}
+                placeholder={user.username}
+                style={inputStyle}
+              />
+            </Form.Item>
+            <Form.Item
+              label={<p style={{ color: "#fff" }}>Email</p>}
+              name="email"
+              rules={[{ type: "email", message: "Please enter a valid email!" }]}
+            >
+              <Input placeholder={user.email} style={inputStyle} />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
-                Save
-              </Button>
-              <Button style={{ marginLeft: 12 }} onClick={handleCancelEdit} icon={<RollbackOutlined />}>
-                Cancel
-              </Button>
+              <Flex gap={8} justify="end">
+                <Button type="primary" onClick={handleEditSave} icon={<CheckOutlined />}>
+                  Save
+                </Button>
+                <Button
+                  onClick={() => {
+                    setEditMode(false);
+                    form.setFieldsValue(user);
+                  }}
+                  icon={<CloseOutlined />}
+                >
+                  Cancel
+                </Button>
+              </Flex>
             </Form.Item>
           </Form>
-        ) : (
-          <>
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Email:</Text>
-              <br />
-              <Text>{profile.email || "Not available"}</Text>
-            </div>
-            <Divider style={{ borderColor: "#444" }} />
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>MMR:</Text>
-              <br />
-              <Text>{profile.mmr ?? "N/A"}</Text>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Points:</Text>
-              <br />
-              <Text>{profile.points ?? "N/A"}</Text>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Achievements:</Text>
-              <br />
-              <Text>
-                {profile.achievements && profile.achievements.length > 0 ? profile.achievements.join(", ") : "None"}
-              </Text>
-            </div>
-            <Divider style={{ borderColor: "#444" }} />
-            <div style={{ marginBottom: 24 }}>
-              <Text strong>Stats Public:</Text>
-              <br />
-              <Text>Yes</Text>
-            </div>
-            <Button type="primary" onClick={handleEdit} icon={<EditOutlined />}>
-              Edit Profile
-            </Button>
-          </>
-        )}
-      </Card>
-    </div>
+        </>
+      ) : (
+        <>
+          <Divider style={{ borderColor: "#444" }} />
+          <Form form={form} layout="vertical" autoComplete="off" initialValues={user}>
+            <Form.Item label={<p style={{ color: "#fff" }}>Username</p>} name="username">
+              <Input disabled placeholder={user.username} style={inputStyleNoEdit} />
+            </Form.Item>
+            <Form.Item label={<p style={{ color: "#fff" }}>Email</p>} name="email">
+              <Input disabled placeholder={user.email} style={inputStyleNoEdit} />
+            </Form.Item>
+            <Form.Item>
+              <Flex justify="end">
+                <Button
+                  type="primary"
+                  onClick={() => {
+                    setEditMode(true);
+                    form.setFieldsValue(user);
+                  }}
+                  icon={<EditOutlined />}
+                >
+                  Edit user
+                </Button>
+              </Flex>
+            </Form.Item>
+          </Form>
+        </>
+      )}
+    </Flex>
   );
 };
 

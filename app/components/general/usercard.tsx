@@ -56,12 +56,7 @@ const UserCard: React.FC<
 }): React.ReactElement => {
   if (iconOnly) {
     return (
-      <Flex
-        onClick={onClick ? onClick : undefined}
-        style={{ width: "100%", height: "100%" }}
-        align="center"
-        justify="center"
-      >
+      <Flex onClick={onClick ? onClick : undefined} align="center" justify="center">
         <Avatar
           size={iconsize == "large" ? 48 : 28}
           style={{
