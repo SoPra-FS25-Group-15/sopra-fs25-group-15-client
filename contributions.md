@@ -135,8 +135,8 @@ reason).
 |                    | 11.5.2025 | [Commit2](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/commit/30acc0cd11ca8d4673a1d94657192383094f69f1) | This task makes sure, that in the game screens the refresh button can be clicked and the game still continues. | Before this fix, the game crashed. |
 | **@zhenmei** | 13.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/318) | 1.add controller tests for websocket 2.expand websocket config test | Tests need to be added to meet test coverage requirements |
 |                    | 13.05.2025 |[PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/318) | 1.add all dto tests for websocket 2.add entity tests, and missing dto test.| Add missing tests for test coverage |
-| **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **@ctfbruce** | 14.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/323) | Extend StatsControllerTest with error‐case tests |  Ensures the stats endpoints reliably return correct HTTP status codes under failure conditions. |
+|                    | 14.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/323) | Extend LobbyControllerAdditionalTest and GameControllerTest with error‐handling scenarios (invalid lobby IDs, missing/invalid auth, forbidden invites, and downstream service outages) | Validates that lobby and game endpoints gracefully handle edge cases and external service failures. |
 | **[@githubUser4]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser5]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
