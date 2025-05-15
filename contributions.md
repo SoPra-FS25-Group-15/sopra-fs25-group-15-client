@@ -138,7 +138,6 @@ reason).
 | **@ctfbruce** | 14.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/323) | Extend StatsControllerTest with error‐case tests |  Ensures the stats endpoints reliably return correct HTTP status codes under failure conditions. |
 |                    | 14.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/323) | Extend LobbyControllerAdditionalTest and GameControllerTest with error‐handling scenarios (invalid lobby IDs, missing/invalid auth, forbidden invites, and downstream service outages) | Validates that lobby and game endpoints gracefully handle edge cases and external service failures. |
 | **@DaryaTereshchenko** | 15.05.2025|  | As announced in the meeting of the 8.5.25, I am taking the week of as I worked ahead during the easter break. | |
-|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser5]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser6]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
