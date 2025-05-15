@@ -8,73 +8,31 @@ import {
   ReloadOutlined, SearchOutlined, CloseCircleOutlined, LoadingOutlined
 } from '@ant-design/icons';
 import { useApi } from '@/hooks/useApi'; // Using the useApi hook
+import useLocalStorage from "@/hooks/useLocalStorage";
+import { useRouter } from "next/navigation";
 import * as _ from 'lodash'; // Import full lodash
 import dayjs from 'dayjs'; // Import dayjs instead of moment
 import type { Dayjs } from 'dayjs';
 import type { RangePickerProps } from 'antd/es/date-picker';
 import type { FilterValue, SorterResult, ColumnType } from 'antd/es/table/interface';
+import type { Key } from 'react'; // Import React.Key type
 
-// Test data for development without backend
-// You can uncomment this when backend is unavailable
-const TEST_DATA = {
-  gameHistory: [
-    {
-      id: '1',
-      winner: 'You',
-      players: ['You', 'John', 'Sarah'],
-      roundsPlayed: 12,
-      roundCardStartAmount: 7,
-      startedAt: new Date(2025, 4, 1, 14, 30),
-      completedAt: new Date(2025, 4, 1, 15, 15),
-      gameType: 'Standard'
-    },
-    {
-      id: '2',
-      winner: 'Mike',
-      players: ['You', 'Mike', 'Emma'],
-      roundsPlayed: 8,
-      roundCardStartAmount: 5,
-      startedAt: new Date(2025, 4, 3, 20, 0),
-      completedAt: new Date(2025, 4, 3, 20, 25),
-      gameType: 'Quick'
-    },
-    {
-      id: '3',
-      winner: 'You',
-      players: ['You', 'Alex'],
-      roundsPlayed: 15,
-      roundCardStartAmount: 10,
-      startedAt: new Date(2025, 4, 5, 10, 0),
-      completedAt: new Date(2025, 4, 5, 11, 0),
-      gameType: 'Extended'
-    },
-    {
-      id: '4',
-      winner: 'Lisa',
-      players: ['You', 'Lisa', 'Tim', 'Rachel'],
-      roundsPlayed: 6,
-      roundCardStartAmount: 7,
-      startedAt: new Date(2025, 4, 6, 19, 30),
-      completedAt: new Date(2025, 4, 6, 20, 0),
-      gameType: 'Standard'
-    }
-  ],
-};
-
-// Types based on provided models
+// Types based on backend structure
 interface GameRecord {
-  id: string;
+  id?: string; // Optional as backend doesn't always provide it
   winner: string;
   players: string[];
   roundsPlayed: number;
   roundCardStartAmount: number;
   startedAt: Date | string;
   completedAt: Date | string;
-  gameType?: string;
+  gameType?: string; // Optional as backend doesn't always provide it
 }
 
-interface UserData {
-  gameHistory: GameRecord[];
+// Define the expected API response type
+interface ApiResponse<T> {
+  data?: T;
+  [key: string]: any;
 }
 
 interface FilterState {
@@ -84,20 +42,64 @@ interface FilterState {
   gameType: string | null;
 }
 
+// User type definition
+interface User {
+  id?: string | number; // Making id optional for initial state
+  username?: string;
+  email: string;
+  token: string;
+  // Add other user properties as needed
+}
+
+// User profile from /me endpoint
+interface UserProfile {
+  userid: number;
+  email: string;
+  token: string;
+  status: 'ONLINE' | 'OFFLINE' | 'IN_GAME' | 'READY' | 'LOADING';
+  createdAt: string;
+  profile?: {
+    userid: number;
+    username: string;
+    displayName?: string;
+  };
+}
+
+// Login props type definition
+interface LoginProps {
+  email: string;
+  password: string;
+}
+
+// Notification props type definition
+interface NotificationProps {
+  type: 'success' | 'info' | 'warning' | 'error';
+  message: string;
+}
+
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
 
 const GameHistoryPage: React.FC = () => {
-  const { get } = useApi(); // Using the useApi hook
-  const [userData, setUserData] = useState<UserData>({
-    gameHistory: [],
-  });
+  // Use the imported useApi hook
+  const apiService = useApi();
+  const router = useRouter();
+  
+  // Use localStorage hook for user data
+  const { value: user, set: setUser } = useLocalStorage<User | null>("user", null);
+  
+  // User profile state (from /me endpoint)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  
+  // Debug message to check if the component renders
+  console.log('GameHistoryPage rendering');
+  const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
   const [filteredHistory, setFilteredHistory] = useState<GameRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("history");
-  const [token, setToken] = useState<string | null>(null);
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     dateRange: null,
     winner: null,
@@ -105,69 +107,194 @@ const GameHistoryPage: React.FC = () => {
     gameType: null
   });
 
-  // Load authentication token from localStorage
-  useEffect(() => {
-    const storedUserStr = localStorage.getItem("user");
-    if (storedUserStr) {
-      try {
-        const parsedToken = JSON.parse(storedUserStr).token;
-        setToken(parsedToken);
-      } catch (err) {
-        console.error("Error parsing user token:", err);
-        setError("Authentication error. Please log in again.");
+  // Fetch current user profile
+  const fetchUserProfile = async () => {
+    if (!user || !user.token) {
+      setError("Authentication required. Please log in again.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Set headers for authorization
+      const headers = {
+        Authorization: `Bearer ${user.token}`
+      };
+      
+      console.log('Fetching user profile from /me endpoint');
+      
+      // Make the API request to get current user profile
+      const response = await apiService.get<UserProfile>('/auth/me', { headers });
+      
+      console.log('User profile API Response:', response);
+      
+      if (response && response.userid) {
+        setUserProfile(response);
+        
+        // Update user in localStorage with the id
+        setUser({
+          ...user,
+          id: response.userid,
+          username: user.username || response.profile?.displayName || user.email
+        });
+        
+        return response;
+      } else {
+        throw new Error('Failed to load user profile - invalid response data');
       }
-    } else {
-      setError("You must be logged in to view game history.");
+    } catch (err) {
+      console.error("Error fetching user profile:", err);
+      setError(`Failed to load your profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      
+      setNotification({
+        type: 'error',
+        message: `Error: ${err instanceof Error ? err.message : 'Failed to fetch user profile'}`
+      });
+      return null;
+    }
+  };
+
+  // Handle login functionality
+  const handleLogin = async (values: LoginProps) => {
+    try {
+      setLoading(true);
+      const response = await apiService.post<User>("/auth/login", values);
+      if (response.token) {
+        setUser(response);
+        setNotification({
+          type: 'success',
+          message: 'Login successful'
+        });
+        
+        // After login fetch the user profile and then game history
+        const profile = await fetchUserProfile();
+        if (profile) {
+          fetchGameHistory(profile.userid);
+        }
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setError(`Failed to login: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setNotification({
+        type: 'error',
+        message: `Login error: ${error instanceof Error ? error.message : 'Authentication failed'}`
+      });
+    } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  // Handle API data fetching
-  const fetchUserData = async () => {
+  // Check authentication status and load user profile
+  useEffect(() => {
+    if (!user || !user.token) {
+      setError("You must be logged in to view game history.");
+      setNotification({
+        type: 'warning',
+        message: 'You must be logged in to view game history.'
+      });
+      setLoading(false);
+    } else {
+      console.log('User authenticated, token available');
+      
+      // First fetch user profile, then fetch game history
+      const loadData = async () => {
+        const profile = await fetchUserProfile();
+        if (profile) {
+          fetchGameHistory(profile.userid);
+        }
+      };
+      
+      loadData();
+    }
+  }, [user?.token]); // Only re-run when token changes
+
+  // Handle API data fetching with userId parameter
+  const fetchGameHistory = async (userId?: string | number) => {
+    if (!user || !user.token) {
+      setError("Authentication required. Please log in again.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      // DEVELOPMENT MODE: Using test data instead of API calls
-      setTimeout(() => {
-        setUserData(TEST_DATA);
-        setFilteredHistory(TEST_DATA.gameHistory);
-        setLoading(false);
-      }, 700); // Simulate network delay
-      return;
-
-      // PRODUCTION CODE: Uncomment this when ready for production
-      /*
-      const response = await get('/users/me/games');
-      if (response.data) {
-        setUserData({
-          gameHistory: response.data.gameHistory || [],
-        });
-        setFilteredHistory(response.data.gameHistory || []);
-      } else {
-        throw new Error('Failed to load game history');
+      // Use token for authentication in the API request
+      // Using the userId parameter or from userProfile
+      const id = userId || userProfile?.userid || user.id;
+      
+      if (!id) {
+        throw new Error('User ID not found. Please try logging in again.');
       }
-      */
+      
+      // Now use the ID for the endpoint
+      const endpoint = `/users/${id}/stats/games`;
+      
+      console.log('Fetching game history from endpoint:', endpoint);
+      
+      // Set headers for authorization
+      const headers = {
+        Authorization: `Bearer ${user.token}`
+      };
+      
+      // Make the API request using the apiService from useApi hook
+      const response = await apiService.get(endpoint, { headers });
+      
+      console.log('Game history API Response:', response);
+      
+      if (response) {
+        // Backend returns an array directly as per the controller code
+        let records: GameRecord[] = Array.isArray(response) ? response : [];
+        
+        // Add missing properties for compatibility
+        const processedRecords = records.map((record: GameRecord, index: number) => ({
+          ...record,
+          id: record.id || `game-${index}`, // Generate an ID if not provided
+          gameType: record.gameType || 'Standard' // Default to Standard if not provided
+        }));
+        
+        console.log('Processed game records:', processedRecords);
+        setGameHistory(processedRecords);
+        setFilteredHistory(processedRecords);
+        
+        if (processedRecords.length > 0) {
+          setNotification({
+            type: 'success',
+            message: `Successfully loaded ${processedRecords.length} game records.`
+          });
+          
+          // Auto-clear success notification after 3 seconds
+          setTimeout(() => setNotification(null), 3000);
+        } else {
+          setNotification({
+            type: 'info',
+            message: 'No game records found.'
+          });
+        }
+      } else {
+        throw new Error('Failed to load game history - no response data');
+      }
+      
     } catch (err) {
-      console.error("Error fetching user data:", err);
-      setError("Failed to load your game history. Please try again later.");
+      console.error("Error fetching game history:", err);
+      setError(`Failed to load your game history: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      
+      setNotification({
+        type: 'error',
+        message: `Error: ${err instanceof Error ? err.message : 'Failed to fetch game history'}`
+      });
     } finally {
       setLoading(false);
       setRetrying(false);
     }
   };
 
-  useEffect(() => {
-    // Don't fetch data if we don't have a token
-    if (!token) return;
-    fetchUserData();
-  }, [get, token]);
-
   // Apply filters to game history
   useEffect(() => {
-    if (!userData.gameHistory.length) return;
+    if (!gameHistory.length) return;
 
-    let filtered = [...userData.gameHistory];
+    let filtered = [...gameHistory];
 
     // Apply date range filter
     if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
@@ -198,7 +325,7 @@ const GameHistoryPage: React.FC = () => {
     }
 
     setFilteredHistory(filtered);
-  }, [filters, userData.gameHistory]);
+  }, [filters, gameHistory]);
 
   // Calculate game duration in minutes
   const calculateDuration = (start: Date | string, end: Date | string): number => {
@@ -212,15 +339,16 @@ const GameHistoryPage: React.FC = () => {
     return new Date(dateString).toLocaleString();
   };
 
-  // Get current username from localStorage
+  // Get current username from userProfile or localStorage
   const getCurrentUsername = (): string => {
-    const storedUserStr = localStorage.getItem("user");
-    if (storedUserStr) {
-      try {
-        return JSON.parse(storedUserStr).username || 'You';
-      } catch {
-        return 'You';
-      }
+    if (user?.username) {
+      return user.username;
+    }
+    if (userProfile?.profile?.displayName) {
+      return userProfile.profile.displayName;
+    }
+    if (user?.username) {
+      return user.username;
     }
     return 'You';
   };
@@ -265,7 +393,25 @@ const GameHistoryPage: React.FC = () => {
   // Handle retry on error
   const handleRetry = () => {
     setRetrying(true);
-    fetchUserData();
+    setNotification({
+      type: 'info',
+      message: 'Retrying to fetch game history...'
+    });
+    console.log('Retrying to fetch game history...');
+    
+    // Check if user is authenticated, if not redirect to login
+    if (!user || !user.token) {
+      router.push('/login');
+      return;
+    }
+    
+    // Short timeout to ensure state updates before retrying
+    setTimeout(async () => {
+      const profile = await fetchUserProfile();
+      if (profile) {
+        fetchGameHistory(profile.userid);
+      }
+    }, 100);
   };
 
   // Game history columns
@@ -292,11 +438,16 @@ const GameHistoryPage: React.FC = () => {
           </Tag>
         );
       },
-      filters: userData.gameHistory
+      filters: gameHistory
         .map(game => game.winner)
         .filter((value, index, self) => self.indexOf(value) === index)
         .map(winner => ({ text: winner, value: winner })),
-      onFilter: (value: any, record: GameRecord) => record.winner === value,
+      onFilter: (value: React.Key | boolean, record: GameRecord) => {
+        if (typeof value === 'string') {
+          return record.winner === value;
+        }
+        return false;
+      },
     },
     {
       title: 'Players',
@@ -314,8 +465,12 @@ const GameHistoryPage: React.FC = () => {
         { text: 'Quick', value: 'Quick' },
         { text: 'Extended', value: 'Extended' }
       ],
-      onFilter: (value: any, record: GameRecord) => 
-        record.gameType === value || (!record.gameType && value === 'Standard'),
+      onFilter: (value: React.Key | boolean, record: GameRecord) => {
+        if (typeof value === 'string') {
+          return record.gameType === value || (!record.gameType && value === 'Standard');
+        }
+        return false;
+      },
     },
     {
       title: 'Rounds',
@@ -396,11 +551,11 @@ const GameHistoryPage: React.FC = () => {
   // Render filter controls
   const renderFilterControls = () => {
     // Get unique winners for dropdown
-    const winners = Array.from(new Set(userData.gameHistory.map(game => game.winner)));
+    const winners = Array.from(new Set(gameHistory.map(game => game.winner)));
     
     // Get unique game types for dropdown
     const gameTypes = Array.from(new Set(
-      userData.gameHistory
+      gameHistory
         .map(game => game.gameType || 'Standard')
         .filter(Boolean)
     ));
@@ -474,7 +629,13 @@ const GameHistoryPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spin size="large" indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} tip="Loading user data..." />
+        <Spin 
+          size="large" 
+          indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />}
+          tip="Loading game history..."
+        >
+          <div className="h-8"></div>
+        </Spin>
       </div>
     );
   }
@@ -487,15 +648,25 @@ const GameHistoryPage: React.FC = () => {
         description={
           <div>
             <p>{error}</p>
-            <Button 
-              type="primary" 
-              onClick={handleRetry} 
-              loading={retrying}
-              icon={<ReloadOutlined />}
-              className="mt-4"
-            >
-              Retry
-            </Button>
+            {!user || !user.token ? (
+              <Button 
+                type="primary" 
+                onClick={() => router.push('/login')}
+                className="mt-4 mr-2"
+              >
+                Go to Login
+              </Button>
+            ) : (
+              <Button 
+                type="primary" 
+                onClick={handleRetry} 
+                loading={retrying}
+                icon={<ReloadOutlined />}
+                className="mt-4"
+              >
+                Retry
+              </Button>
+            )}
           </div>
         }
         type="error"
@@ -507,6 +678,17 @@ const GameHistoryPage: React.FC = () => {
 
   return (
     <div className="user-data-container">
+      {notification && (
+        <Alert
+          message={notification.message}
+          type={notification.type}
+          showIcon
+          closable
+          onClose={() => setNotification(null)}
+          className="mb-4"
+        />
+      )}
+      
       <Tabs 
         activeKey={activeTab} 
         onChange={setActiveTab}
@@ -536,7 +718,7 @@ const GameHistoryPage: React.FC = () => {
               <Table 
                 dataSource={filteredHistory}
                 columns={gameColumns}
-                rowKey="id"
+                rowKey={record => record.id || `game-${Math.random()}`} // Fallback for missing ID
                 pagination={{
                   pageSize: 10,
                   showSizeChanger: true,
@@ -546,7 +728,7 @@ const GameHistoryPage: React.FC = () => {
                 className="shadow-md rounded-md overflow-hidden"
                 loading={loading}
               />
-              {filteredHistory.length === 0 && userData.gameHistory.length > 0 && (
+              {filteredHistory.length === 0 && gameHistory.length > 0 && (
                 <Empty 
                   description="No games match your filter criteria" 
                   className="py-8"
@@ -564,3 +746,5 @@ const GameHistoryPage: React.FC = () => {
     </div>
   );
 };
+
+export default GameHistoryPage;
