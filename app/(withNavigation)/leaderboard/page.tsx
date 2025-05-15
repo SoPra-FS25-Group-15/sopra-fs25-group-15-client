@@ -14,17 +14,14 @@ const Leaderboard: React.FC = () => {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        padding: "2em",
+        height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "20px",
       }}
     >
-      <Card
-        title="Leaderboard"
-        style={{ textAlign: "center", maxWidth: "500px", width: "100%" }}
-      >
+      <Card title="Leaderboard" style={{ textAlign: "center", maxWidth: "500px", width: "100%" }}>
         <p style={{ fontSize: "1.25rem", color: "#ccc" }}>
           This page is currently under construction. Please check back later!
         </p>

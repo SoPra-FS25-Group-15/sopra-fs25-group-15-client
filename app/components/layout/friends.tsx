@@ -1,7 +1,7 @@
 "use client";
 
 import Notification, { NotificationProps } from "@/components/general/notification";
-import PublicUserProfile from "@/components/general/publicProfile";
+import PublicUserProfile from "@/components/general/publicUserProfile";
 import UserCard from "@/components/general/usercard";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { useApi } from "@/hooks/useApi";

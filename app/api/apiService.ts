@@ -12,13 +12,18 @@ export class ApiService {
    * Helper function to always include the latest token and required headers in every request.
    */
   private getHeaders(): HeadersInit {
-    const token = localStorage.getItem("token") || "";
-    return {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      // Use the "Authorization" header with a Bearer prefix.
-      Authorization: `Bearer ${token}`,
-    };
+    const user = localStorage.getItem("user");
+    const token = user ? JSON.parse(user).token : null;
+    if (token) {
+      return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+    } else {
+      return {
+        "Content-Type": "application/json",
+      };
+    }
   }
 
   /**

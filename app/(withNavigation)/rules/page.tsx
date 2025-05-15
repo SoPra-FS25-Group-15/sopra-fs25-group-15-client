@@ -56,8 +56,7 @@ const Rules: React.FC = () => {
       cardName: "Lost in Transmission",
       description:
         "The round includes the full available coverage, but the map to lock in your guess has no labels for countries, cities and streets",
-      modifiers:
-        "Type of guess: Precise, Street View: Standard, Map: No Labels, Round time: 60s",
+      modifiers: "Type of guess: Precise, Street View: Standard, Map: No Labels, Round time: 60s",
     },
     {
       cardName: "Double",
@@ -82,8 +81,7 @@ const Rules: React.FC = () => {
     },
     {
       cardName: "Draw again",
-      effect:
-        "Discard 2 powerup cards (this card included) and draw a powerup card of your choice.",
+      effect: "Discard 2 powerup cards (this card included) and draw a powerup card of your choice.",
     },
     {
       cardName: "Swap",
@@ -107,21 +105,18 @@ const Rules: React.FC = () => {
     },
     {
       cardName: "Study time",
-      effect:
-        "Reveals the distance from the UZH Building to your target location.",
+      effect: "Reveals the distance from the UZH Building to your target location.",
     },
   ];
 
   const punishmentCards: ActionCard[] = [
     {
       cardName: "+1",
-      effect:
-        "A player of your choice needs to pick up one round card at the beginning of the next round.",
+      effect: "A player of your choice needs to pick up one round card at the beginning of the next round.",
     },
     {
       cardName: "No Action",
-      effect:
-        "A player of your choice does not receive an action card at the beginning of the next round.",
+      effect: "A player of your choice does not receive an action card at the beginning of the next round.",
     },
     {
       cardName: "No Labels",
@@ -130,38 +125,31 @@ const Rules: React.FC = () => {
     },
     {
       cardName: "Trashcan",
-      effect:
-        "A player of your choice has to discard an action card of their choice, if they have any.",
+      effect: "A player of your choice has to discard an action card of their choice, if they have any.",
     },
     {
       cardName: "Bad sight",
-      effect:
-        "A player of your choice has their screen blurred for the first 15 seconds of the round.",
+      effect: "A player of your choice has their screen blurred for the first 15 seconds of the round.",
     },
     {
       cardName: "Rooted",
-      effect:
-        "A player of your choice cannot move around for the first 15 seconds of the round.",
+      effect: "A player of your choice cannot move around for the first 15 seconds of the round.",
     },
     {
       cardName: "Bad guess",
-      effect:
-        "A player of your choice has their distance from the target location doubled for scoring.",
+      effect: "A player of your choice has their distance from the target location doubled for scoring.",
     },
     {
       cardName: "Restricted",
-      effect:
-        "A player of your choice has a maximum of 1 guess this round under any circumstance.",
+      effect: "A player of your choice has a maximum of 1 guess this round under any circumstance.",
     },
     {
       cardName: "Time runs out",
-      effect:
-        "A player of your choice has 15 seconds removed from their timer.",
+      effect: "A player of your choice has 15 seconds removed from their timer.",
     },
     {
       cardName: "No help",
-      effect:
-        "A player of your choice cannot play any action cards this round.",
+      effect: "A player of your choice cannot play any action cards this round.",
     },
   ];
 
@@ -177,12 +165,10 @@ const Rules: React.FC = () => {
   ];
 
   return (
-    <Card title="Game Rules" style={{ margin: "20px" }}>
+    <Card title="Game Rules">
       <Typography>
         <Title level={2}>Objective</Title>
-        <Paragraph>
-          The first player to successfully play all of their Round Cards wins the game.
-        </Paragraph>
+        <Paragraph>The first player to successfully play all of their Round Cards wins the game.</Paragraph>
 
         <Title level={2}>Preparation</Title>
         <Paragraph>
@@ -193,19 +179,27 @@ const Rules: React.FC = () => {
         <Paragraph>Each round consists of the following steps:</Paragraph>
         <ul>
           <li>
-            <Text strong>Playing a Round Card:</Text> The winner of the previous round plays one of their Round Cards, listed on the table below. In the first round, a starting player is chosen randomly.
+            <Text strong>Playing a Round Card:</Text> The winner of the previous round plays one of their Round Cards,
+            listed on the table below. In the first round, a starting player is chosen randomly.
           </li>
           <li>
-            <Text strong>Playing an Action Card:</Text> Each player may play one Action Card per round. Action Cards have various effects that can help the player or disrupt opponents. For details, refer to the tables below. Players can only hold up to 5 Action Cards in their hand at any time. If they have 5, they must discard one before drawing a new card.
+            <Text strong>Playing an Action Card:</Text> Each player may play one Action Card per round. Action Cards
+            have various effects that can help the player or disrupt opponents. For details, refer to the tables below.
+            Players can only hold up to 5 Action Cards in their hand at any time. If they have 5, they must discard one
+            before drawing a new card.
           </li>
           <li>
-            <Text strong>Playing the Guessing Round:</Text> The winner of the round is determined based on who guessed the closest to the target location. The winner will have the advantage of playing one of their Round Cards in the next round.
+            <Text strong>Playing the Guessing Round:</Text> The winner of the round is determined based on who guessed
+            the closest to the target location. The winner will have the advantage of playing one of their Round Cards
+            in the next round.
           </li>
           <li>
-            <Text strong>Drawing New Action Cards:</Text> At the end of the round, all players draw one Action Card from the deck.
+            <Text strong>Drawing New Action Cards:</Text> At the end of the round, all players draw one Action Card from
+            the deck.
           </li>
           <li>
-            <Text strong>Next Round Begins:</Text> The game continues with another round until one player wins by playing their last action card.
+            <Text strong>Next Round Begins:</Text> The game continues with another round until one player wins by
+            playing their last action card.
           </li>
         </ul>
 
@@ -239,12 +233,7 @@ const Rules: React.FC = () => {
         <Paragraph>
           <Text strong>Punishment Cards</Text>
         </Paragraph>
-        <Table
-          columns={columnsActionCards}
-          dataSource={punishmentCards}
-          pagination={false}
-          rowKey="cardName"
-        />
+        <Table columns={columnsActionCards} dataSource={punishmentCards} pagination={false} rowKey="cardName" />
       </Typography>
     </Card>
   );

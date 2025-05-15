@@ -6,7 +6,7 @@ import useLocalStorage from "@/hooks/useLocalStorage";
 import { User } from "@/types/user";
 import { EyeFilled, EyeInvisibleOutlined } from "@ant-design/icons";
 import "@ant-design/v5-patch-for-react-19";
-import { Button, Card, Checkbox, Form, Input } from "antd";
+import { Button, Card, Flex, Form, Input } from "antd";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -48,52 +48,51 @@ const Login: React.FC = () => {
   };
 
   return (
-    <Card title="Login">
-      <p>
-        Don&apos;t have an account yet? <Link href="/register">Register</Link>
-      </p>
-      {notification && <Notification {...notification} />}
-      <Form
-        form={form}
-        name="login"
-        layout="vertical"
-        variant="outlined"
-        initialValues={{ remember: true }}
-        autoComplete="off"
-        onFinish={handleLogin}
-      >
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={[
-            { required: true, message: "Please input your email!" },
-            { type: "email", message: "Please input a valid email!" }
-          ]}
+    <Flex style={{ justifyContent: "center", alignItems: "center", height: "100%" }}>
+      <Card title="Login" style={{ width: "100%", maxWidth: 500 }}>
+        {notification && <Notification {...notification} />}
+        <div style={{ marginBottom: 16 }}>
+          <p>
+            Don&apos;t have an account yet? <Link href="/register">Register</Link>
+          </p>
+        </div>
+        <Form
+          form={form}
+          name="login"
+          layout="vertical"
+          variant="outlined"
+          initialValues={{ remember: true }}
+          autoComplete="off"
+          onFinish={handleLogin}
         >
-          <Input placeholder="Enter email" />
-        </Form.Item>
-        <Form.Item
-          name="password"
-          label="Password"
-          rules={[{ required: true, message: "Please input your password!" }]}
-        >
-          <Input.Password
-            placeholder="Enter password"
-            iconRender={(visible) =>
-              visible ? <EyeFilled /> : <EyeInvisibleOutlined />
-            }
-          />
-        </Form.Item>
-        <Form.Item name="remember" valuePropName="checked">
-          <Checkbox>Keep me signed in</Checkbox>
-        </Form.Item>
-        <Form.Item>
-          <Button type="primary" htmlType="submit">
-            Login
-          </Button>
-        </Form.Item>
-      </Form>
-    </Card>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: "Please input your email!" },
+              { type: "email", message: "Please input a valid email!" },
+            ]}
+          >
+            <Input placeholder="Enter email" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label="Password"
+            rules={[{ required: true, message: "Please input your password!" }]}
+          >
+            <Input.Password
+              placeholder="Enter password"
+              iconRender={(visible) => (visible ? <EyeFilled /> : <EyeInvisibleOutlined />)}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              Login
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+    </Flex>
   );
 };
 

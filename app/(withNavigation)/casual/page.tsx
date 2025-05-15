@@ -34,7 +34,7 @@ const PlayCasual: React.FC = () => {
       }
     }
   }, [user, router]);
-  
+
   const getAuthHeaders = () => ({
     Authorization: user?.token || "",
     "Content-Type": "application/json",
@@ -47,10 +47,10 @@ const PlayCasual: React.FC = () => {
       setNotification({ type: "error", message: "User not logged in. Please log in to create a lobby." });
       return;
     }
-    
+
     try {
       setIsCreatingLobby(true);
-      
+
       // Payload to create a casual lobby (e.g., unranked solo mode)
       const payload = {
         isPrivate: true,
@@ -59,14 +59,16 @@ const PlayCasual: React.FC = () => {
       };
 
       // Expected response should contain a lobbyCode (as per your REST API documentation)
-      const response = (await apiService.post("/lobbies", payload, { headers: getAuthHeaders() })) as { lobbyCode: string };
+      const response = (await apiService.post("/lobbies", payload, { headers: getAuthHeaders() })) as {
+        lobbyCode: string;
+      };
       const lobbyCode = response.lobbyCode;
-      
+
       if (!lobbyCode) {
         setNotification({ type: "error", message: "Lobby creation failed: no lobby code returned." });
         return;
       }
-      
+
       router.push(`/lobbies/${lobbyCode}`);
     } catch (error: unknown) {
       console.error("Error creating lobby:", error);
@@ -87,7 +89,7 @@ const PlayCasual: React.FC = () => {
       message.error("Please enter a valid lobby code");
       return;
     }
-    
+
     // Redirect to the lobby page.
     // The LobbyPage will handle the STOMP join process (or use an API join endpoint) using the lobby code.
     router.push(`/lobbies/${joinLobbyCode.trim()}`);
@@ -99,9 +101,7 @@ const PlayCasual: React.FC = () => {
       <Row justify="center">
         <Col xs={24} md={12} style={{ textAlign: "center" }}>
           <Title level={2}>Play Casual</Title>
-          <Paragraph>
-            Host a game and invite your friends. This game mode will not affect your ranked rating.
-          </Paragraph>
+          <Paragraph>Host a game and invite your friends. This game mode will not affect your ranked rating.</Paragraph>
           <Paragraph style={{ margin: "1rem 0" }}>
             <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>2-8 Players</span>
             <span style={{ margin: "0 0.5rem", color: "#aaa" }}>|</span>
