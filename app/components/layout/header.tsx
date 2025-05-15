@@ -154,7 +154,29 @@ const Profile: React.FC = () => {
 const Header: React.FC = () => {
   return (
     <>
-      <nav style={{ position: "fixed", top: 8, left: 8, right: 8, zIndex: 100, height: 82, overflow: "hidden" }}>
+      {/* Background blur */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 98,
+          maskImage: "linear-gradient(black 25%,  transparent 100%)",
+          backdropFilter: "blur(20px) brightness(0.7) saturate(2)",
+          zIndex: 99,
+        }}
+      ></div>
+      <nav
+        style={{
+          position: "fixed",
+          top: 8,
+          left: 8,
+          right: 8,
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+          zIndex: 100,
+        }}
+      >
         <Card styles={{ body: { padding: 4 } }} size="small">
           <Flex justify="space-between" align="center">
             <Flex align="center" gap={8}>
