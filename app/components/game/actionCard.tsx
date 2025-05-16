@@ -111,10 +111,7 @@ const ActionCardComponent: React.FC<
                 options={playerList}
                 onChange={onChange}
                 style={{ fontWeight: 500, fontSize: "16px" }}
-                dropdownStyle={{
-                  fontWeight: 500,
-                  fontSize: "20px",
-                }}
+                styles={{ popup: { root: { fontWeight: 500, fontSize: "20px" } } }}
               />
             </ConfigProvider>
           </Flex>

@@ -228,8 +228,8 @@ const UserProfile: React.FC = () => {
 
       <Modal
         styles={{ body: { paddingTop: 40 } }}
+        destroyOnHidden
         centered
-        destroyOnClose
         closeIcon={<CloseOutlined />}
         open={previewOpen}
         onCancel={() => setPreviewOpen(false)}

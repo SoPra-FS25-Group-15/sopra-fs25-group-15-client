@@ -23,15 +23,14 @@ export default function NavigationLayout({
             padding: 8,
             margin: "0 auto",
             maxWidth: 1280,
-            height: "100%",
-            minHeight: 500,
+            minHeight: "100vh",
           }}
         >
           <Header></Header>
           {/* Reserve place for header */}
           <section style={{ height: 82, flexShrink: 0 }}></section>
           {/* Content Section */}
-          <section style={{ height: "100%" }}>{children}</section>
+          <section style={{ height: "100%", flexGrow: 1 }}>{children}</section>
         </Flex>
       </AntdRegistry>
     </>

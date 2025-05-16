@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Row, Col, Modal, Typography, Input, message } from "antd";
+import { Row, Col, Modal, Typography, Input, Flex, Spin } from "antd";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
 import LargeCardButton from "@/components/general/LargeCardButton";
-import { UserAddOutlined, LoginOutlined } from "@ant-design/icons";
+import { UserAddOutlined, LoginOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useGlobalUser } from "@/contexts/globalUser";
 
 const { Title, Paragraph } = Typography;
@@ -19,21 +19,12 @@ const PlayCasual: React.FC = () => {
   const [showJoinLobbyModal, setShowJoinLobbyModal] = useState(false);
   const [joinLobbyCode, setJoinLobbyCode] = useState("");
   const [isCreatingLobby, setIsCreatingLobby] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Wait for globalUser to load from localStorage before proceeding
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user");
-      if (!stored) {
-        router.push("/login");
-        return;
-      }
-      if (stored && !user) {
-        // still waiting for context to initialize
-        return;
-      }
-    }
-  }, [user, router]);
+    if (user && user.token) setLoading(false);
+  }, [user]);
 
   const getAuthHeaders = () => ({
     Authorization: user?.token || "",
@@ -73,7 +64,7 @@ const PlayCasual: React.FC = () => {
     } catch (error: unknown) {
       console.error("Error creating lobby:", error);
       if (error instanceof Error) {
-        setNotification({ type: "error", message: error.message || "Failed to create lobby." });
+        setNotification({ type: "error", message: "Failed to create lobby." });
       } else {
         setNotification({ type: "error", message: "Failed to create lobby." });
       }
@@ -86,7 +77,7 @@ const PlayCasual: React.FC = () => {
   // The user inputs a lobby code, and on confirmation we redirect to /lobbies/{lobbyCode}.
   const handleJoinLobby = () => {
     if (!joinLobbyCode || joinLobbyCode.trim() === "") {
-      message.error("Please enter a valid lobby code");
+      setNotification({ type: "error", message: "Please enter a valid lobby code" });
       return;
     }
 
@@ -95,13 +86,21 @@ const PlayCasual: React.FC = () => {
     router.push(`/lobbies/${joinLobbyCode.trim()}`);
   };
 
+  if (loading) {
+    return (
+      <Flex justify="center" align="center" style={{ width: "100%", height: "100%", padding: 30 }}>
+        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+      </Flex>
+    );
+  }
+
   return (
     <div style={{ padding: "2rem" }}>
       {notification && <Notification {...notification} />}
       <Row justify="center">
         <Col xs={24} md={12} style={{ textAlign: "center" }}>
-          <Title level={2}>Play Casual</Title>
-          <Paragraph>Host a game and invite your friends. This game mode will not affect your ranked rating.</Paragraph>
+          <Title level={2}>Play a Game</Title>
+          <Paragraph>Host a game and invite your friends. Or join an existing game with a code.</Paragraph>
           <Paragraph style={{ margin: "1rem 0" }}>
             <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>2-8 Players</span>
             <span style={{ margin: "0 0.5rem", color: "#aaa" }}>|</span>

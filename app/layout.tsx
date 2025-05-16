@@ -29,8 +29,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         style={{
           WebkitFontSmoothing: "antialiased",
           MozOsxFontSmoothing: "grayscale",
-          height: "100%",
-          width: "100%",
           color: "#fff",
           backgroundColor: "#111",
         }}

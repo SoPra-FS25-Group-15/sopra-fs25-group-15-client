@@ -12,9 +12,6 @@ import { Button, Card, Drawer, Flex, Modal, Popover } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import UserProfile from "../userMenu/userProfile";
-import Achievements from "../userMenu/achievements";
-import GameHistory from "../userMenu/gameHistory";
-import Settings from "../userMenu/settings";
 
 const appLinks: MenuItem[] = [
   { label: "Play", link: "/casual" },
@@ -85,9 +82,6 @@ const Profile: React.FC = () => {
   if (user) {
     const userLinks: MenuItem[] = [
       { label: "Profile", onClick: () => handleOpen("profile") },
-      { label: "Achievements", onClick: () => handleOpen("achievements") },
-      { label: "Game History", onClick: () => handleOpen("history") },
-      { label: "Settings", onClick: () => handleOpen("settings") },
       { label: "Sign out", onClick: handleLogout },
     ];
 
@@ -110,15 +104,12 @@ const Profile: React.FC = () => {
           style={{ zIndex: 1000 }}
         >
           {activeView === "profile" && <UserProfile />}
-          {activeView === "achievements" && <Achievements />}
-          {activeView === "history" && <GameHistory />}
-          {activeView === "settings" && <Settings />}
         </Drawer>
         <span style={{ maxWidth: "25vw" }}>
           <Popover
             className="user-menu"
             content={
-              <div className="user-menu">
+              <div style={{ width: 150 }} className="user-menu">
                 <Menu items={userLinks} />
               </div>
             }
