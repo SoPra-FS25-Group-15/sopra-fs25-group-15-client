@@ -76,5 +76,5 @@ Thank you to our TA, Lucas Bär, who has been a great help in order to make this
 
 ### License
 
-This project is licensed under the MIT License - see the [LICENSE.md]() file for details
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/blob/main/license.md) file for details
 
