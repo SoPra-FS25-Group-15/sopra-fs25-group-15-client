@@ -2,7 +2,7 @@
 
 ### Introduction
 
-ActionGuessr is a turn-based game designed as an innovative and strategic enhancement of the popular game GeoGuessr. The motivation behind ActionGuessr is to introduce strategic depth and dynamic player interaction, significantly enriching the original gameplay experience. To achieve this, we implemented a system of round cards that determine the unique conditions under which each round is played. Players are also given action cards, which they strategically deploy either as beneficial power-ups for themselves or as tactical punishments targeting their opponents. The ultimate objective is to discard all round cards, with the first player to achieve this being declared the winner. Additionally, winning a round provides the player the advantage of selecting the next round's card, but a card can only be permanently discarded by winning two consecutive rounds. This structure ensures a captivating, engaging, and strategically rewarding gameplay experience beyond the original GeoGuessr concept.
+ActionGuessr is a turn-based game designed as an innovative and strategic enhancement of the popular game GeoGuessr. The motivation behind ActionGuessr is to introduce strategic depth and dynamic player interaction, enriching the original gameplay experience. To achieve this, we implemented a system of round cards that determine the unique conditions under which each round is played. Winning a round grants the player the right to choose the next round card. If the winner also happened to be the one who selected the round card for the previous round, they gain an additional advantage: they are allowed to discard that previously played round card. Players are also given action cards, which they strategically deploy either as beneficial power-ups for themselves or as tactical punishments targeting their opponents. The ultimate objective is to discard all round cards, with the first player to achieve this being declared the winner. This structure creates a captivating, engaging, and strategically rewarding gameplay experience beyond the original GeoGuessr concept.
 
 ### Technologies 
 
@@ -17,7 +17,7 @@ ActionGuessr is a turn-based game designed as an innovative and strategic enhanc
 
 #### Lobby Page
 [Lobby Code](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/blob/main/app/(withNavigation)/lobbies/%5Bid%5D/page.tsx)
-Manages player interactions, allowing users to create or join game sessions. It serves as the initial gathering point where players can organize and initiate gameplay. The lobby tracks player presence, readiness status, and handles real-time synchronization of player actions.
+Manages player interactions, allowing users to create or join game sessions. It serves as the initial gathering point where players can organize and initiate gameplay.
 
 #### Round Card Page
 [Round Card Code](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/blob/main/app/(game)/games/%5Bcode%5D/roundcard/page.tsx)
@@ -29,11 +29,11 @@ Facilitates strategic gameplay through action cards, which players can use eithe
 
 #### Guessing Page
 [Guessing Code](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/blob/main/app/components/game/guess.tsx)
-Enables players to submit their location guesses based on provided clues or visual prompts. This component is critical as it directly impacts scoring and round outcomes, enforcing accuracy and timely submissions.
+Enables players to submit their location guesses based on provided clues or visual prompts. This component is critical as it directly impacts scoring and round outcomes.
 
-#### Leaderboard Card Page
+#### Leaderboard Page
 [Leaderboard Code](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/blob/main/app/(withNavigation)/leaderboard/page.tsx)
-Displays and persistently stores player statistics such as scores, rankings, and historical performance across games. The leaderboard is crucial for motivating competition, providing transparency, and enhancing player engagement through visible progression.
+Displays and persistently stores the overall XP gained by playing the game. The leaderboard is crucial for motivating competition, providing transparency, and enhancing player engagement through visible progression.
 
 ### Launch & Deployement
 
@@ -58,7 +58,7 @@ The game progresses through several interactive stages:
 2. Action Card Phase: Players strategically select and deploy action cards, using these either to boost their own advantage or to disrupt opponents' gameplay.
 3. Guessing Phase: Players submit their guesses regarding the location shown. Accuracy and speed are critical, impacting round outcomes significantly.
 4. Results and Next Round: Upon submission of all guesses, players are redirected to a results page displaying round outcomes, points earned, and player standings.
-5. Game Conclusion: Gameplay continues until a player successfully wins two consecutive rounds, allowing them to permanently discard the round card and win the game.
+5. Game Conclusion: Gameplay continues until a player successfully discards all of their round cards to win the game.
 6. Leaderboard Review: After game completion, players can review and compare their accumulated experience points (XP) and rankings on the persistent leaderboard page.
 
 ### Roadmap
