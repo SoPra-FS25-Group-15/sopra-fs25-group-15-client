@@ -45,7 +45,7 @@ export default function ActionCardPage() {
     if (!stored) {
       setNotification({
         type: "error",
-        message: "Lobby ID missing, please re-join.",
+        message: "Lobby ID missing, please re-join",
         onClose: () => setNotification(null),
       });
       return;
@@ -101,7 +101,7 @@ export default function ActionCardPage() {
           if (t === "ERROR") {
             setNotification({
               type: "error",
-              message: pl as string,
+              message: "An error occured when trying to connect with the server: " + pl,
               onClose: () => setNotification(null),
             });
           }
@@ -109,11 +109,6 @@ export default function ActionCardPage() {
       },
       onStompError: (frame) => {
         console.error("[ActionCardPage] STOMP error:", frame.headers["message"]);
-        setNotification({
-          type: "error",
-          message: frame.headers["message"] as string,
-          onClose: () => setNotification(null),
-        });
       },
       onDisconnect: () => {
         console.log("[ActionCardPage] STOMP disconnected");

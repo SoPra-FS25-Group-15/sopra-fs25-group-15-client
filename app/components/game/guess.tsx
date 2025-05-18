@@ -127,7 +127,7 @@ export default function GameComponent() {
     if (!stored) {
       setNotification({
         type: "error",
-        message: "Lobby ID missing, please re-join.",
+        message: "Lobby ID missing, please re-join",
         onClose: () => setNotification(null),
       });
       return;
@@ -169,7 +169,7 @@ export default function GameComponent() {
     if (!gameState.guessScreenAttributes) {
       setNotification({
         type: "error",
-        message: "No location received from the server. Please reload the page and try again.",
+        message: "No location received from the server. Please reload the page and try again",
         onClose: () => setNotification(null),
       });
       return;

@@ -29,8 +29,7 @@ const UserProfile: React.FC = () => {
     if (!user || !user.token) {
       setNotification({
         type: "error",
-        message: "User not authenticated",
-        description: "Please log in to update your profile.",
+        message: "An error occurred while updating your profile: User not authenticated",
         onClose: () => setNotification(null),
       });
       return;
@@ -59,8 +58,7 @@ const UserProfile: React.FC = () => {
             console.error("Update failed:", err);
             setNotification({
               type: "error",
-              message: "Failed to update user",
-              description: err.message,
+              message: "An error occurred while updating your profile: " + err.message,
               onClose: () => setNotification(null),
             });
           })

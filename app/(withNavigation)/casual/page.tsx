@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Row, Col, Modal, Typography, Input, Flex, Spin } from "antd";
+import { Modal, Typography, Input, Flex, Spin } from "antd";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import Notification, { NotificationProps } from "@/components/general/notification";
@@ -23,8 +23,11 @@ const PlayCasual: React.FC = () => {
 
   // Wait for globalUser to load from localStorage before proceeding
   useEffect(() => {
+    if (localStorage.getItem("user") === null) {
+      router.push("/login");
+    }
     if (user && user.token) setLoading(false);
-  }, [user]);
+  }, [router, user]);
 
   const getAuthHeaders = () => ({
     Authorization: user?.token || "",
@@ -35,7 +38,11 @@ const PlayCasual: React.FC = () => {
   // On success, redirect to the lobby page with the returned lobby code.
   const handleCreateLobby = async () => {
     if (!user) {
-      setNotification({ type: "error", message: "User not logged in. Please log in to create a lobby." });
+      setNotification({
+        type: "error",
+        message: "You need to be signed in to create a lobby",
+        onClose: () => setNotification(null),
+      });
       return;
     }
 
@@ -56,18 +63,22 @@ const PlayCasual: React.FC = () => {
       const lobbyCode = response.lobbyCode;
 
       if (!lobbyCode) {
-        setNotification({ type: "error", message: "Lobby creation failed: no lobby code returned." });
+        setNotification({
+          type: "error",
+          message: "An error occured while creating the lobby: The server did not return a lobby code",
+          onClose: () => setNotification(null),
+        });
         return;
       }
 
       router.push(`/lobbies/${lobbyCode}`);
     } catch (error: unknown) {
-      console.error("Error creating lobby:", error);
-      if (error instanceof Error) {
-        setNotification({ type: "error", message: "Failed to create lobby." });
-      } else {
-        setNotification({ type: "error", message: "Failed to create lobby." });
-      }
+      console.error("An error occured while creating the lobby:", error);
+      setNotification({
+        type: "error",
+        message: "An error occured while creating the lobby. Check the console for details",
+        onClose: () => setNotification(null),
+      });
     } finally {
       setIsCreatingLobby(false);
     }
@@ -77,7 +88,11 @@ const PlayCasual: React.FC = () => {
   // The user inputs a lobby code, and on confirmation we redirect to /lobbies/{lobbyCode}.
   const handleJoinLobby = () => {
     if (!joinLobbyCode || joinLobbyCode.trim() === "") {
-      setNotification({ type: "error", message: "Please enter a valid lobby code" });
+      setNotification({
+        type: "error",
+        message: "The lobby code cannot be empty",
+        onClose: () => setNotification(null),
+      });
       return;
     }
 
@@ -95,38 +110,32 @@ const PlayCasual: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: "2rem" }}>
+    <Flex vertical justify="center" align="center" gap={40} style={{ width: "100%", height: "100%", padding: 40 }}>
       {notification && <Notification {...notification} />}
-      <Row justify="center">
-        <Col xs={24} md={12} style={{ textAlign: "center" }}>
-          <Title level={2}>Play a Game</Title>
-          <Paragraph>Host a game and invite your friends. Or join an existing game with a code.</Paragraph>
-          <Paragraph style={{ margin: "1rem 0" }}>
-            <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>2-8 Players</span>
-            <span style={{ margin: "0 0.5rem", color: "#aaa" }}>|</span>
-            <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>20-60 Minutes</span>
-          </Paragraph>
-        </Col>
-      </Row>
-      <Row justify="center" style={{ marginTop: "2rem" }} gutter={[16, 16]}>
-        <Col xs={24} md={6}>
-          <LargeCardButton
-            style={{ width: "100%", height: "150px" }}
-            label="Create Lobby"
-            onClick={handleCreateLobby}
-            icon={<UserAddOutlined style={{ fontSize: "2rem" }} />}
-            disabled={isCreatingLobby}
-          />
-        </Col>
-        <Col xs={24} md={6}>
-          <LargeCardButton
-            style={{ width: "100%", height: "150px" }}
-            label="Join Lobby"
-            onClick={() => setShowJoinLobbyModal(true)}
-            icon={<LoginOutlined style={{ fontSize: "2rem" }} />}
-          />
-        </Col>
-      </Row>
+      <Flex vertical justify="center" align="center" style={{ width: "100%", textAlign: "center" }}>
+        <Title level={2}>Play a Game</Title>
+        <Paragraph>Host a game and invite your friends. Or join an existing game with a code.</Paragraph>
+        <Flex gap={12}>
+          <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>2-8 Players</span>
+          <span style={{ color: "#aaa", fontSize: "1rem" }}>|</span>
+          <span style={{ fontWeight: "bold", color: "#8a2be2", fontSize: "1.2rem" }}>20-60 Minutes</span>
+        </Flex>
+      </Flex>
+      <Flex wrap justify="center" align="center" gap={16} style={{ width: "100%", maxWidth: 800 }}>
+        <LargeCardButton
+          style={{ flexGrow: 1, flexBasis: 330, height: "150px" }}
+          label="Create Lobby"
+          onClick={handleCreateLobby}
+          icon={<UserAddOutlined style={{ fontSize: "2rem" }} />}
+          disabled={isCreatingLobby}
+        />
+        <LargeCardButton
+          style={{ flexGrow: 1, flexBasis: 330, height: "150px" }}
+          label="Join Lobby"
+          onClick={() => setShowJoinLobbyModal(true)}
+          icon={<LoginOutlined style={{ fontSize: "2rem" }} />}
+        />
+      </Flex>
 
       <Modal
         title="Join Lobby"
@@ -142,7 +151,7 @@ const PlayCasual: React.FC = () => {
           onPressEnter={handleJoinLobby}
         />
       </Modal>
-    </div>
+    </Flex>
   );
 };
 

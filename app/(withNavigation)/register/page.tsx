@@ -58,7 +58,7 @@ const Register: React.FC = () => {
         if (error.message.includes("400")) {
           setNotification({
             type: "error",
-            message: "Bad request. Please check your input",
+            message: "Bad request. Please check your input and try again",
             onClose: () => setNotification(null),
           });
         }

@@ -70,7 +70,9 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to load friends list.",
+        message:
+          "An error occurred while loading your friend list: " +
+          (error instanceof Error ? error.message : "Unknown error"),
         onClose: () => setNotification(null),
       });
     }
@@ -85,7 +87,9 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to load friend requests.",
+        message:
+          "An error occurred while loading your friend requests: " +
+          (error instanceof Error ? error.message : "Unknown error"),
         onClose: () => setNotification(null),
       });
     }
@@ -105,7 +109,9 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to accept friend request.",
+        message:
+          "An error occured while accepting the friend request: " +
+          (error instanceof Error ? error.message : "Unknown error"),
         onClose: () => setNotification(null),
       });
     }
@@ -124,7 +130,9 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to decline friend request.",
+        message:
+          "An error occurred while declining the friend request: " +
+          (error instanceof Error ? error.message : "Unknown error"),
         onClose: () => setNotification(null),
       });
     }
@@ -144,7 +152,9 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to cancel friend request.",
+        message:
+          "An error occurred while canceling the friend request: " +
+          (error instanceof Error ? error.message : "Unknown error"),
         onClose: () => setNotification(null),
       });
     }
@@ -164,7 +174,8 @@ const FriendManagement: React.FC = () => {
     } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to remove friend.",
+        message:
+          "An error occurred while removing the friend: " + (error instanceof Error ? error.message : "Unknown error"),
         onClose: () => setNotification(null),
       });
     }
