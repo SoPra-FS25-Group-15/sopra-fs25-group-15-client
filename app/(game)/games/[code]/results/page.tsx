@@ -102,6 +102,24 @@ export default function ResultsPage() {
             if (evt.type === "GAME_WINNER") {
               setGameWinner((evt as GameWinnerEvent).winnerUsername);
               console.log("[ResultsPage] Game winner set from STOMP:", evt);
+
+              // ── Refresh user stats to update XP in profile ──
+              fetch(`${getApiDomain()}/users/me/stats`, {
+                headers: { Authorization: `Bearer ${user.token}` },
+              })
+                .then((res) => {
+                  if (!res.ok) {
+                    throw new Error("Failed to fetch updated user stats");
+                  }
+                  return res.json();
+                })
+                .then((stats) => {
+                  localStorage.setItem("userAttributes", JSON.stringify(stats));
+                  window.dispatchEvent(new Event("userAttributesChanged"));
+                })
+                .catch((err) => {
+                  console.error("[ResultsPage] Failed to refresh user stats:", err);
+                });
             }
           } catch (err) {
             console.error("[ResultsPage] Error parsing gameSub message:", err, msg.body);
