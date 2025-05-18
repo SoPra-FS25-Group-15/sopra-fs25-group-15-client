@@ -147,8 +147,10 @@ reason).
 
 | **Student**        | **Date** | **Link to Commit** | **Description**                 | **Relevance**                       |
 | ------------------ | -------- | ------------------ | ------------------------------- | ----------------------------------- |
-| **[@githubUser1]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **@froeoe** | 17.5.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/168) | This code implements a working leaderboard in the frontend and makes sure that the updated XPS are displayed as soon as the game is finished. | This adds a persistence feature to the game. |
+|                    | 17.5.2024 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/333) | This code makes sure that the XPS are distributed in each case (round played, round won, game won) | This makes sure that the leaderboard can retrieve the correct xps. |
+|                    | 17.5.2024 | [Commit](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/commit/bdbf8a75ac509681e5e7f9a3b4f6af6da76b47f2) | This implements a project description as readme in the frontend. | This is required for the submission of M4. |
+|                    | 17.5.2025 | [Commit](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/d51aee1c1aaceb0d2d4d8bd70337032fa41004b1) | This implements a project description as readme in the backend. | This is required for the submission of M4. |
 | **[@githubUser2]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
