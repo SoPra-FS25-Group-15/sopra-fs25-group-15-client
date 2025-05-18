@@ -55,11 +55,17 @@ Players begin their journey by registering or logging into ActionGuessr. Once lo
 
 The game progresses through several interactive stages:
 1. Round Card Selection: At the start of the first round, a random player is selected to choose the round card, setting specific conditions and rules for the current round.
+![Round Card](Round_Card.png)
 2. Action Card Phase: Players strategically select and deploy action cards, using these either to boost their own advantage or to disrupt opponents' gameplay.
+![Action Card](Actioncard_Punishment.png)
 3. Guessing Phase: Players submit their guesses regarding the location shown. Accuracy and speed are critical, impacting round outcomes significantly.
+![Guessing Screen](Guessing_Screen_blurred_and_hint.png)
 4. Results and Next Round: Upon submission of all guesses, players are redirected to a results page displaying round outcomes, points earned, and player standings.
+![Round Results](Round_results.png)
 5. Game Conclusion: Gameplay continues until a player successfully discards all of their round cards to win the game.
+![Game Results](Game_results.png)
 6. Leaderboard Review: After game completion, players can review and compare their accumulated experience points (XP) and rankings on the persistent leaderboard page.
+![Leaderboard](Leaderboard.png)
 
 ### Roadmap
 
