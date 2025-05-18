@@ -11,6 +11,7 @@ ActionGuessr is a turn-based game designed as an innovative and strategic enhanc
 - flake.nix: Provides reproducible and declarative package management, ensuring consistency across development environments through Nix's robust system.
 - Node.js: JavaScript runtime environment essential for running the backend logic, facilitating backend operations, and handling asynchronous tasks efficiently.
 - Docker: Containerization technology that ensures consistency and ease in managing dependencies and environments across development, testing, and production phases.
+- Sockjs: A JavaScript library that emulates the WebSocket API, providing a consistent, cross-browser communication channel between the browser and the server. SockJS attempts to establish a native WebSocket connection and, if unsuccessful due to browser limitations or network restrictions, automatically falls back to alternative transport protocols like HTTP long polling or XHR streaming. This ensures reliable, low-latency, full-duplex communication even in environments where WebSockets are not supported or are blocked by proxies.
 
 ### High-level components
 
