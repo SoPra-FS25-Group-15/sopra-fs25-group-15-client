@@ -36,19 +36,33 @@ const Login: React.FC = () => {
       router.push("/");
     } catch (error) {
       if (error instanceof Error) {
+        if (error.message.includes("401")) {
+          setNotification({
+            type: "error",
+            message: "Invalid email or password",
+            onClose: () => setNotification(null),
+          });
+        }
+        if (error.message.includes("500")) {
+          setNotification({
+            type: "error",
+            message: "Server error. Please try again later",
+            onClose: () => setNotification(null),
+          });
+        }
+      } else {
+        console.error("An unknown error occurred during login", error);
         setNotification({
           type: "error",
-          message: `${error.name}: ${error.message}`,
+          message: "An unknown error occurred during login. Please check the console for details.",
           onClose: () => setNotification(null),
         });
-      } else {
-        console.error("An unknown error occurred during login.");
       }
     }
   };
 
   return (
-    <Flex style={{ justifyContent: "center", alignItems: "center", height: "100%" }}>
+    <Flex style={{ justifyContent: "center", alignItems: "center", height: "calc(100vh - 106px" }}>
       <Card title="Login" style={{ width: "100%", maxWidth: 500 }}>
         {notification && <Notification {...notification} />}
         <div style={{ marginBottom: 16 }}>

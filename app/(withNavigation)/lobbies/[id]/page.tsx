@@ -106,7 +106,11 @@ const LobbyPage: React.FC = () => {
     if (!lobbyCode) return;
 
     if (!user?.token) {
-      setNotification({ type: "error", message: "Please log in to access the lobby." });
+      setNotification({
+        type: "error",
+        message: "Please log in to access a lobby",
+        onClose: () => setNotification(null),
+      });
       setLoading(false);
       return;
     }
@@ -180,7 +184,11 @@ const LobbyPage: React.FC = () => {
       },
       onStompError: (frame) => {
         console.error("[STOMP ERROR]", frame.headers["message"]);
-        setNotification({ type: "error", message: frame.headers["message"] });
+        setNotification({
+          type: "error",
+          message: "An error occured when trying to connect with the server: " + frame.headers["message"],
+          onClose: () => setNotification(null),
+        });
         setLoading(false);
       },
       onDisconnect: () => {

@@ -48,19 +48,35 @@ const Register: React.FC = () => {
       router.push("/");
     } catch (error) {
       if (error instanceof Error) {
-        setNotification({
-          type: "error",
-          message: `${error.name}: ${error.message}`,
-          onClose: () => setNotification(null),
-        });
+        if (error.message.includes("409")) {
+          setNotification({
+            type: "error",
+            message: "This username or email is already taken",
+            onClose: () => setNotification(null),
+          });
+        }
+        if (error.message.includes("400")) {
+          setNotification({
+            type: "error",
+            message: "Bad request. Please check your input and try again",
+            onClose: () => setNotification(null),
+          });
+        }
+        if (error.message.includes("500")) {
+          setNotification({
+            type: "error",
+            message: "Server error. Please try again later",
+            onClose: () => setNotification(null),
+          });
+        }
       } else {
-        console.error("An unknown error occurred during registration.");
+        console.error("An unknown error occurred during registration", error);
       }
     }
   };
 
   return (
-    <Flex style={{ justifyContent: "center", alignItems: "center", height: "100%" }}>
+    <Flex style={{ justifyContent: "center", alignItems: "center", height: "calc(100vh - 106px)" }}>
       <Card title="Register" style={{ width: "100%", maxWidth: 500 }}>
         {notification && <Notification {...notification} />}
         <div style={{ marginBottom: 16 }}>

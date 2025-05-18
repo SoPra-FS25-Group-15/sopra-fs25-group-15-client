@@ -12,7 +12,7 @@ import { getRoundCards, RoundCardIdentifier } from "@/types/game/roundcard";
 import { getApiDomain } from "@/utils/domain";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
-import { Button, Flex, message, Spin } from "antd";
+import { Button, Flex, Spin } from "antd";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import SockJS from "sockjs-client";
@@ -44,7 +44,7 @@ const RoundCardPageComponent: React.FC = () => {
     if (!stored) {
       setNotification({
         type: "error",
-        message: "Lobby ID missing, please re-join.",
+        message: "Lobby ID missing, please re-join",
         onClose: () => setNotification(null),
       });
       return;
@@ -94,16 +94,19 @@ const RoundCardPageComponent: React.FC = () => {
           if (type === "ERROR") {
             setNotification({
               type: "error",
-              message: payload as string,
+              message: "An error occured when trying to connect with the server: " + payload,
               onClose: () => setNotification(null),
             });
           }
         });
       },
       onStompError: (frame) => {
-        message.error(frame.headers["message"] as string);
+        console.error("[RoundCardPage] STOMP error:", frame.headers["message"]);
       },
-      onDisconnect: () => setStompConnected(false),
+      onDisconnect: () => {
+        console.log("[RoundCardPage] STOMP disconnected");
+        setStompConnected(false);
+      },
     });
 
     client.activate();
