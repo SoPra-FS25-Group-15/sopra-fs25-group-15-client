@@ -70,7 +70,7 @@ The game progresses through several interactive stages:
 ### Roadmap
 
 - Lobby Persistence: Ensure the lobby remains intact upon page reload.
-- Player Statistics: Integrate frontend stats tracking games played and won.
+- More Action Cards: Add more action cards for a more diverse game experience.
 - Enhanced Guessing Experience: Reveal correct locations only after all players submit guesses, with improved timer synchronization.
 
 ### Authors
