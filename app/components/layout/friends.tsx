@@ -5,12 +5,13 @@ import PublicUserProfile from "@/components/general/publicUserProfile";
 import UserCard from "@/components/general/usercard";
 import { useGlobalUser } from "@/contexts/globalUser";
 import { useApi } from "@/hooks/useApi";
+import useOnceWhenReady from "@/hooks/useOnceWhenReady";
 import { Friend, FriendRequest } from "@/types/friends";
 import { green, red } from "@ant-design/colors";
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import "@ant-design/v5-patch-for-react-19";
 import { Button, Card, Flex, Form, Input, List, Modal, Segmented, Tabs, TabsProps, Tooltip } from "antd";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 const FriendManagement: React.FC = () => {
   const apiService = useApi();
@@ -101,7 +102,7 @@ const FriendManagement: React.FC = () => {
       await apiService.put(`/friends/requests/${requestId}`, { action: "accept" }, { headers });
       setNotification({
         type: "success",
-        message: "Friend request accepted successfully.",
+        message: "Friend request accepted successfully",
         onClose: () => setNotification(null),
       });
       fetchFriends();
@@ -120,10 +121,10 @@ const FriendManagement: React.FC = () => {
   const handleDeclineRequest = async (requestId: number) => {
     try {
       const headers = getAuthHeaders();
-      await apiService.post(`/friends/requests/${requestId}`, { action: "deny" }, { headers });
+      await apiService.put(`/friends/requests/${requestId}`, { action: "deny" }, { headers });
       setNotification({
         type: "success",
-        message: "Friend request declined successfully.",
+        message: "Friend request declined successfully",
         onClose: () => setNotification(null),
       });
       fetchRequests();
@@ -189,12 +190,10 @@ const FriendManagement: React.FC = () => {
   };
 
   // Fetch data once the user object is available.
-  useEffect(() => {
-    if (user) {
-      fetchFriends();
-      fetchRequests();
-    }
-  }, [fetchRequests, fetchFriends, user]);
+  useOnceWhenReady([user], () => {
+    fetchFriends();
+    fetchRequests();
+  });
 
   if (!user) {
     return null;
@@ -204,6 +203,15 @@ const FriendManagement: React.FC = () => {
   if (collapsed) {
     return (
       <>
+        <PublicUserProfileModal
+          open={selectedProfileId !== null}
+          setOpen={(open) => {
+            if (!open) {
+              setSelectedProfileId(null);
+            }
+          }}
+          userId={selectedProfileId}
+        />
         <AddFriendModal open={showInviteForm} setOpen={setShowInviteForm} headers={getAuthHeaders()} />
         <Flex
           onPointerEnter={handleHover}
@@ -443,6 +451,8 @@ const FriendManagement: React.FC = () => {
           <Segmented
             defaultValue="Friends"
             onChange={(tabId) => {
+              fetchFriends();
+              fetchRequests();
               setActiveTab(tabId);
             }}
             block
@@ -469,13 +479,14 @@ const PublicUserProfileModal: React.FC<{
 
   return (
     <Modal
-      width={"50vw"}
+      width={600}
       centered
-      title="Profile"
+      title="Public Profile"
       open={open}
       onOk={handleClose}
       onCancel={handleClose}
-      okText="Close"
+      onClose={handleClose}
+      footer={null}
       maskClosable
     >
       <div style={{ maxHeight: "80vh", overflowY: "auto" }}>
@@ -503,34 +514,76 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ open, setOpen, headers 
   const handleSendRequest = async (query: string) => {
     try {
       setIsSending(true);
-      const response = await apiService.post<{
+      await apiService.post<{
         message: string;
       }>("/friends/request", { query: query }, { headers });
       setNotification({
         type: "success",
-        message: response.message || "Friend request sent successfully.",
+        message: "Friend request sent successfully.",
         onClose: () => setNotification(null),
       });
       form.resetFields();
       setHasValue(false);
       setIsSending(false);
-    } catch (error: unknown) {
-      setNotification({
-        type: "error",
-        message: error instanceof Error ? error.message : "Failed to send friend request.",
-        onClose: () => setNotification(null),
-      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes("409")) {
+          setNotification({
+            type: "error",
+            message: "You are already friends with this user",
+            onClose: () => setNotification(null),
+          });
+        } else if (error.message.includes("404")) {
+          setNotification({
+            type: "error",
+            message: "No user found with this email or username",
+            onClose: () => setNotification(null),
+          });
+        } else if (error.message.includes("400")) {
+          if (!query || query === "") {
+            setNotification({
+              type: "error",
+              message: "Input cannot be empty",
+              onClose: () => setNotification(null),
+            });
+          } else {
+            setNotification({
+              type: "error",
+              message: "You cannot send a friend request to yourself",
+              onClose: () => setNotification(null),
+            });
+          }
+        } else {
+          setNotification({
+            type: "error",
+            message: error.message,
+            onClose: () => setNotification(null),
+          });
+        }
+      } else {
+        console.error("Error sending friend request:", error);
+        setNotification({
+          type: "error",
+          message: "An unknown error occurred. Check the console for details",
+          onClose: () => setNotification(null),
+        });
+      }
+      setIsSending(false);
     }
   };
 
   const handleOk = async () => {
-    setIsSending(true);
+    const inputContent = form.getFieldValue("target");
+    if (!inputContent || inputContent === "") {
+      return;
+    }
     await handleSendRequest(form.getFieldValue("target"));
-    setIsSending(false);
   };
 
   const handleClose = () => {
     setOpen(false);
+    setIsSending(false);
+    setHasValue(false);
     form.resetFields();
     setNotification(null);
   };
@@ -552,7 +605,7 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ open, setOpen, headers 
     >
       <Flex justify="center" gap={8} vertical>
         {notification && <Notification {...notification} />}
-        <Form form={form} layout="vertical" autoComplete="off">
+        <Form form={form} layout="vertical" autoComplete="off" onFinish={handleOk}>
           <Form.Item name="target" label="Send a friend request by entering their email or username">
             <Input placeholder="email or username" onChange={(e) => setHasValue(e.target.value.trim().length > 0)} />
           </Form.Item>

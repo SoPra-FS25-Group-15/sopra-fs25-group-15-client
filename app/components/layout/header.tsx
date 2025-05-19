@@ -105,7 +105,7 @@ const Profile: React.FC = () => {
         >
           {activeView === "profile" && <UserProfile />}
         </Drawer>
-        <span style={{ maxWidth: "25vw" }}>
+        <span style={{ maxWidth: 250 }}>
           <Popover
             className="user-menu"
             content={
@@ -119,7 +119,13 @@ const Profile: React.FC = () => {
             <UserCard
               style={{ borderRadius: 4, height: 72, width: "100%", background: "#fff", color: "#000" }}
               username={user.username ?? "username"}
-              subviewBottom={userAttributes ? `${userAttributes.xp} XP` : "0 XP"}
+              subviewBottom={
+                userAttributes ? (
+                  <p style={{ whiteSpace: "nowrap" }}>{userAttributes.xp} XP</p>
+                ) : (
+                  <p style={{ whiteSpace: "nowrap" }}>O XP</p>
+                )
+              }
               showPointer
               subviewRight={<DownOutlined />}
               onClick={() => setPopoverVisible(!popoverVisible)}
@@ -169,15 +175,15 @@ const Header: React.FC = () => {
         }}
       >
         <Card styles={{ body: { padding: 4 } }} size="small">
-          <Flex justify="space-between" align="center">
-            <Flex align="center" gap={8}>
+          <Flex justify="space-between" align="center" style={{ width: "100%" }}>
+            <Flex align="center" gap={8} style={{ overflow: "hidden", flexShrink: 1 }}>
               <Link href={"/"}>
                 <Flex style={{ fontSize: 24, padding: "12px 28px", color: "#fff" }}>
                   <span style={{ fontWeight: "500" }}>Action</span>
                   <span style={{ fontWeight: "800" }}>Guessr</span>
                 </Flex>
               </Link>
-              <Menu style={{ height: 72 }} items={appLinks} horizontal />
+              <Menu breakpoint={796} items={appLinks} horizontal />
             </Flex>
             <Profile />
           </Flex>

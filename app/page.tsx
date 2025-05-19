@@ -2,7 +2,7 @@
 
 import { ArrowRightOutlined, CompassOutlined, PlusOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import "@ant-design/v5-patch-for-react-19";
-import { Button, Collapse, Flex } from "antd";
+import { Button, Card, Collapse, Flex } from "antd";
 import Link from "next/link";
 import React, { FC } from "react";
 import NavigationLayout from "./(withNavigation)/layout";
@@ -95,7 +95,7 @@ const Home: FC = () => {
                 Guessr
               </h1>
             </Flex>
-            <Flex vertical style={{ fontSize: "clamp(18px, 3.5vw, 80px)" }}>
+            <Flex vertical style={{ fontSize: "clamp(18px, 3vw, 42px)" }}>
               <span style={{ whiteSpace: "nowrap" }}>Find out where you are on the world. Now</span>
               <span style={{ whiteSpace: "nowrap" }}>as a turn based game with friends.</span>
             </Flex>
@@ -199,11 +199,16 @@ const Home: FC = () => {
           />
         </section>
       </Flex>
-      <footer style={{ marginTop: 120, padding: 32, textAlign: "center", backgroundColor: "#222" }}>
-        <Flex vertical align="center" justify="center" gap={8} style={{ fontWeight: 600 }}>
-          <span style={{ fontSize: 24, fontWeight: 800, color: "rgba(255, 255, 255, 0.8)" }}>ActionGuessr</span>
-          <span style={{ color: "rgba(255, 255, 255, 0.6)" }}>Made by Group 15 of Sopra FS25</span>
-        </Flex>
+      <footer style={{ marginTop: 120, padding: 32, textAlign: "center" }}>
+        <Card>
+          <Flex vertical align="center" justify="center" gap={8} style={{ fontWeight: 600 }}>
+            <Flex style={{ fontSize: 24, color: "#fff" }}>
+              <span style={{ fontWeight: "500" }}>Action</span>
+              <span style={{ fontWeight: "800" }}>Guessr</span>
+            </Flex>
+            <span style={{ color: "rgba(255, 255, 255, 0.6)" }}>Made by Group 15 of Sopra FS25</span>
+          </Flex>
+        </Card>
       </footer>
     </NavigationLayout>
   );

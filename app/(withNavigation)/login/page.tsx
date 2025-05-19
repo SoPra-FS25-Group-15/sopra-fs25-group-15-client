@@ -64,47 +64,51 @@ const Login: React.FC = () => {
   return (
     <Flex style={{ justifyContent: "center", alignItems: "center", height: "calc(100vh - 106px" }}>
       <Card title="Login" style={{ width: "100%", maxWidth: 500 }}>
-        {notification && <Notification {...notification} />}
-        <div style={{ marginBottom: 16 }}>
-          <p>
-            Don&apos;t have an account yet? <Link href="/register">Register</Link>
-          </p>
-        </div>
-        <Form
-          form={form}
-          name="login"
-          layout="vertical"
-          variant="outlined"
-          initialValues={{ remember: true }}
-          autoComplete="off"
-          onFinish={handleLogin}
-        >
-          <Form.Item
-            name="email"
-            label="Email"
-            rules={[
-              { required: true, message: "Please input your email!" },
-              { type: "email", message: "Please input a valid email!" },
-            ]}
+        <Flex vertical gap={16} style={{ width: "100%" }}>
+          {notification && <Notification {...notification} />}
+          <div>
+            <p>
+              Don&apos;t have an account yet? <Link href="/register">Register</Link>
+            </p>
+          </div>
+          <Form
+            form={form}
+            name="login"
+            layout="vertical"
+            variant="outlined"
+            initialValues={{ remember: true }}
+            autoComplete="off"
+            onFinish={handleLogin}
           >
-            <Input placeholder="Enter email" />
-          </Form.Item>
-          <Form.Item
-            name="password"
-            label="Password"
-            rules={[{ required: true, message: "Please input your password!" }]}
-          >
-            <Input.Password
-              placeholder="Enter password"
-              iconRender={(visible) => (visible ? <EyeFilled /> : <EyeInvisibleOutlined />)}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit">
-              Login
-            </Button>
-          </Form.Item>
-        </Form>
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[
+                { required: true, message: "Please input your email!" },
+                { type: "email", message: "Please input a valid email!" },
+              ]}
+            >
+              <Input placeholder="Enter email" />
+            </Form.Item>
+            <Form.Item
+              name="password"
+              label="Password"
+              rules={[{ required: true, message: "Please input your password!" }]}
+            >
+              <Input.Password
+                placeholder="Enter password"
+                iconRender={(visible) => (visible ? <EyeFilled /> : <EyeInvisibleOutlined />)}
+              />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Flex justify="end" align="center" style={{ width: "100%", marginTop: 16 }}>
+                <Button type="primary" htmlType="submit">
+                  Login
+                </Button>
+              </Flex>
+            </Form.Item>
+          </Form>
+        </Flex>
       </Card>
     </Flex>
   );

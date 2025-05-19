@@ -96,7 +96,7 @@ const UserCard: React.FC<
         },
       }}
     >
-      <Flex gap={32} align="center" justify="space-between" style={{ height: "100%", width: "100%" }}>
+      <Flex gap={16} align="center" justify="space-between" style={{ height: "100%", width: "100%" }}>
         <Flex gap={iconsize == "large" ? 16 : 8} align="center">
           <Avatar
             size={iconsize == "large" ? 42 : 28}

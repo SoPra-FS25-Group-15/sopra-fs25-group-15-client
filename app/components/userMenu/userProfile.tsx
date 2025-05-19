@@ -55,12 +55,47 @@ const UserProfile: React.FC = () => {
             setEditMode(false);
           })
           .catch((err) => {
-            console.error("Update failed:", err);
-            setNotification({
-              type: "error",
-              message: "An error occurred while updating your profile: " + err.message,
-              onClose: () => setNotification(null),
-            });
+            if (err instanceof Error) {
+              console.error("Error updating profile:", err);
+              if (err.message.includes("400")) {
+                setNotification({
+                  type: "error",
+                  message: "Invalid input. Please check your data and try again",
+                  onClose: () => setNotification(null),
+                });
+              } else if (err.message.includes("401")) {
+                setNotification({
+                  type: "error",
+                  message: "You are not authorized to perform this action. Please log in again",
+                  onClose: () => setNotification(null),
+                });
+              } else if (err.message.includes("500")) {
+                setNotification({
+                  type: "error",
+                  message: "Server error. Please try again later.",
+                  onClose: () => setNotification(null),
+                });
+              } else if (err.message.includes("409")) {
+                setNotification({
+                  type: "error",
+                  message: "This username or email is already associated with another account",
+                  onClose: () => setNotification(null),
+                });
+              } else {
+                setNotification({
+                  type: "error",
+                  message: "An error occurred while updating your profile: " + err.message,
+                  onClose: () => setNotification(null),
+                });
+              }
+            } else {
+              console.error("An unknown error occurred during profile update", err);
+              setNotification({
+                type: "error",
+                message: "An unknown error occurred during profile update. Please check the console for details",
+                onClose: () => setNotification(null),
+              });
+            }
           })
           .finally(() => setLoading(false));
       })
