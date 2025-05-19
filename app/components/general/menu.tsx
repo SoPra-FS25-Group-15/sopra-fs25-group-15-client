@@ -1,7 +1,9 @@
-import { Button } from "antd";
+import { Button, Popover } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { MenuOutlined } from "@ant-design/icons";
+import useWindowSize from "@/hooks/useWndowSize";
 
 /**
  * Represents a single item within a menu.
@@ -81,25 +83,79 @@ const MenuItem: React.FC<MenuItem> = ({ label, link, onClick, subview }: MenuIte
 export type Menu = {
   items: MenuItem[];
   horizontal?: boolean;
+  breakpoint?: number;
   style?: React.CSSProperties;
 };
 
-const Menu: React.FC<Menu> = ({ items, horizontal, style }) => {
+const Menu: React.FC<Menu> = ({ items, horizontal, style, breakpoint }) => {
+  const { windowSize } = useWindowSize();
+  const [popoverVisible, setPopoverVisible] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!breakpoint) return;
+
+    const checkOverflow = () => {
+      const overflowing = windowSize.width < breakpoint;
+      setIsOverflowing(overflowing);
+    };
+
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
+    return () => window.removeEventListener("resize", checkOverflow);
+  });
+
   return (
-    <ul
-      style={{
-        display: "flex",
-        flexDirection: horizontal ? "row" : "column",
-        gap: horizontal ? 16 : 2,
-        alignItems: horizontal ? "center" : "flex-start",
-        listStyle: "none",
-        ...style,
-      }}
-    >
-      {items.map((item, index) => (
-        <MenuItem key={index} link={item.link} label={item.label} onClick={item.onClick} subview={item.subview} />
-      ))}
-    </ul>
+    <div style={{ overflow: "hidden" }}>
+      {isOverflowing ? (
+        <Popover
+          open={popoverVisible}
+          onOpenChange={setPopoverVisible}
+          placement="bottom"
+          trigger="hover"
+          mouseLeaveDelay={0.2}
+          content={
+            <ul
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                alignItems: "flex-start",
+                listStyle: "none",
+                ...style,
+              }}
+            >
+              {items.map((item, index) => (
+                <MenuItem
+                  key={index}
+                  link={item.link}
+                  label={item.label}
+                  onClick={item.onClick}
+                  subview={item.subview}
+                />
+              ))}
+            </ul>
+          }
+        >
+          <Button icon={<MenuOutlined />} />
+        </Popover>
+      ) : (
+        <ul
+          style={{
+            display: "flex",
+            flexDirection: horizontal ? "row" : "column",
+            gap: horizontal ? 16 : 2,
+            alignItems: horizontal ? "center" : "flex-start",
+            listStyle: "none",
+            ...style,
+          }}
+        >
+          {items.map((item, index) => (
+            <MenuItem key={index} link={item.link} label={item.label} onClick={item.onClick} subview={item.subview} />
+          ))}
+        </ul>
+      )}
+    </div>
   );
 };
 
