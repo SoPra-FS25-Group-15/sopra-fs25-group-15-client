@@ -153,8 +153,8 @@ reason).
 |                    | 17.5.2025 | [Commit](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/commit/d51aee1c1aaceb0d2d4d8bd70337032fa41004b1) | This implements a project description as readme in the backend. | This is required for the submission of M4. |
 | **@julienzb** | 18.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/173) | Improved UI and error message quality across the application | Enhances user experience by improving visuals, bringing content in line with final specifications and improving clarity of error messages |
 |                    | 19.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/174) | Responsive Menu, More Descriptive Error Messages, Bug Fixes | Enhances user experience by providing clearer feedback on error, fixing display bugs, and improving responsive design for a better experience across different screen sizes |
-| **[@githubUser3]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
-|                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
+| **@ctfBruce** | 18.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/336) | Added logic to update games played and games won | This is displayed on the user page for the limited stats we ended up implementing |
+|                    | 18.05.2025 | [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-client/pull/336) | Added tests for the aforementioned stats, also made M4 presentation | Just standard testing for any features. The M4 presentation is also next week, and I was tasked with making the slides |
 | **[@githubUser4]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **[@githubUser5]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
