@@ -159,5 +159,5 @@ reason).
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
 | **@zhenmei** | 15.05.2025 |  | As announced in the meeting of the 15.5.25, I use joker to take this week off. But I also expanded test to make sure the test coverage. |  |
 |                    |  16.05.2025  |  [PR](https://github.com/SoPra-FS25-Group-15/sopra-fs25-group-15-server/pull/328) | expand GameWebSocketControllerTest with more error handling tests and  edge case tests etc | Improve the test coverage to 78% |
-| **[@githubUser6]** | [date] | [Link to Commit 1] | [Brief description of the task] | [Why this contribution is relevant] |
+| **TongxiHu** | [date] | [Link to Commit 1] | I use joker to take this week off.| [Why this contribution is relevant] |
 |                    | [date] | [Link to Commit 2] | [Brief description of the task] | [Why this contribution is relevant] |
